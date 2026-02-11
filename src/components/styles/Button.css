@@ -1,0 +1,115 @@
+/**
+ * Button Component Styles
+ * 
+ * Matches Figma "Button" component (node 403:1874).
+ * 3 variants: primary, secondary, ghost
+ * 5 states: default, hover, pressed (active), disabled, focused
+ *
+ * Token mapping from Figma:
+ *   - Font: Mulish 16px/24px Regular (--font-size-body, --line-height-body, --font-weight-body)
+ *   - Padding: 8px 32px (--spacing-sm vertical, --spacing-lg horizontal)
+ *   - Border-radius: 1px (--radius-sm)
+ *   - Stroke: 1px default (--stroke-width-md), 2px focused (--stroke-width-lg)
+ */
+
+/* === Base === */
+.btn {
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-body);
+  line-height: var(--line-height-body);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--radius-sm);
+  border: var(--stroke-width-md) solid transparent;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* === Primary variant === */
+.btn--primary {
+  background-color: var(--color-surface-primary-button-surface-default);
+  color: var(--color-text-on-button);
+  border-color: transparent;
+}
+
+.btn--primary:hover:not(:disabled) {
+  background-color: var(--color-surface-primary-button-surface-hover);
+  color: var(--color-text-on-button);
+}
+
+.btn--primary:active:not(:disabled) {
+  background-color: var(--color-surface-primary-button-surface-selected);
+  color: var(--color-text-on-button);
+}
+
+.btn--primary:focus-visible {
+  outline: none;
+  border-color: var(--color-border-border-focused);
+  border-width: var(--stroke-width-lg);
+}
+
+/* === Secondary variant === */
+.btn--secondary {
+  background-color: var(--color-surface-secondary-button-surface-default);
+  color: var(--color-text-action);
+  border-color: var(--color-border-border-default);
+}
+
+.btn--secondary:hover:not(:disabled) {
+  background-color: var(--color-surface-secondary-button-surface-hover);
+  color: var(--color-text-action);
+}
+
+.btn--secondary:active:not(:disabled) {
+  background-color: var(--color-surface-primary-button-surface-selected);
+  color: var(--color-text-on-button);
+}
+
+.btn--secondary:focus-visible {
+  outline: none;
+  border-color: var(--color-border-border-focused);
+  border-width: var(--stroke-width-lg);
+}
+
+/* === Ghost variant === */
+.btn--ghost {
+  background-color: transparent;
+  color: var(--color-text-action);
+  border-color: transparent;
+}
+
+.btn--ghost:hover:not(:disabled) {
+  color: var(--color-text-on-button-ghost-hover);
+  text-decoration: underline;
+}
+
+.btn--ghost:active:not(:disabled) {
+  color: var(--color-text-on-button-ghost-hover);
+}
+
+.btn--ghost:focus-visible {
+  outline: none;
+  border-color: var(--color-border-border-focused);
+  border-width: var(--stroke-width-lg);
+}
+
+/* === Disabled state (all variants) === */
+.btn:disabled,
+.btn--disabled {
+  background-color: var(--color-surface-disabled);
+  color: var(--color-text-on-button);
+  border-color: transparent;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.btn--ghost:disabled,
+.btn--ghost.btn--disabled {
+  background-color: transparent;
+  color: var(--color-text-disabled);
+}

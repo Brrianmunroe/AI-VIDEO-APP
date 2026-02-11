@@ -1,0 +1,83 @@
+/**
+ * TextInput Component Styles
+ * 
+ * Matches Figma "Text Input" component (node 403:1908).
+ * 5 states: default, hover, selected, disabled, focused.
+ *
+ * Token mapping from Figma:
+ *   - Font: Mulish 16px/24px Regular
+ *   - Padding: 16px (--spacing-md)
+ *   - Border-radius: 1px (--radius-sm)
+ *   - Stroke: 1px (--stroke-width-md)
+ *   - Background: --color-surface-page-surface-default (#021016)
+ *   - Border default: --color-border-border-default (#074058)
+ *   - Border selected: --color-border-border-selected (#F9FDFF)
+ *   - Border focused: --color-border-border-focused (#119FDC)
+ *   - Text placeholder: --color-text-placeholder (#9E9E9E)
+ *   - Text selected: --color-text-selected (#F9FDFF)
+ */
+
+/* === Wrapper === */
+.text-input {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  width: 100%;
+}
+
+/* === Label === */
+.text-input__label {
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-label);
+  line-height: var(--line-height-label);
+  font-weight: var(--font-weight-label);
+  color: var(--color-text-label);
+}
+
+/* === Input field === */
+.text-input__field {
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  font-weight: var(--font-weight-body);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-sm);
+  border: var(--stroke-width-md) solid var(--color-border-border-default);
+  background-color: var(--color-surface-page-surface-default);
+  color: var(--color-text-heading);
+  outline: none;
+  transition: border-color 0.15s ease, color 0.15s ease;
+  width: 100%;
+}
+
+.text-input__field::placeholder {
+  color: var(--color-text-placeholder);
+}
+
+/* === Hover === */
+.text-input__field:hover:not(:disabled) {
+  border-color: var(--color-border-border-focused);
+}
+
+/* === Focus === */
+.text-input--focused .text-input__field,
+.text-input__field:focus {
+  border-color: var(--color-border-border-selected);
+  color: var(--color-text-selected);
+}
+
+/* === Disabled === */
+.text-input--disabled .text-input__label {
+  color: var(--color-text-disabled);
+}
+
+.text-input__field:disabled {
+  background-color: var(--color-surface-disabled);
+  border-color: var(--color-border-border-disabled);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+.text-input__field:disabled::placeholder {
+  color: var(--color-text-disabled);
+}

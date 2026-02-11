@@ -1,0 +1,117 @@
+/**
+ * HighlightContainer Component Styles
+ * Matches Figma "Highlight Container" (node 403:2158).
+ * Design system has no 62px token; consider adding --size-highlight-row-height.
+ */
+
+/* === Base === */
+.highlight {
+  display: flex;
+  align-items: stretch;
+  gap: var(--spacing-sm);
+  width: 100%;
+  height: 62px;
+  padding: 0 var(--spacing-sm) 0 0;
+  background-color: var(--color-surface-page-surface-default);
+  border: var(--stroke-width-md) solid var(--color-border-border-default);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+/* === Hover === */
+.highlight:hover:not(.highlight--disabled) {
+  border-color: var(--color-border-border-default);
+  background-color: var(--color-surface-secondary-button-surface-hover);
+}
+
+/* === Selected === */
+.highlight--selected {
+  border-color: var(--color-border-border-selected);
+}
+
+/* === Focus === */
+.highlight:focus-visible {
+  outline: none;
+  border-color: var(--color-border-border-focused);
+  border-width: var(--stroke-width-lg);
+}
+
+/* === Disabled === */
+.highlight--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* === Accepted: "Accepted" label in success green === */
+.highlight--accepted .highlight__count {
+  color: var(--color-text-success);
+}
+
+/* === Thumbnail: 16:9 aspect ratio, fills row height, no padding (edge-to-edge on left) === */
+.highlight__thumbnail {
+  height: 100%;
+  aspect-ratio: 16 / 9;
+  flex-shrink: 0;
+  overflow: hidden;
+  background-color: var(--color-surface-secondary-button-surface-hover);
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.highlight__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* === Text info === */
+.highlight__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xxs);
+  justify-content: center;
+  align-self: center;
+}
+
+.highlight__name {
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  font-weight: var(--font-weight-body);
+  color: var(--color-text-heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.highlight__count {
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
+  color: var(--color-text-action);
+}
+
+/* === Info action button === */
+.highlight__action {
+  flex-shrink: 0;
+  align-self: center;
+  background: transparent;
+  border: none;
+  padding: var(--spacing-xs);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.highlight__action:hover:not(:disabled) .icon {
+  color: var(--color-icon-hover);
+}
+
+.highlight__action:disabled {
+  cursor: not-allowed;
+}

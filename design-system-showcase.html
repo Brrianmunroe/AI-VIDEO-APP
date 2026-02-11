@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Design System Showcase</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;700;900&family=Space+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="src/styles/tokens.css">
+    <style>
+        /* === Reset === */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* === Base === */
+        body {
+            font-family: 'Mulish', sans-serif;
+            background: #021016;
+            color: #F9FDFF;
+            padding: 48px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* === Page Header === */
+        .page-title {
+            font-size: 48px;
+            font-weight: 900;
+            margin-bottom: 8px;
+            line-height: 1.15;
+        }
+
+        .page-subtitle {
+            font-size: 18px;
+            color: #A0D9F1;
+            margin-bottom: 48px;
+        }
+
+        /* === Section Headers === */
+        .section {
+            margin-bottom: 48px;
+        }
+
+        .section-title {
+            font-size: 28px;
+            font-weight: 900;
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #074058;
+            line-height: 1.3;
+        }
+
+        .section-subtitle {
+            font-size: 18px;
+            font-weight: 700;
+            margin-top: 24px;
+            margin-bottom: 16px;
+            color: #A0D9F1;
+            line-height: 1.4;
+        }
+
+        /* === Color Grids === */
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .swatch {
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #074058;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+
+        .swatch:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(17, 159, 220, 0.2);
+            border-color: #119FDC;
+        }
+
+        .swatch-color {
+            height: 80px;
+        }
+
+        .swatch-info {
+            padding: 8px 10px;
+            background: #074058;
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+
+        .swatch-name {
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .swatch-var {
+            opacity: 0.7;
+            word-break: break-all;
+        }
+
+        /* === Semantic Token Grid === */
+        .token-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .token-card {
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #074058;
+            transition: transform 0.15s;
+        }
+
+        .token-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(17, 159, 220, 0.2);
+        }
+
+        .token-preview {
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: 'Space Mono', monospace;
+        }
+
+        .token-info {
+            padding: 8px 10px;
+            background: #074058;
+            font-family: 'Space Mono', monospace;
+            font-size: 10px;
+            line-height: 1.4;
+        }
+
+        .token-name {
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .token-var {
+            opacity: 0.7;
+            word-break: break-all;
+        }
+
+        /* === Typography Samples === */
+        .type-sample {
+            margin-bottom: 16px;
+            padding: 20px 24px;
+            background: #074058;
+            border-radius: 8px;
+            border-left: 3px solid #119FDC;
+        }
+
+        .type-meta {
+            margin-top: 8px;
+            font-size: 11px;
+            font-family: 'Space Mono', monospace;
+            color: #A0D9F1;
+        }
+
+        /* === Demo Rows (Spacing, Radius, Stroke, Icons) === */
+        .demo-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 10px;
+            padding: 14px 20px;
+            background: #074058;
+            border-radius: 8px;
+        }
+
+        .demo-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 12px;
+            min-width: 220px;
+            color: #A0D9F1;
+            flex-shrink: 0;
+        }
+
+        .demo-bar {
+            height: 32px;
+            background: #119FDC;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        /* === Radius Demo === */
+        .radius-row {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .radius-box {
+            width: 90px;
+            height: 90px;
+            background: #119FDC;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-family: 'Space Mono', monospace;
+            text-align: center;
+            color: #021016;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+
+        /* === Stroke Demo === */
+        .stroke-row {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .stroke-box {
+            width: 110px;
+            height: 56px;
+            background: transparent;
+            border-style: solid;
+            border-color: #119FDC;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-family: 'Space Mono', monospace;
+            color: #119FDC;
+            text-align: center;
+            line-height: 1.3;
+            border-radius: 4px;
+        }
+
+        /* === Icon Size Demo === */
+        .icon-row {
+            display: flex;
+            gap: 32px;
+            align-items: flex-end;
+            margin-bottom: 16px;
+        }
+
+        .icon-item {
+            text-align: center;
+        }
+
+        .icon-box {
+            background: #119FDC;
+            border-radius: 4px;
+            margin: 0 auto 8px;
+        }
+
+        .icon-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            color: #A0D9F1;
+            line-height: 1.4;
+        }
+
+        /* === Usage Code Section === */
+        .usage-block {
+            background: #074058;
+            padding: 28px;
+            border-radius: 8px;
+        }
+
+        .usage-block h3 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            line-height: 1.3;
+        }
+
+        .usage-block p {
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .usage-block code {
+            font-family: 'Space Mono', monospace;
+            font-size: 12px;
+            background: #02161E;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #70C6EA;
+        }
+
+        .usage-block pre {
+            background: #02161E;
+            padding: 16px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin-top: 8px;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .usage-block pre code {
+            background: transparent;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <!-- Page Header -->
+        <h1 class="page-title">Design System Showcase</h1>
+        <p class="page-subtitle">Complete visual reference for all design tokens used in the AI Video Editing app</p>
+
+        <!-- ===================== BASE COLORS ===================== -->
+
+        <!-- Blue Scale -->
+        <div class="section">
+            <h2 class="section-title">Base Colors &mdash; Blue</h2>
+            <div class="color-grid">
+                <div class="swatch"><div class="swatch-color" style="background:#F9FDFF"></div><div class="swatch-info"><div class="swatch-name">blue-0</div><div class="swatch-var">#F9FDFF</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#CFECF8"></div><div class="swatch-info"><div class="swatch-name">blue-10</div><div class="swatch-var">#CFECF8</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#A0D9F1"></div><div class="swatch-info"><div class="swatch-name">blue-200</div><div class="swatch-var">#A0D9F1</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#70C6EA"></div><div class="swatch-info"><div class="swatch-name">blue-300</div><div class="swatch-var">#70C6EA</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#40B2E3"></div><div class="swatch-info"><div class="swatch-name">blue-400</div><div class="swatch-var">#40B2E3</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#119FDC"></div><div class="swatch-info"><div class="swatch-name">blue-500</div><div class="swatch-var">#119FDC</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#0D7FB0"></div><div class="swatch-info"><div class="swatch-name">blue-600</div><div class="swatch-var">#0D7FB0</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#0A6084"></div><div class="swatch-info"><div class="swatch-name">blue-700</div><div class="swatch-var">#0A6084</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#074058"></div><div class="swatch-info"><div class="swatch-name">blue-800</div><div class="swatch-var">#074058</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#02161E"></div><div class="swatch-info"><div class="swatch-name">blue-900</div><div class="swatch-var">#02161E</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#021016"></div><div class="swatch-info"><div class="swatch-name">blue-950</div><div class="swatch-var">#021016</div></div></div>
+            </div>
+        </div>
+
+        <!-- Grey Scale -->
+        <div class="section">
+            <h2 class="section-title">Base Colors &mdash; Grey</h2>
+            <div class="color-grid">
+                <div class="swatch"><div class="swatch-color" style="background:#FFFFFF"></div><div class="swatch-info"><div class="swatch-name">grey-0</div><div class="swatch-var">#FFFFFF</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#F2F2F2"></div><div class="swatch-info"><div class="swatch-name">grey-10</div><div class="swatch-var">#F2F2F2</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#DCDCDC"></div><div class="swatch-info"><div class="swatch-name">grey-200</div><div class="swatch-var">#DCDCDC</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#C8C8C8"></div><div class="swatch-info"><div class="swatch-name">grey-300</div><div class="swatch-var">#C8C8C8</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#AEAEAE"></div><div class="swatch-info"><div class="swatch-name">grey-400</div><div class="swatch-var">#AEAEAE</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#9E9E9E"></div><div class="swatch-info"><div class="swatch-name">grey-500</div><div class="swatch-var">#9E9E9E</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#8A8A8A"></div><div class="swatch-info"><div class="swatch-name">grey-600</div><div class="swatch-var">#8A8A8A</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#696969"></div><div class="swatch-info"><div class="swatch-name">grey-700</div><div class="swatch-var">#696969</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#515151"></div><div class="swatch-info"><div class="swatch-name">grey-800</div><div class="swatch-var">#515151</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#343434"></div><div class="swatch-info"><div class="swatch-name">grey-900</div><div class="swatch-var">#343434</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#242424"></div><div class="swatch-info"><div class="swatch-name">grey-950</div><div class="swatch-var">#242424</div></div></div>
+            </div>
+        </div>
+
+        <!-- Green Scale -->
+        <div class="section">
+            <h2 class="section-title">Base Colors &mdash; Green</h2>
+            <div class="color-grid">
+                <div class="swatch"><div class="swatch-color" style="background:#EDFDF7"></div><div class="swatch-info"><div class="swatch-name">green-0</div><div class="swatch-var">#EDFDF7</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#DAFAEF"></div><div class="swatch-info"><div class="swatch-name">green-10</div><div class="swatch-var">#DAFAEF</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#47E6B1"></div><div class="swatch-info"><div class="swatch-name">green-500</div><div class="swatch-var">#47E6B1</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#071712"></div><div class="swatch-info"><div class="swatch-name">green-950</div><div class="swatch-var">#071712</div></div></div>
+            </div>
+        </div>
+
+        <!-- Yellow Scale -->
+        <div class="section">
+            <h2 class="section-title">Base Colors &mdash; Yellow</h2>
+            <div class="color-grid">
+                <div class="swatch"><div class="swatch-color" style="background:#FDF6E8"></div><div class="swatch-info"><div class="swatch-name">yellow-0</div><div class="swatch-var">#FDF6E8</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#EAA81A"></div><div class="swatch-info"><div class="swatch-name">yellow-500</div><div class="swatch-var">#EAA81A</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#171103"></div><div class="swatch-info"><div class="swatch-name">yellow-950</div><div class="swatch-var">#171103</div></div></div>
+            </div>
+        </div>
+
+        <!-- Red Scale -->
+        <div class="section">
+            <h2 class="section-title">Base Colors &mdash; Red</h2>
+            <div class="color-grid">
+                <div class="swatch"><div class="swatch-color" style="background:#FCEFED"></div><div class="swatch-info"><div class="swatch-name">red-0</div><div class="swatch-var">#FCEFED</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#E65F47"></div><div class="swatch-info"><div class="swatch-name">red-500</div><div class="swatch-var">#E65F47</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#170A07"></div><div class="swatch-info"><div class="swatch-name">red-950</div><div class="swatch-var">#170A07</div></div></div>
+            </div>
+        </div>
+
+        <!-- Turquoise Scale -->
+        <div class="section">
+            <h2 class="section-title">Base Colors &mdash; Turquoise</h2>
+            <div class="color-grid">
+                <div class="swatch"><div class="swatch-color" style="background:#ECF8F9"></div><div class="swatch-info"><div class="swatch-name">turq-0</div><div class="swatch-var">#ECF8F9</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#3EB9C0"></div><div class="swatch-info"><div class="swatch-name">turq-500</div><div class="swatch-var">#3EB9C0</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#061313"></div><div class="swatch-info"><div class="swatch-name">turq-950</div><div class="swatch-var">#061313</div></div></div>
+            </div>
+        </div>
+
+        <!-- ===================== SEMANTIC COLOR SCALES ===================== -->
+
+        <!-- Primary Scale -->
+        <div class="section">
+            <h2 class="section-title">Semantic Colors &mdash; Primary</h2>
+            <div class="color-grid">
+                <div class="swatch"><div class="swatch-color" style="background:#F9FDFF"></div><div class="swatch-info"><div class="swatch-name">primary-0</div><div class="swatch-var">#F9FDFF</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#70C6EA"></div><div class="swatch-info"><div class="swatch-name">primary-30</div><div class="swatch-var">#70C6EA</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#CFECF8"></div><div class="swatch-info"><div class="swatch-name">primary-200</div><div class="swatch-var">#CFECF8</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#A0D9F1"></div><div class="swatch-info"><div class="swatch-name">primary-300</div><div class="swatch-var">#A0D9F1</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#40B2E3"></div><div class="swatch-info"><div class="swatch-name">primary-400</div><div class="swatch-var">#40B2E3</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#119FDC"></div><div class="swatch-info"><div class="swatch-name">primary-500</div><div class="swatch-var">#119FDC</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#0D7FB0"></div><div class="swatch-info"><div class="swatch-name">primary-600</div><div class="swatch-var">#0D7FB0</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#0A6084"></div><div class="swatch-info"><div class="swatch-name">primary-700</div><div class="swatch-var">#0A6084</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#074058"></div><div class="swatch-info"><div class="swatch-name">primary-800</div><div class="swatch-var">#074058</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#02161E"></div><div class="swatch-info"><div class="swatch-name">primary-900</div><div class="swatch-var">#02161E</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#021016"></div><div class="swatch-info"><div class="swatch-name">primary-950</div><div class="swatch-var">#021016</div></div></div>
+            </div>
+        </div>
+
+        <!-- Status Colors: Info, Warning, Error, Neutral, Success -->
+        <div class="section">
+            <h2 class="section-title">Semantic Colors &mdash; Status</h2>
+
+            <h3 class="section-subtitle">Info</h3>
+            <div class="color-grid">
+                <div class="swatch"><div class="swatch-color" style="background:#ECF8F9"></div><div class="swatch-info"><div class="swatch-name">info-0</div><div class="swatch-var">#ECF8F9</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#3EB9C0"></div><div class="swatch-info"><div class="swatch-name">info-500</div><div class="swatch-var">#3EB9C0</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#061313"></div><div class="swatch-info"><div class="swatch-name">info-950</div><div class="swatch-var">#061313</div></div></div>
+            </div>
+
+            <h3 class="section-subtitle">Warning</h3>
+            <div class="color-grid">
+                <div class="swatch"><div class="swatch-color" style="background:#FDF6E8"></div><div class="swatch-info"><div class="swatch-name">warning-0</div><div class="swatch-var">#FDF6E8</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#EAA81A"></div><div class="swatch-info"><div class="swatch-name">warning-500</div><div class="swatch-var">#EAA81A</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#171103"></div><div class="swatch-info"><div class="swatch-name">warning-950</div><div class="swatch-var">#171103</div></div></div>
+            </div>
+
+            <h3 class="section-subtitle">Error</h3>
+            <div class="color-grid">
+                <div class="swatch"><div class="swatch-color" style="background:#FCEFED"></div><div class="swatch-info"><div class="swatch-name">error-0</div><div class="swatch-var">#FCEFED</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#E65F47"></div><div class="swatch-info"><div class="swatch-name">error-500</div><div class="swatch-var">#E65F47</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#170A07"></div><div class="swatch-info"><div class="swatch-name">error-950</div><div class="swatch-var">#170A07</div></div></div>
+            </div>
+
+            <h3 class="section-subtitle">Neutral</h3>
+            <div class="color-grid">
+                <div class="swatch"><div class="swatch-color" style="background:#FFFFFF"></div><div class="swatch-info"><div class="swatch-name">neutral-0</div><div class="swatch-var">#FFFFFF</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#9E9E9E"></div><div class="swatch-info"><div class="swatch-name">neutral-500</div><div class="swatch-var">#9E9E9E</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#242424"></div><div class="swatch-info"><div class="swatch-name">neutral-950</div><div class="swatch-var">#242424</div></div></div>
+            </div>
+
+            <h3 class="section-subtitle">Success</h3>
+            <div class="color-grid">
+                <div class="swatch"><div class="swatch-color" style="background:#EDFDF7"></div><div class="swatch-info"><div class="swatch-name">success-0</div><div class="swatch-var">#EDFDF7</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#47E6B1"></div><div class="swatch-info"><div class="swatch-name">success-500</div><div class="swatch-var">#47E6B1</div></div></div>
+                <div class="swatch"><div class="swatch-color" style="background:#071712"></div><div class="swatch-info"><div class="swatch-name">success-950</div><div class="swatch-var">#071712</div></div></div>
+            </div>
+        </div>
+
+        <!-- ===================== SEMANTIC TEXT COLORS ===================== -->
+        <div class="section">
+            <h2 class="section-title">Semantic Text Colors</h2>
+            <div class="token-grid">
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#F9FDFF;">heading</div><div class="token-info"><div class="token-name">text-heading</div><div class="token-var">--color-text-heading</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#9E9E9E;">placeholder</div><div class="token-info"><div class="token-name">text-placeholder</div><div class="token-var">--color-text-placeholder</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#9E9E9E;">label</div><div class="token-info"><div class="token-name">text-label</div><div class="token-var">--color-text-label</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#119FDC;">action</div><div class="token-info"><div class="token-name">text-action</div><div class="token-var">--color-text-action</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#119FDC; color:#021016;">on-button</div><div class="token-info"><div class="token-name">text-on-button</div><div class="token-var">--color-text-on-button</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#70C6EA;">ghost-hover</div><div class="token-info"><div class="token-name">text-on-button-ghost-hover</div><div class="token-var">--color-text-on-button-ghost-hover</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#696969;">disabled</div><div class="token-info"><div class="token-name">text-disabled</div><div class="token-var">--color-text-disabled</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#F9FDFF;">selected</div><div class="token-info"><div class="token-name">text-selected</div><div class="token-var">--color-text-selected</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#F9FDFF;">transcript</div><div class="token-info"><div class="token-name">text-transcript</div><div class="token-var">--color-text-transcript</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#119FDC; color:#021016;">transcript-highlighted</div><div class="token-info"><div class="token-name">text-transcript-highlighted</div><div class="token-var">--color-text-transcript-highlighted</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#47E6B1;">success</div><div class="token-info"><div class="token-name">text-success</div><div class="token-var">--color-text-success</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#EAA81A;">warning</div><div class="token-info"><div class="token-name">text-warning</div><div class="token-var">--color-text-warning</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#E65F47;">error</div><div class="token-info"><div class="token-name">text-error</div><div class="token-var">--color-text-error</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#3EB9C0;">info</div><div class="token-info"><div class="token-name">text-info</div><div class="token-var">--color-text-info</div></div></div>
+            </div>
+        </div>
+
+        <!-- ===================== SEMANTIC SURFACE COLORS ===================== -->
+        <div class="section">
+            <h2 class="section-title">Semantic Surface Colors</h2>
+            <div class="token-grid">
+                <div class="token-card"><div class="token-preview" style="background:#021016; color:#F9FDFF; border: 1px solid #074058;">page-surface-default</div><div class="token-info"><div class="token-name">surface-page-surface-default</div><div class="token-var">--color-surface-page-surface-default</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#119FDC; color:#021016;">primary-btn-default</div><div class="token-info"><div class="token-name">primary-button-surface-default</div><div class="token-var">--color-surface-primary-button-surface-default</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#70C6EA; color:#021016;">primary-btn-hover</div><div class="token-info"><div class="token-name">primary-button-surface-hover</div><div class="token-var">--color-surface-primary-button-surface-hover</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#F9FDFF; color:#021016;">primary-btn-selected</div><div class="token-info"><div class="token-name">primary-button-surface-selected</div><div class="token-var">--color-surface-primary-button-surface-selected</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#021016; color:#F9FDFF; border: 1px solid #074058;">secondary-btn-default</div><div class="token-info"><div class="token-name">secondary-button-surface-default</div><div class="token-var">--color-surface-secondary-button-surface-default</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#F9FDFF;">secondary-btn-hover</div><div class="token-info"><div class="token-name">secondary-button-surface-hover</div><div class="token-var">--color-surface-secondary-button-surface-hover</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#47E6B1; color:#021016;">success</div><div class="token-info"><div class="token-name">surface-success</div><div class="token-var">--color-surface-success</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#696969; color:#F9FDFF;">disabled</div><div class="token-info"><div class="token-name">surface-disabled</div><div class="token-var">--color-surface-disabled</div></div></div>
+            </div>
+        </div>
+
+        <!-- ===================== SEMANTIC ICON COLORS ===================== -->
+        <div class="section">
+            <h2 class="section-title">Semantic Icon Colors</h2>
+            <div class="token-grid">
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#9E9E9E; font-size:28px;">&#9679; primary</div><div class="token-info"><div class="token-name">icon-primary</div><div class="token-var">--color-icon-primary</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#119FDC; font-size:28px;">&#9679; secondary</div><div class="token-info"><div class="token-name">icon-secondary</div><div class="token-var">--color-icon-secondary</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#70C6EA; font-size:28px;">&#9679; hover</div><div class="token-info"><div class="token-name">icon-hover</div><div class="token-var">--color-icon-hover</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#F9FDFF; font-size:28px;">&#9679; selected</div><div class="token-info"><div class="token-name">icon-selected</div><div class="token-var">--color-icon-selected</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#696969; font-size:28px;">&#9679; disabled</div><div class="token-info"><div class="token-name">icon-disabled</div><div class="token-var">--color-icon-disabled</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#3EB9C0; font-size:28px;">&#9679; info</div><div class="token-info"><div class="token-name">icon-info</div><div class="token-var">--color-icon-info</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#47E6B1; font-size:28px;">&#9679; success</div><div class="token-info"><div class="token-name">icon-success</div><div class="token-var">--color-icon-success</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#EAA81A; font-size:28px;">&#9679; warning</div><div class="token-info"><div class="token-name">icon-warning</div><div class="token-var">--color-icon-warning</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#E65F47; font-size:28px;">&#9679; error</div><div class="token-info"><div class="token-name">icon-error</div><div class="token-var">--color-icon-error</div></div></div>
+            </div>
+        </div>
+
+        <!-- ===================== SEMANTIC BORDER COLORS ===================== -->
+        <div class="section">
+            <h2 class="section-title">Semantic Border Colors</h2>
+            <div class="token-grid">
+                <div class="token-card"><div class="token-preview" style="background:#021016; border:3px solid #074058;">border-default</div><div class="token-info"><div class="token-name">border-default</div><div class="token-var">--color-border-border-default</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#021016; border:3px solid #F9FDFF;">border-selected</div><div class="token-info"><div class="token-name">border-selected</div><div class="token-var">--color-border-border-selected</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#021016; border:3px solid #119FDC;">border-focused</div><div class="token-info"><div class="token-name">border-focused</div><div class="token-var">--color-border-border-focused</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#021016; border:3px solid #696969;">border-disabled</div><div class="token-info"><div class="token-name">border-disabled</div><div class="token-var">--color-border-border-disabled</div></div></div>
+            </div>
+        </div>
+
+        <!-- ===================== TYPOGRAPHY ===================== -->
+        <div class="section">
+            <h2 class="section-title">Typography</h2>
+
+            <h3 class="section-subtitle">Headings</h3>
+            <div class="type-sample">
+                <div style="font-size:48px; font-weight:900; line-height:56px;">Heading 01</div>
+                <div class="type-meta">48px / 56px / 900 &mdash; --font-size-heading-01</div>
+            </div>
+            <div class="type-sample">
+                <div style="font-size:32px; font-weight:900; line-height:40px;">Heading 02</div>
+                <div class="type-meta">32px / 40px / 900 &mdash; --font-size-heading-02</div>
+            </div>
+            <div class="type-sample">
+                <div style="font-size:20px; font-weight:700; line-height:28px;">Heading 03</div>
+                <div class="type-meta">20px / 28px / 700 &mdash; --font-size-heading-03</div>
+            </div>
+            <div class="type-sample">
+                <div style="font-size:16px; font-weight:700; line-height:24px;">Heading 04</div>
+                <div class="type-meta">16px / 24px / 700 &mdash; --font-size-heading-04</div>
+            </div>
+
+            <h3 class="section-subtitle">Body &amp; UI Text</h3>
+            <div class="type-sample">
+                <div style="font-size:16px; font-weight:400; line-height:24px;">Body text &mdash; The quick brown fox jumps over the lazy dog.</div>
+                <div class="type-meta">16px / 24px / 400 &mdash; --font-size-body</div>
+            </div>
+            <div class="type-sample">
+                <div style="font-size:12px; font-weight:400; line-height:16px;">Label text</div>
+                <div class="type-meta">12px / 16px / 400 &mdash; --font-size-label</div>
+            </div>
+            <div class="type-sample">
+                <div style="font-size:12px; font-weight:400; line-height:16px; opacity:0.7;">Caption text</div>
+                <div class="type-meta">12px / 16px / 400 &mdash; --font-size-caption</div>
+            </div>
+
+            <h3 class="section-subtitle">Numbers (Space Mono)</h3>
+            <div class="type-sample">
+                <div style="font-family:'Space Mono', monospace; font-size:12px; line-height:16px;">number-sm: 00:01:23:15</div>
+                <div class="type-meta">12px / 16px &mdash; --font-size-number-sm</div>
+            </div>
+            <div class="type-sample">
+                <div style="font-family:'Space Mono', monospace; font-size:16px; line-height:24px;">number-md: 00:01:23:15</div>
+                <div class="type-meta">16px / 24px &mdash; --font-size-number-md</div>
+            </div>
+        </div>
+
+        <!-- ===================== SPACING ===================== -->
+        <div class="section">
+            <h2 class="section-title">Spacing Scale</h2>
+            <div class="demo-row"><span class="demo-label">none &mdash; 0px</span><div class="demo-bar" style="width:0px; min-width:2px; opacity:0.3;"></div></div>
+            <div class="demo-row"><span class="demo-label">xxs &mdash; 1px</span><div class="demo-bar" style="width:1px; min-width:2px;"></div></div>
+            <div class="demo-row"><span class="demo-label">xs &mdash; 4px</span><div class="demo-bar" style="width:4px;"></div></div>
+            <div class="demo-row"><span class="demo-label">sm &mdash; 8px</span><div class="demo-bar" style="width:8px;"></div></div>
+            <div class="demo-row"><span class="demo-label">md &mdash; 16px</span><div class="demo-bar" style="width:16px;"></div></div>
+            <div class="demo-row"><span class="demo-label">lg &mdash; 32px</span><div class="demo-bar" style="width:32px;"></div></div>
+            <div class="demo-row"><span class="demo-label">xl &mdash; 64px</span><div class="demo-bar" style="width:64px;"></div></div>
+            <div class="demo-row"><span class="demo-label">2xl &mdash; 96px</span><div class="demo-bar" style="width:96px;"></div></div>
+        </div>
+
+        <!-- ===================== BORDER RADIUS ===================== -->
+        <div class="section">
+            <h2 class="section-title">Border Radius</h2>
+            <div class="radius-row">
+                <div class="radius-box" style="border-radius:0px;">none<br>0px</div>
+                <div class="radius-box" style="border-radius:1px;">sm<br>1px</div>
+                <div class="radius-box" style="border-radius:4px;">md<br>4px</div>
+                <div class="radius-box" style="border-radius:8px;">lg<br>8px</div>
+                <div class="radius-box" style="border-radius:100px;">round<br>100px</div>
+            </div>
+        </div>
+
+        <!-- ===================== STROKE WIDTH ===================== -->
+        <div class="section">
+            <h2 class="section-title">Stroke Width</h2>
+            <div class="stroke-row">
+                <div class="stroke-box" style="border-width:0px;">none<br>0px</div>
+                <div class="stroke-box" style="border-width:0.5px;">sm<br>0.5px</div>
+                <div class="stroke-box" style="border-width:1px;">md<br>1px</div>
+                <div class="stroke-box" style="border-width:2px;">lg<br>2px</div>
+            </div>
+        </div>
+
+        <!-- ===================== ICON SIZE ===================== -->
+        <div class="section">
+            <h2 class="section-title">Icon Size</h2>
+            <div class="icon-row">
+                <div class="icon-item">
+                    <div class="icon-box" style="width:16px; height:16px;"></div>
+                    <div class="icon-label">sm<br>16px</div>
+                </div>
+                <div class="icon-item">
+                    <div class="icon-box" style="width:24px; height:24px;"></div>
+                    <div class="icon-label">md<br>24px</div>
+                </div>
+                <div class="icon-item">
+                    <div class="icon-box" style="width:44px; height:44px;"></div>
+                    <div class="icon-label">lg<br>44px</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================== USAGE REFERENCE ===================== -->
+        <div class="section">
+            <h2 class="section-title">Usage in Code</h2>
+            <div class="usage-block">
+                <h3>CSS Variable Reference</h3>
+                <p>Import <code>src/styles/tokens.css</code> and use these variables in your components:</p>
+                <pre><code>/* Base Colors */
+var(--color-blue-500)        /* #119FDC */
+var(--color-grey-500)        /* #9E9E9E */
+var(--color-green-500)       /* #47E6B1 */
+var(--color-yellow-500)      /* #EAA81A */
+var(--color-red-500)         /* #E65F47 */
+var(--color-turq-500)        /* #3EB9C0 */
+
+/* Semantic Color Scales */
+var(--color-primary-500)     /* #119FDC */
+var(--color-info-500)        /* #3EB9C0 */
+var(--color-warning-500)     /* #EAA81A */
+var(--color-error-500)       /* #E65F47 */
+var(--color-neutral-500)     /* #9E9E9E */
+var(--color-success-500)     /* #47E6B1 */
+
+/* Text Colors */
+var(--color-text-heading)              /* #F9FDFF */
+var(--color-text-action)               /* #119FDC */
+var(--color-text-on-button)            /* #021016 */
+var(--color-text-disabled)             /* #696969 */
+var(--color-text-transcript)           /* #F9FDFF */
+var(--color-text-transcript-highlighted) /* #021016 */
+
+/* Surface Colors */
+var(--color-surface-page-surface-default)
+var(--color-surface-primary-button-surface-default)
+var(--color-surface-primary-button-surface-hover)
+var(--color-surface-secondary-button-surface-default)
+
+/* Icon Colors */
+var(--color-icon-primary)    /* #9E9E9E */
+var(--color-icon-secondary)  /* #119FDC */
+var(--color-icon-hover)      /* #70C6EA */
+var(--color-icon-selected)   /* #F9FDFF */
+
+/* Border Colors */
+var(--color-border-border-default)     /* #074058 */
+var(--color-border-border-focused)     /* #119FDC */
+var(--color-border-border-disabled)    /* #696969 */
+
+/* Typography */
+var(--font-family-body)      /* Mulish */
+var(--font-family-numbers)   /* Space Mono */
+var(--font-size-heading-01)  /* 48px */
+var(--font-size-body)        /* 16px */
+var(--font-weight-heading-01) /* 900 */
+var(--line-height-heading-01) /* 56px */
+
+/* Spacing */
+var(--spacing-xs)   /* 4px */
+var(--spacing-sm)   /* 8px */
+var(--spacing-md)   /* 16px */
+var(--spacing-lg)   /* 32px */
+var(--spacing-xl)   /* 64px */
+var(--spacing-2xl)  /* 96px */
+
+/* Border Radius */
+var(--radius-sm)    /* 1px */
+var(--radius-md)    /* 4px */
+var(--radius-lg)    /* 8px */
+var(--radius-round) /* 100px */
+
+/* Stroke Width */
+var(--stroke-width-sm) /* 0.5px */
+var(--stroke-width-md) /* 1px */
+var(--stroke-width-lg) /* 2px */
+
+/* Icon Size */
+var(--icon-size-sm) /* 16px */
+var(--icon-size-md) /* 24px */
+var(--icon-size-lg) /* 44px */</code></pre>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

@@ -1,0 +1,54 @@
+/* Fill viewport: header + main fill app-main without overflow */
+.timeline-review {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--color-surface-page-surface-default);
+  color: var(--color-text-heading);
+}
+
+.timeline-review__main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-md);
+  overflow: hidden;
+}
+
+/* Playback module fills remaining space; player + timeline share it so both stay visible */
+.timeline-review__main .playback-module {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Video playback (player + toolbar) takes the rest (~60%); timeline gets 40% */
+.timeline-review__main .playback-module__player-section {
+  flex: 1 1 0%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.timeline-review__main .playback-module__player {
+  flex: 1;
+  min-height: 0;
+}
+
+.timeline-review__main .playback-module__toolbar {
+  flex-shrink: 0;
+}
+
+.timeline-review__main .playback-module__timeline {
+  flex: 0 0 40%;
+  min-height: 120px;
+  overflow: hidden;
+}

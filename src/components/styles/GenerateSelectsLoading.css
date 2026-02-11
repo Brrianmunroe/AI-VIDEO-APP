@@ -1,0 +1,94 @@
+.generate-selects-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-2xl) 0;
+  width: 460px;
+  margin: 0 auto;
+}
+
+.generate-selects-loading-bar-wrap {
+  width: 460px;
+  margin-bottom: var(--spacing-sm);
+}
+
+.generate-selects-loading-bar-track {
+  width: 100%;
+  height: 16px;
+  background-color: var(--color-border-border-default);
+  border-radius: var(--radius-none);
+  overflow: hidden;
+}
+
+.generate-selects-loading-bar-fill {
+  height: 100%;
+  background-color: var(--color-surface-primary-button-surface-default);
+  border-radius: var(--radius-none);
+  transition: width 0.2s ease-out;
+}
+
+.generate-selects-loading-percent {
+  font-family: var(--font-family-numbers);
+  font-size: var(--font-size-number-md);
+  line-height: var(--line-height-number-md);
+  color: var(--color-text-heading);
+  margin: 0 0 var(--spacing-md);
+  min-width: 3ch;
+  text-align: center;
+}
+
+.generate-selects-loading-steps-wrap {
+  width: 460px;
+  display: flex;
+  justify-content: center;
+}
+
+.generate-selects-loading-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: fit-content;
+  text-align: left;
+}
+
+.generate-selects-loading-step {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-xs) 0;
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  text-align: left;
+}
+
+.generate-selects-loading-step-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.generate-selects-loading-step--pending .generate-selects-loading-step-label {
+  color: var(--color-text-disabled);
+}
+
+.generate-selects-loading-step--active .generate-selects-loading-step-label {
+  color: var(--color-text-action);
+}
+
+.generate-selects-loading-step--completed .generate-selects-loading-step-label {
+  color: var(--color-text-success);
+}
+
+.generate-selects-loading-spinner {
+  animation: generate-selects-spin 0.8s linear infinite;
+}
+
+@keyframes generate-selects-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

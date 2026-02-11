@@ -1,0 +1,24 @@
+.generate-selects-button {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background-color: var(--color-surface-primary-button-surface-default);
+  color: var(--color-text-on-button);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-label);
+  font-family: var(--font-family-body);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.generate-selects-button:hover:not(:disabled) {
+  background-color: var(--color-surface-primary-button-surface-hover);
+  transform: translateY(-1px);
+  /* Design system has no shadow token; consider adding --shadow-button-hover in design-system.json */
+  box-shadow: 0 var(--spacing-xs) var(--spacing-md) var(--color-primary-800);
+}
+
+.generate-selects-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

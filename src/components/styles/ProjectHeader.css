@@ -1,0 +1,67 @@
+/* Breadcrumb header: consistent across all screens (Import Media, Timeline, Timeline Review) */
+.project-header {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  /* Design system has no 36px token; consider adding --size-header-min-height or use scale */
+  min-height: 36px;
+  margin: 0;
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: var(--color-surface-page-surface-default);
+  border-bottom: var(--stroke-width-md) solid var(--color-border-border-default);
+  box-sizing: border-box;
+}
+
+.back-button {
+  background: none;
+  border: none;
+  color: var(--color-icon-primary);
+  font-size: var(--font-size-heading-03);
+  cursor: pointer;
+  padding-left: 0;
+  padding-right: 0;
+  margin-right: var(--spacing-md);
+  height: 100%;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  border-radius: var(--radius-none);
+  transition: color 0.15s ease;
+}
+
+.back-button:hover {
+  color: var(--color-icon-hover);
+}
+
+.back-button:hover .icon {
+  color: var(--color-icon-hover);
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-body);
+  color: var(--color-grey-200);
+  height: 100%;
+  padding: 0 var(--spacing-sm);
+}
+
+.breadcrumb-item {
+  display: inline-flex;
+  align-items: center;
+}
+
+.breadcrumb-project {
+  color: var(--color-text-heading);
+  font-weight: var(--font-weight-label);
+}
+
+.breadcrumb-separator {
+  color: var(--color-grey-600);
+}
+
+.breadcrumb-current {
+  color: var(--color-grey-400);
+}

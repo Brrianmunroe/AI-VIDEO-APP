@@ -1,0 +1,114 @@
+.media-file-card {
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.media-file-card:hover {
+  transform: translateY(-2px);
+}
+
+.media-file-card.master-audio-selected {
+  border: var(--stroke-width-lg) solid var(--color-border-border-focused);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-xxs);
+}
+
+.media-thumbnail {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background-color: var(--color-blue-900);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: var(--spacing-xs);
+}
+
+.video-thumbnail,
+.audio-waveform {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thumbnail-placeholder {
+  font-size: var(--font-size-heading-01);
+  opacity: 0.5;
+}
+
+.audio-waveform {
+  background: linear-gradient(180deg, var(--color-surface-page-surface-default) 0%, var(--color-blue-900) 100%);
+}
+
+.waveform-placeholder {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  height: 60%;
+  width: 80%;
+}
+
+.waveform-bar {
+  width: var(--spacing-sm);
+  background-color: var(--color-primary-500);
+  border-radius: var(--radius-sm);
+  min-height: var(--spacing-xs);
+}
+
+.type-icon {
+  position: absolute;
+  bottom: var(--spacing-xs);
+  left: var(--spacing-xs);
+  font-size: var(--font-size-heading-03);
+  /* Design system has no overlay token; consider adding --color-overlay-over-card */
+  background-color: color-mix(in srgb, var(--color-primary-950) 60%, transparent);
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+}
+
+.duration-overlay {
+  position: absolute;
+  bottom: var(--spacing-xs);
+  right: var(--spacing-xs);
+  /* Design system has no overlay token; consider adding --color-overlay-over-card */
+  background-color: color-mix(in srgb, var(--color-primary-950) 70%, transparent);
+  color: var(--color-text-heading);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-label);
+  font-weight: var(--font-weight-label);
+}
+
+.master-audio-indicator {
+  position: absolute;
+  top: var(--spacing-xs);
+  right: var(--spacing-xs);
+  font-size: var(--font-size-heading-03);
+  /* Design system has no overlay token; consider adding --color-overlay-accent */
+  background-color: color-mix(in srgb, var(--color-primary-500) 90%, transparent);
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+}
+
+.clip-name-input {
+  width: 100%;
+  padding: var(--spacing-sm);
+  background-color: var(--color-blue-900);
+  border: var(--stroke-width-md) solid var(--color-blue-800);
+  border-radius: var(--radius-md);
+  color: var(--color-text-heading);
+  font-size: var(--font-size-label);
+  font-family: var(--font-family-body);
+}
+
+.clip-name-input:focus {
+  outline: none;
+  border-color: var(--color-border-border-focused);
+}
+
+.clip-name-input::placeholder {
+  color: var(--color-grey-600);
+}

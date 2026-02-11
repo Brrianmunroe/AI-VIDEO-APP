@@ -1,0 +1,257 @@
+/* === Scrollable modal container === */
+.modal-container--scrollable {
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-body--scrollable {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding-top: var(--spacing-md);
+}
+
+.modal-body--scrollable .form-field:first-child {
+  margin-top: 0;
+}
+
+/* === Context Brief header: title row + description inside same container === */
+.modal-container--scrollable .modal-header {
+  flex-direction: column;
+  align-items: stretch;
+  padding-bottom: var(--spacing-md);
+  border: none;
+  border-radius: var(--radius-sm);
+}
+
+.modal-container--scrollable .modal-header__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-container--scrollable .modal-description {
+  margin-top: var(--spacing-sm);
+  padding: 0;
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  font-weight: var(--font-weight-body);
+  color: var(--color-text-heading);
+}
+
+/* === Textarea styling === */
+.form-field__textarea {
+  width: 100%;
+  padding: var(--spacing-sm);
+  background-color: var(--color-surface-secondary-button-surface-default);
+  border: var(--stroke-width-md) solid var(--color-border-border-default);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-heading);
+  font-size: var(--font-size-body);
+  font-family: var(--font-family-body);
+  line-height: var(--line-height-body);
+  box-sizing: border-box;
+  resize: vertical;
+  /* Design system has no 80px min-height token; consider adding --size-textarea-min-height */
+  min-height: 80px;
+}
+
+.form-field__textarea:focus {
+  outline: none;
+  border-color: var(--color-border-border-focused);
+}
+
+.form-field__textarea::placeholder {
+  color: var(--color-text-placeholder);
+}
+
+/* === Uploaded files list === */
+.uploaded-files-list {
+  margin-bottom: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.uploaded-file-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background-color: var(--color-surface-secondary-button-surface-default);
+  border: var(--stroke-width-md) solid var(--color-border-border-default);
+  border-radius: var(--radius-sm);
+}
+
+.uploaded-file-thumbnail {
+  width: var(--icon-size-lg);
+  height: var(--icon-size-lg);
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background-color: var(--color-grey-900);
+}
+
+.uploaded-file-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.uploaded-file-placeholder {
+  width: 100%;
+  height: 100%;
+  background-color: var(--color-grey-800);
+}
+
+.uploaded-file-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.uploaded-file-name {
+  font-size: var(--font-size-body);
+  color: var(--color-text-heading);
+  margin-bottom: var(--spacing-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.uploaded-file-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.uploaded-file-progress-bar {
+  flex: 1;
+  height: var(--spacing-xs);
+  background-color: var(--color-primary-500);
+  border-radius: var(--radius-sm);
+  transition: width 0.2s;
+}
+
+.uploaded-file-progress-text {
+  font-size: var(--font-size-label);
+  color: var(--color-text-heading);
+  /* Design system has no min-width for progress text; consider adding --size-progress-text-min-width */
+  min-width: 35px;
+  text-align: right;
+}
+
+.uploaded-file-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  color: var(--color-text-placeholder);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s ease;
+}
+
+.uploaded-file-remove:hover {
+  color: var(--color-icon-hover);
+}
+
+.uploaded-file-remove:hover .icon {
+  color: var(--color-icon-hover);
+}
+
+/* === File drop zone === */
+.file-drop-zone {
+  border: var(--stroke-width-lg) dashed var(--color-border-border-default);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xl) var(--spacing-lg);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s;
+  margin-bottom: var(--spacing-md);
+}
+
+.file-drop-zone:hover,
+.file-drop-zone--dragging {
+  border-color: var(--color-border-border-focused);
+  background-color: var(--color-surface-secondary-button-surface-hover);
+}
+
+.file-drop-zone-icon {
+  margin-bottom: var(--spacing-md);
+  display: flex;
+  justify-content: center;
+  color: var(--color-text-placeholder);
+}
+
+.file-drop-zone-text {
+  font-size: var(--font-size-label);
+  line-height: var(--line-height-label);
+  font-weight: var(--font-weight-label);
+  color: var(--color-text-label);
+  margin-bottom: var(--spacing-xs);
+}
+
+.file-drop-zone-link {
+  font-size: var(--font-size-label);
+  line-height: var(--line-height-label);
+  font-weight: var(--font-weight-label);
+  color: var(--color-text-label);
+}
+
+.file-drop-zone-link-button {
+  background: none;
+  border: none;
+  color: var(--color-blue-500);
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: inherit;
+  font-family: inherit;
+  padding: 0;
+}
+
+.file-drop-zone-link-button:hover {
+  color: var(--color-blue-400);
+}
+
+/* === Video link input === */
+.form-field-video-link {
+  margin-top: var(--spacing-md);
+}
+
+.form-field-video-link .form-field__input {
+  width: 100%;
+  padding: var(--spacing-md);
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  font-weight: var(--font-weight-body);
+  background-color: var(--color-surface-page-surface-default);
+  border: var(--stroke-width-md) solid var(--color-border-border-default);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  box-sizing: border-box;
+}
+
+.form-field-video-link .form-field__input:focus {
+  outline: none;
+  border-color: var(--color-border-border-focused);
+}
+
+.form-field-video-link .form-field__input::placeholder {
+  color: var(--color-text-placeholder);
+  font-weight: var(--font-weight-body);
+}
+
+.form-field-video-link .form-field__input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* === Split footer buttons: Skip and Create next to each other, 16px apart === */
+.modal-footer--split {
+  justify-content: flex-end;
+  gap: var(--spacing-md);
+}

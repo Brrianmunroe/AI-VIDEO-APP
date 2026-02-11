@@ -1,0 +1,36 @@
+/**
+ * NavigationBar (Sidebar) Styles
+ * Matches Figma "Sidebar" (node 403:2122).
+ * Design system has no --layout-nav-width; 80px is layout constant — consider adding token.
+ */
+
+.sidebar {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  width: 80px;
+  min-width: 80px;
+  height: 100%;
+  padding-top: var(--spacing-lg);
+  padding-bottom: var(--spacing-lg);
+  padding-left: var(--spacing-sm);
+  padding-right: var(--spacing-sm);
+  background-color: var(--color-surface-page-surface-default);
+  border-right: var(--stroke-width-md) solid var(--color-border-border-default);
+}
+
+.sidebar__top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.sidebar__bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}

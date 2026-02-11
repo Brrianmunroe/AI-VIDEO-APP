@@ -1,0 +1,18 @@
+---
+description: When the user returns after time away, give a brief summary of recent work and next steps
+alwaysApply: true
+---
+
+# Catch-up summary when user returns
+
+When the user **starts a new conversation** or **asks to be caught up** (e.g. "what were we doing?", "catch me up", "where did we leave off?"), respond first with a short **catch-up summary**:
+
+1. **What we were doing**  
+   - One or two sentences on the last topic or feature you were working on (from this conversation, recent file changes, or project context).
+
+2. **Next steps**  
+   - 2–4 concrete next steps (tasks, decisions, or follow-ups) that make sense from that context.
+
+Keep the summary brief (a few lines). If there’s no clear recent context, say so and ask what they’d like to work on.
+
+This applies especially when the user has been away for a while and is coming back to the project.

@@ -1,0 +1,506 @@
+/**
+ * PlaybackModule Component Styles
+ * Uses design system tokens only (tokens.css).
+ * Video player, toolbar, and Premiere-style timeline (video track, audio track, playhead).
+ */
+
+.playback-module {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: var(--spacing-md);
+  background-color: var(--color-surface-page-surface-default);
+  color: var(--color-text-heading);
+}
+
+/* === Player + toolbar container (single bordered frame) === */
+.playback-module__player-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: var(--spacing-md);
+  border: var(--stroke-width-md) solid var(--color-border-border-default);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background-color: var(--color-primary-950);
+  min-height: 0;
+}
+
+/* === Video player: outer fills section; inner is always 16:9 and centered === */
+.playback-module__player {
+  flex: 1 1 auto;
+  min-height: 120px;
+  min-width: 0;
+  border: none;
+  border-radius: 0;
+  overflow: hidden;
+  background-color: var(--color-primary-950);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  container-type: size;
+  container-name: player;
+}
+
+/* Viewport is always exactly 16:9, fits inside player (letterbox/pillarbox) */
+.playback-module__player-inner {
+  width: 100%;
+  height: 0;
+  padding-bottom: 56.25%; /* 9/16 = 16:9 */
+  position: relative;
+  background-color: var(--color-surface-card-surface-default);
+  flex-shrink: 0;
+}
+
+/* When container has size: use largest 16:9 that fits so viewport never stretches */
+@container player (min-width: 1px) and (min-height: 1px) {
+  .playback-module__player-inner {
+    width: min(100cqw, calc(100cqh * 16 / 9));
+    height: min(100cqh, calc(100cqw * 9 / 16));
+    padding-bottom: 0;
+  }
+}
+
+/* Label centered in the 16:9 viewport (covers padding-bottom fallback and container-query sizing) */
+.playback-module__player-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-body);
+  color: var(--color-text-placeholder);
+}
+
+/* === Toolbar (inside player-section) === */
+.playback-module__toolbar {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md) 0;
+  border-top: none;
+}
+
+.playback-module__toolbar-btn-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.playback-module__toolbar-tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  transform: translateX(-50%);
+  margin-bottom: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
+  color: var(--color-text-heading);
+  background-color: var(--color-surface-card-surface-default);
+  border: var(--stroke-width-sm) solid var(--color-border-border-default);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+  z-index: 1;
+}
+
+.playback-module__toolbar-btn-wrap:hover .playback-module__toolbar-tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.playback-module__toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--icon-size-lg);
+  height: var(--icon-size-lg);
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-icon-primary);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.playback-module__toolbar-btn:hover:not(:disabled) {
+  color: var(--color-icon-hover);
+}
+
+.playback-module__toolbar-btn:hover:not(:disabled) .icon {
+  color: var(--color-icon-hover);
+}
+
+.playback-module__toolbar-btn:focus-visible {
+  outline: var(--stroke-width-lg) solid var(--color-border-border-focused);
+  outline-offset: var(--spacing-xxs);
+}
+
+.playback-module__toolbar-btn svg {
+  width: var(--icon-size-md);
+  height: var(--icon-size-md);
+}
+
+/* === Timeline === */
+/* Ruler row height: shared so left spacer and ruler align (padding + labels + spacer + notches) */
+.playback-module__timeline {
+  --timeline-ruler-row-height: calc(
+    var(--spacing-xs) + var(--font-size-number-sm) + var(--spacing-sm) + var(--spacing-md)
+  );
+  flex: 1 1 0%;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--spacing-md);
+  padding-bottom: var(--spacing-xs);
+  border: var(--stroke-width-md) solid var(--color-border-border-default);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-primary-950);
+  overflow: hidden;
+}
+
+/* Time display: playhead position / total duration (centered) */
+.playback-module__time-display {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 0 var(--spacing-md) 0 var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  border-bottom: 0 none transparent;
+  border-image: none;
+  font-family: var(--font-family-numbers);
+  font-size: var(--font-size-number-md);
+  color: var(--color-grey-0);
+  background-color: var(--color-primary-950);
+}
+
+.playback-module__time-display-text {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.playback-module__timeline-viewport {
+  flex: 1;
+  min-height: 120px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.playback-module__timeline-strip {
+  display: flex;
+  flex-direction: row;
+  min-height: 100%;
+  align-items: stretch;
+}
+
+.playback-module__timeline-labels {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  flex-shrink: 0;
+  width: 64px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: var(--stroke-width-md) solid var(--color-border-border-default);
+  background-color: var(--color-surface-card-surface-default);
+}
+
+/* Match height of .playback-module__timeline-ruler (padding + labels + spacer + notches) */
+.playback-module__ruler-label-spacer {
+  flex-shrink: 0;
+  width: 100%;
+  height: var(--timeline-ruler-row-height);
+  box-sizing: border-box;
+  background-color: var(--color-primary-950);
+  border-bottom: var(--stroke-width-md) solid var(--color-border-border-default);
+  border-right: none;
+}
+
+.playback-module__track-label {
+  flex-shrink: 0;
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-label);
+  color: var(--color-text-label);
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+}
+
+.playback-module__timeline-labels .playback-module__track-label {
+  flex: 1 1 0;
+  min-height: 0;
+  border-right: none;
+  border-bottom: var(--stroke-width-sm) solid var(--color-border-border-default);
+}
+
+.playback-module__timeline-labels .playback-module__track-label:last-child {
+  border-bottom: none;
+}
+
+.playback-module__timeline-content {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  cursor: pointer;
+}
+
+/* Ruler: label band, 8px gap, notch band (column) — fixed height to align with left spacer */
+.playback-module__timeline-ruler {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--spacing-xs);
+  height: var(--timeline-ruler-row-height);
+  min-height: var(--timeline-ruler-row-height);
+  border-top: none;
+  border-bottom: var(--stroke-width-md) solid var(--color-border-border-default);
+  font-family: var(--font-family-numbers);
+  font-size: var(--font-size-number-sm);
+  color: var(--color-text-label);
+  overflow: hidden;
+}
+
+/* 8px gap between label band and notch band */
+.playback-module__ruler-spacer {
+  flex: 0 0 auto;
+  height: var(--spacing-sm);
+}
+
+/* Ruler notches (Premiere-style): tiered tick marks in bottom band */
+.playback-module__ruler-notches {
+  flex: 0 0 auto;
+  height: var(--ruler-notch-major-height, var(--spacing-md));
+  width: 100%;
+  /* Stack: major (tallest), then medium, then minor (shortest) so major is on top */
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent calc(var(--ruler-notch-major-step-px, 48px) - 1px),
+      var(--color-grey-600) calc(var(--ruler-notch-major-step-px, 48px) - 1px),
+      var(--color-grey-600) var(--ruler-notch-major-step-px, 48px)
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent calc(var(--ruler-notch-medium-step-px, 12px) - 1px),
+      var(--color-grey-600) calc(var(--ruler-notch-medium-step-px, 12px) - 1px),
+      var(--color-grey-600) var(--ruler-notch-medium-step-px, 12px)
+    );
+  background-size: 100% var(--ruler-notch-major-height, var(--spacing-md)), 100% var(--ruler-notch-medium-height, var(--spacing-sm));
+  background-position: 0 100%, 0 100%;
+  background-repeat: repeat-x;
+}
+
+/* When zoomed in enough, add frame-level notches (shortest) */
+.playback-module__timeline-ruler--frame-notches .playback-module__ruler-notches {
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent calc(var(--ruler-notch-major-step-px, 48px) - 1px),
+      var(--color-grey-600) calc(var(--ruler-notch-major-step-px, 48px) - 1px),
+      var(--color-grey-600) var(--ruler-notch-major-step-px, 48px)
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent calc(var(--ruler-notch-medium-step-px, 12px) - 1px),
+      var(--color-grey-600) calc(var(--ruler-notch-medium-step-px, 12px) - 1px),
+      var(--color-grey-600) var(--ruler-notch-medium-step-px, 12px)
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent calc(var(--ruler-notch-minor-step-px, 2px) - 1px),
+      var(--color-grey-600) calc(var(--ruler-notch-minor-step-px, 2px) - 1px),
+      var(--color-grey-600) var(--ruler-notch-minor-step-px, 2px)
+    );
+  background-size:
+    100% var(--ruler-notch-major-height, var(--spacing-md)),
+    100% var(--ruler-notch-medium-height, var(--spacing-sm)),
+    100% var(--ruler-notch-minor-height, var(--spacing-xs));
+  background-position: 0 100%, 0 100%, 0 100%;
+}
+
+.playback-module__ruler-labels {
+  flex: 0 0 auto;
+  position: relative;
+  min-height: 1em;
+  pointer-events: none;
+}
+
+.playback-module__ruler-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  padding-left: var(--spacing-xxs);
+}
+
+.playback-module__ruler-tick-label {
+  position: relative;
+  white-space: nowrap;
+  z-index: 1;
+}
+
+.playback-module__timeline-content .playback-module__track {
+  flex: 1 1 0;
+  min-height: 48px;
+  display: flex;
+  border-bottom: var(--stroke-width-sm) solid var(--color-border-border-default);
+}
+
+.playback-module__timeline-content .playback-module__track:last-child {
+  border-bottom: none;
+}
+
+.playback-module__timeline-content .playback-module__track-label {
+  display: none;
+}
+
+.playback-module__track-content {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+  min-height: 48px;
+  background-color: var(--color-surface-page-surface-default);
+}
+
+.playback-module__clip {
+  position: absolute;
+  top: var(--spacing-sm);
+  bottom: var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  min-width: 4px;
+}
+
+.playback-module__clip--video {
+  background-color: var(--color-primary-800);
+  border: var(--stroke-width-md) solid var(--color-border-border-default);
+}
+
+.playback-module__clip--audio {
+  background-color: var(--color-primary-700);
+  border: var(--stroke-width-md) solid var(--color-border-border-default);
+}
+
+/* Playhead: white triangle at ruler (points at notch) + vertical line through tracks */
+.playback-module__playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--spacing-md);
+  margin-left: calc(-1 * var(--spacing-md) / 2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: auto;
+  cursor: ew-resize;
+  z-index: 1;
+}
+
+.playback-module__playhead-triangle {
+  flex-shrink: 0;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 8px solid var(--color-grey-0);
+}
+
+/* Playhead line: 1px wide (intentional break from tokens for NLE-standard thin playhead) */
+.playback-module__playhead-line {
+  flex: 1;
+  width: 1px;
+  min-height: 4px;
+  background-color: var(--color-grey-0);
+}
+
+/* In/Out markers and shaded region */
+.playback-module__in-marker,
+.playback-module__out-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--stroke-width-md);
+  margin-left: calc(-1 * var(--stroke-width-md) / 2);
+  background-color: var(--color-primary-500);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Selection overlay: spans full width (in–out) and full height (notches + video + audio) */
+.playback-module__inout-shade {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background-color: var(--color-primary-200);
+  opacity: 0.25;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Zoom control: 8px between button, label, and button; label hugs contents */
+.playback-module__zoom {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-sm); /* 8px */
+  padding: var(--spacing-sm) var(--spacing-sm) var(--spacing-xs) var(--spacing-md);
+  border-top: var(--stroke-width-sm) solid var(--color-border-border-default);
+  font-family: var(--font-family-numbers);
+  font-size: var(--font-size-number-sm);
+  color: var(--color-text-label);
+}
+
+.playback-module__zoom-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--icon-size-md);
+  height: var(--icon-size-md);
+  padding: 0;
+  border: var(--stroke-width-sm) solid var(--color-border-border-default);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface-card-surface-default);
+  color: var(--color-icon-primary);
+  cursor: pointer;
+  font-size: var(--font-size-body);
+  line-height: 1;
+}
+
+.playback-module__zoom-btn:hover {
+  background-color: var(--color-surface-secondary-button-surface-hover);
+  color: var(--color-icon-hover);
+}
+
+.playback-module__zoom-btn:focus-visible {
+  outline: var(--stroke-width-lg) solid var(--color-border-border-focused);
+  outline-offset: var(--spacing-xxs);
+}
+
+.playback-module__zoom-label {
+  width: min-content;
+  flex-shrink: 0;
+}
+
+.playback-module__zoom-icon {
+  line-height: 1;
+}

@@ -1,0 +1,49 @@
+.import-media {
+  flex: 1;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-surface-page-surface-default);
+  color: var(--color-text-heading);
+}
+
+.import-media-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  color: var(--color-grey-400);
+}
+
+.import-media-content {
+  padding-top: var(--spacing-lg);
+  padding-left: var(--spacing-md);
+  padding-right: var(--spacing-md);
+}
+
+.import-media-content--loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-lg);
+}
+
+.import-media-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+}
+
+.import-media-info {
+  flex: 1;
+}
+
+.files-count {
+  font-size: var(--font-size-heading-03);
+  font-weight: var(--font-weight-heading-03);
+  color: var(--color-text-heading);
+  margin: 0;
+}
+

@@ -1,0 +1,152 @@
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* Design system has no overlay token; consider adding --color-overlay-modal */
+  background-color: color-mix(in srgb, var(--color-primary-950) 70%, transparent);
+  backdrop-filter: blur(var(--spacing-sm));
+  -webkit-backdrop-filter: blur(var(--spacing-sm));
+  z-index: 1000;
+}
+
+.modal-container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: var(--color-surface-page-surface-default);
+  border: var(--stroke-width-md) solid var(--color-border-border-default);
+  border-radius: var(--radius-none);
+  width: 90%;
+  /* Design system has no max-width token for modals; consider adding --size-modal-max-width */
+  max-width: 500px;
+  z-index: 1001;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-lg);
+}
+
+.modal-title {
+  font-size: var(--font-size-heading-03);
+  font-weight: var(--font-weight-heading-03);
+  color: var(--color-text-heading);
+  margin: 0;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--color-text-placeholder);
+  cursor: pointer;
+  padding: 0;
+  width: var(--icon-size-sm);
+  height: var(--icon-size-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s ease;
+}
+
+.modal-close:hover {
+  color: var(--color-icon-hover);
+}
+
+.modal-close:hover .icon {
+  color: var(--color-icon-hover);
+}
+
+.modal-body {
+  padding: var(--spacing-lg);
+}
+
+.form-field {
+  margin-top: var(--spacing-lg);
+}
+
+.form-field:last-child {
+  margin-bottom: 0;
+}
+
+.form-field label {
+  display: block;
+  font-size: var(--font-size-label);
+  font-weight: var(--font-weight-label);
+  color: var(--color-text-label);
+  margin-bottom: var(--spacing-xs);
+}
+
+.form-field input {
+  width: 100%;
+  padding: var(--spacing-sm);
+  background-color: var(--color-surface-secondary-button-surface-default);
+  border: var(--stroke-width-md) solid var(--color-border-border-default);
+  border-radius: var(--radius-md);
+  color: var(--color-text-heading);
+  font-size: var(--font-size-body);
+  box-sizing: border-box;
+}
+
+.form-field input:focus {
+  outline: none;
+  border-color: var(--color-border-border-focused);
+}
+
+.form-field input::placeholder {
+  color: var(--color-text-placeholder);
+}
+
+/* === Location trigger (styled like Figma DropDown) === */
+.location-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  width: 100%;
+  padding: var(--spacing-md);
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  border-radius: var(--radius-sm);
+  border: var(--stroke-width-md) solid var(--color-border-border-default);
+  background-color: var(--color-surface-page-surface-default);
+  color: var(--color-text-heading);
+  cursor: pointer;
+  outline: none;
+  text-align: left;
+  transition: border-color 0.15s ease;
+}
+
+.location-trigger:hover:not(:disabled) {
+  border-color: var(--color-border-border-focused);
+}
+
+.location-trigger:focus-visible {
+  border-color: var(--color-border-border-focused);
+  border-width: var(--stroke-width-lg);
+}
+
+.location-trigger--disabled {
+  background-color: var(--color-surface-disabled);
+  border-color: var(--color-border-border-disabled);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+.location-trigger__value--placeholder {
+  color: var(--color-text-placeholder);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+}
+

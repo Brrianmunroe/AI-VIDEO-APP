@@ -1,0 +1,81 @@
+/**
+ * NavBarButton Component Styles
+ * 
+ * Matches Figma "Nav Bar Buttons" (node 403:2046).
+ * 56x60px, icon + label stacked vertically, centered.
+ *
+ * States:
+ *   default:  secondary fill (surface + text-action)
+ *   hover:    secondary hover surface + icon-hover
+ *   selected: icon=selected (#F9FDFF), label=selected
+ *   disabled: icon=disabled (#696969), label=disabled
+ *   focused:  border-focused (#119FDC)
+ */
+
+.nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  width: 56px;
+  height: 60px;
+  padding: var(--spacing-xs) 0;
+  background-color: var(--color-surface-secondary-button-surface-default);
+  border: var(--stroke-width-md) solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  color: var(--color-text-action);
+}
+
+/* Default: icon uses design-system secondary (blue); only hover/active override below */
+.nav-btn .icon {
+  color: var(--color-icon-secondary);
+}
+
+.nav-btn__label {
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
+  font-weight: var(--font-weight-caption);
+  color: inherit;
+  white-space: nowrap;
+}
+
+/* === Hover === */
+.nav-btn:hover:not(:disabled) {
+  color: var(--color-icon-hover);
+}
+
+.nav-btn:hover:not(:disabled) .icon {
+  color: var(--color-icon-hover);
+}
+
+/* === Active/Selected === */
+.nav-btn--active {
+  color: var(--color-icon-selected);
+}
+
+.nav-btn--active .icon {
+  color: var(--color-icon-selected);
+}
+
+/* === Focus === */
+.nav-btn:focus-visible {
+  outline: none;
+  border-color: var(--color-border-border-focused);
+  border-width: var(--stroke-width-lg);
+}
+
+/* === Disabled === */
+.nav-btn:disabled,
+.nav-btn--disabled {
+  color: var(--color-icon-disabled);
+  cursor: not-allowed;
+}
+
+.nav-btn:disabled .icon,
+.nav-btn--disabled .icon {
+  color: var(--color-icon-disabled);
+}

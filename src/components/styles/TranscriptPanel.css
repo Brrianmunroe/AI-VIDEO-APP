@@ -1,0 +1,264 @@
+/**
+ * TranscriptPanel Component Styles
+ * Uses design system tokens only (tokens.css).
+ */
+
+.transcript-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  background-color: var(--color-surface-page-surface-default);
+  color: var(--color-text-transcript);
+  overflow: hidden;
+}
+
+/* Single outer container: fills transcript-panel; 16px padding, border; 16px margin at bottom */
+.transcript-panel__container {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: var(--spacing-md);
+  margin-bottom: 0;
+  border: var(--stroke-width-md) solid var(--color-border-border-default);
+  border-radius: var(--radius-sm);
+  box-sizing: border-box;
+}
+
+/* Header: holds tabs + search (does not grow) */
+.transcript-panel__header {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  padding-bottom: var(--spacing-md);
+}
+
+/* Tab bar (top toolbar) */
+.transcript-panel__tabs {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--spacing-md);
+  padding-left: 0;
+  padding-right: 0;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.transcript-panel__tab {
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  font-weight: var(--font-weight-body);
+  color: var(--color-text-label);
+  background: none;
+  border: none;
+  padding: var(--spacing-xs) 0;
+  cursor: pointer;
+  border-bottom: var(--stroke-width-md) solid transparent;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.transcript-panel__tab:hover {
+  color: var(--color-text-heading);
+}
+
+.transcript-panel__tab--active {
+  color: var(--color-text-heading);
+  border-bottom-color: var(--color-border-border-focused);
+}
+
+.transcript-panel__tab-sep {
+  color: var(--color-text-label);
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-body);
+  user-select: none;
+}
+
+/* Search bar with icon */
+.transcript-panel__search {
+  flex-shrink: 0;
+}
+
+.transcript-panel__search-wrapper {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: 0 var(--spacing-md);
+  border: var(--stroke-width-md) solid var(--color-border-border-default);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface-page-surface-default);
+  transition: border-color 0.15s ease;
+}
+
+.transcript-panel__search-wrapper:focus-within {
+  border-color: var(--color-border-border-focused);
+}
+
+.transcript-panel__search-input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  font-weight: var(--font-weight-body);
+  padding: var(--spacing-md) 0;
+  border: none;
+  background: none;
+  color: var(--color-text-heading);
+  outline: none;
+}
+
+.transcript-panel__search-input::placeholder {
+  color: var(--color-text-placeholder);
+}
+
+/* Body: bordered area for tab content + footer */
+.transcript-panel__bordered-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--color-blue-950);
+  border-radius: var(--radius-sm);
+}
+
+/* Tab panel container (fills space between header and footer) */
+.transcript-panel__tab-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Transcript container: fills available space, does not hug content; content scrolls inside */
+.transcript-panel__transcript-container {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.transcript-panel__tab-panel[hidden] {
+  display: none;
+}
+
+/* Interview tab: selects list container and scroll area */
+.transcript-panel__selects-container {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.transcript-panel__selects-content {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--spacing-md) 0;
+  background-color: var(--color-blue-950);
+}
+
+.transcript-panel__selects-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.transcript-panel__placeholder {
+  flex: 1;
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-body);
+  color: var(--color-text-label);
+  padding: var(--spacing-md);
+}
+
+/* Footer: separate container underneath transcript (in flex flow) */
+.transcript-panel__footer {
+  flex-shrink: 0;
+  padding: var(--spacing-md) 0 0 0;
+  display: flex;
+  flex-direction: row;
+  gap: var(--spacing-md);
+  justify-content: flex-end;
+  align-items: flex-start;
+  background-color: var(--color-blue-950);
+}
+
+.transcript-panel__footer > * {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Single primary button when all clips decided */
+.transcript-panel__footer--single {
+  justify-content: stretch;
+}
+
+.transcript-panel__footer--single .transcript-panel__continue-btn {
+  flex: 1;
+  width: 100%;
+}
+
+/* Scrollable transcript content: fills container (does not hug content), scrolls when content overflows */
+.transcript-panel__content {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--spacing-md) 0;
+  background-color: var(--color-blue-950);
+}
+
+.transcript-panel__lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.transcript-panel__line {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  font-weight: var(--font-weight-body);
+}
+
+.transcript-panel__line:last-child {
+  margin-bottom: 0;
+}
+
+.transcript-panel__time {
+  flex-shrink: 0;
+  color: var(--color-text-label);
+  font-family: var(--font-family-numbers);
+  font-size: var(--font-size-number-sm);
+}
+
+.transcript-panel__text {
+  color: var(--color-text-transcript);
+}
+
+.transcript-panel__text mark {
+  background-color: var(--color-primary-400);
+  color: var(--color-text-transcript-highlighted);
+  padding: 0 var(--spacing-xxs);
+  border-radius: var(--radius-sm);
+}

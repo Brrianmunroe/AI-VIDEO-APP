@@ -1,0 +1,63 @@
+---
+description: Always use design system and component library; no hardcoded design values. Report missing tokens and recommend new variables or components.
+alwaysApply: true
+---
+
+# Design System and Component Library (Non-Negotiable)
+
+Before any UI or styling work, reference the design system and component library. Do not hardcode colors, typography, spacing, radii, or other design values. If a value has no token, tell the user and recommend adding a variable or component.
+
+## 1. Sources of Truth
+
+- **Design system (canonical):** `design-system.json` at project root.
+- **Design system (in code):** `src/styles/tokens.css` (auto-generated; run `npm run tokens:generate` after editing `design-system.json`). Use **only** CSS variables defined there.
+- **Component library:** `src/components/` and `src/components/styles/`. Prefer existing components (Button, Icon, TextInput, CreateProjectModal, DropDown, MediaCard, NavigationBar, etc.). Every component’s CSS must **link back to the design system** — use only variables from `tokens.css`.
+
+## 2. Before Creating or Editing UI
+
+1. **Check the component library** — use an existing component if it fits (e.g. Button, Icon) instead of custom markup.
+2. **Check `src/styles/tokens.css`** (or `design-system.json`) for the correct variable name. Use only existing variables.
+3. In CSS/JSX: use `var(--token-name)` for all colors, font families, font sizes, font weights, line heights, spacing, border radius, stroke width, and icon size. Do not use raw values (no px/hex/font names) for anything the design system defines.
+
+## 3. Component Library ↔ Design System
+
+- Every component style must use design system variables (e.g. `var(--font-size-body)`, `var(--color-surface-primary-button-surface-default)`).
+- Do not introduce new variable names or values that are not in `tokens.css`. If you need a value that does not exist, see section 5.
+
+## 4. What Is Forbidden
+
+- **Hardcoded design values** for anything that has a token (e.g. `font-size: 20px` when `--font-size-heading-03` exists; `#021016` when `--color-surface-page-surface-default` exists; `8px` when `--spacing-sm` exists).
+- **Using a variable name that does not exist** (e.g. `--border-radius-md` — the system uses `--radius-md`; check `tokens.css` for exact names).
+- **Wrong semantic usage** (e.g. body text with heading size, or caption color for headings).
+- **Inventing new variables or values** in code instead of reporting them to the user.
+
+Good: `font-size: var(--font-size-heading-03);`  
+Bad: `font-size: 20px;`
+
+Good: Use existing `<Button>` from `src/components/Button.jsx`.  
+Bad: Custom `<button>` with inline or ad-hoc styles.
+
+## 5. When Something Would Require Hardcoding — Do Not Hardcode
+
+If a needed value has **no token** in `design-system.json` / `tokens.css`:
+
+1. **Do not** hardcode the value and do not invent a new variable name in code.
+2. **Tell the user:**
+   - **Why** it would be hardcoded (e.g. “There is no spacing token for 48px”).
+   - **Recommendation:** Add a **new variable** to the design system so the app stays consistent:
+     - Add the token in `design-system.json` (or in Figma and re-export), then run `npm run tokens:generate`.
+     - Suggest a name that matches existing patterns (e.g. `spacing-3xl` if you need a step above `spacing-2xl`; or a semantic name like `--color-text-subtle` if needed).
+3. If the need is for a **reusable pattern** (e.g. a card, a list item, a specific layout), recommend creating a **new component** in `src/components/` and styling it with existing (or new) design system variables.
+
+Example response: “The design system has no token for 48px vertical spacing. I did not add a hardcoded value. **Recommendation:** Add a spacing token (e.g. `spacing-3xl: 48px`) in `design-system.json` under `spacing`, then run `npm run tokens:generate`. Then use `var(--spacing-3xl)` here.”
+
+## 6. Token Quick Reference (exact names live in `tokens.css`)
+
+- **Typography:** `--font-family-body`, `--font-family-heading`, `--font-family-numbers`; `--font-size-heading-01` through `--font-size-heading-04`, `--font-size-body`, `--font-size-label`, `--font-size-caption`, `--font-size-number-sm`, `--font-size-number-md`; `--font-weight-*`; `--line-height-*` (same suffixes as font-size).
+- **Spacing:** `--spacing-none`, `--spacing-xxs`, `--spacing-xs`, `--spacing-sm`, `--spacing-md`, `--spacing-lg`, `--spacing-xl`, `--spacing-2xl`.
+- **Radius:** `--radius-none`, `--radius-sm`, `--radius-md`, `--radius-lg`, `--radius-round`.
+- **Colors (semantic):** `--color-text-heading`, `--color-text-placeholder`, `--color-text-label`, `--color-text-action`, `--color-text-on-button`, `--color-text-disabled`, etc.; `--color-surface-page-surface-default`, `--color-surface-primary-button-surface-*`, `--color-surface-secondary-button-surface-*`, etc.; `--color-icon-primary`, `--color-icon-secondary`, `--color-icon-hover`, `--color-icon-selected`, etc.; `--color-border-border-default`, `--color-border-border-focused`, `--color-border-border-disabled`, etc.
+- **Raw palettes:** `--color-blue-*`, `--color-grey-*`, `--color-primary-*`, `--color-neutral-*`, etc. (use semantic tokens when one exists).
+- **Other:** `--stroke-width-none`, `--stroke-width-sm`, `--stroke-width-md`, `--stroke-width-lg`; `--icon-size-sm`, `--icon-size-md`, `--icon-size-lg`.
+
+When in doubt, open `src/styles/tokens.css` and use the variable name that appears there.

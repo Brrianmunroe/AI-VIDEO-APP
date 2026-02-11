@@ -1,0 +1,254 @@
+/**
+ * MediaCard Component Styles
+ * 
+ * Matches Figma "Media Modal" component (node 403:1951).
+ * 3 types: video, add-media, audio
+ * 5 states: default, hover, selected, disabled, focused
+ * 
+ * Dimensions from Figma: ~236 x 132px per card
+ */
+
+/* === Base === */
+.media-card {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 236 / 132;
+  border-radius: var(--radius-sm);
+  border: var(--stroke-width-md) solid var(--color-border-border-default);
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+  background-color: var(--color-surface-page-surface-default);
+  box-shadow: none;
+}
+
+/* === Hover === */
+.media-card:hover:not(.media-card--disabled) {
+  border-color: var(--color-border-border-focused);
+}
+
+/* === Selected only: white border === */
+.media-card--selected {
+  border-color: var(--color-border-border-selected);
+}
+
+/* Unselected cards: default border, no white stroke; hover/focus use focused border */
+.media-card:not(.media-card--selected) {
+  border-color: var(--color-border-border-default);
+}
+
+.media-card:not(.media-card--selected):hover:not(.media-card--disabled) {
+  border-color: var(--color-border-border-focused);
+}
+
+.media-card:not(.media-card--selected):focus-visible {
+  outline: none;
+  border-color: var(--color-border-border-focused);
+  border-width: var(--stroke-width-lg);
+}
+
+/* === Focused === */
+.media-card:focus-visible {
+  outline: none;
+  border-color: var(--color-border-border-focused);
+  border-width: var(--stroke-width-lg);
+}
+
+/* === Disabled === */
+.media-card--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* === Thumbnail (video type): fill entire card, no extra stroke === */
+.media-card__thumbnail {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  background-color: var(--color-surface-page-surface-default);
+  border: none;
+  overflow: hidden;
+}
+
+/* Gradient band at bottom; design system has no overlay/gradient token */
+.media-card__gradient {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--icon-size-lg);
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(to top, var(--color-primary-950) 0%, transparent 100%);
+}
+
+.media-card__img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 100%;
+  min-height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  border: none;
+  outline: none;
+  vertical-align: top;
+}
+
+/* Delete button: top-right on video/audio cards */
+.media-card__delete {
+  position: absolute;
+  top: var(--spacing-sm);
+  right: var(--spacing-sm);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--icon-size-md);
+  height: var(--icon-size-md);
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-icon-primary);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.media-card__delete:hover {
+  color: var(--color-icon-hover);
+}
+
+.media-card__delete:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-border-border-focused);
+}
+
+/* === Overlay (video/audio: icon and timestamp on one line, spacing-sm from sides and bottom) === */
+.media-card__overlay {
+  position: absolute;
+  bottom: var(--spacing-sm);
+  left: var(--spacing-sm);
+  right: var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.media-card__type-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* Duration: number-sm typography; 2px 6px has no token — consider --spacing-xxs and a 6px spacing token */
+.media-card__duration {
+  font-family: var(--font-family-numbers);
+  font-size: var(--font-size-number-sm);
+  font-weight: var(--font-weight-number-sm);
+  line-height: var(--line-height-number-sm);
+  color: var(--color-text-heading);
+  padding: var(--spacing-xxs) var(--spacing-xs);
+  border-radius: var(--radius-sm);
+}
+
+/* === Add-media type === */
+.media-card--add-media {
+  /* Border: primary 800 (default) from base .media-card; surface: primary/page background */
+  background-color: var(--color-surface-page-surface-default);
+}
+
+.media-card__add {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.media-card__add-icon {
+  flex-shrink: 0;
+}
+
+.media-card__add-icon path {
+  fill: var(--color-icon-primary);
+}
+
+/* === Audio type === */
+.media-card__waveform {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md);
+}
+
+.media-card__waveform-bars {
+  width: 100%;
+  height: 60%;
+  background: linear-gradient(
+    90deg,
+    var(--color-icon-secondary) 1px,
+    transparent 1px
+  );
+  /* Design system has no 3px token; bar width uses 3px for waveform grid */
+  background-size: 3px 100%;
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40'%3E%3Crect x='0' y='10' width='2' height='20' rx='1'/%3E%3Crect x='4' y='5' width='2' height='30' rx='1'/%3E%3Crect x='8' y='15' width='2' height='10' rx='1'/%3E%3Crect x='12' y='2' width='2' height='36' rx='1'/%3E%3Crect x='16' y='8' width='2' height='24' rx='1'/%3E%3Crect x='20' y='12' width='2' height='16' rx='1'/%3E%3Crect x='24' y='5' width='2' height='30' rx='1'/%3E%3Crect x='28' y='10' width='2' height='20' rx='1'/%3E%3Crect x='32' y='0' width='2' height='40' rx='1'/%3E%3Crect x='36' y='8' width='2' height='24' rx='1'/%3E%3Crect x='40' y='14' width='2' height='12' rx='1'/%3E%3Crect x='44' y='4' width='2' height='32' rx='1'/%3E%3Crect x='48' y='10' width='2' height='20' rx='1'/%3E%3Crect x='52' y='6' width='2' height='28' rx='1'/%3E%3Crect x='56' y='12' width='2' height='16' rx='1'/%3E%3Crect x='60' y='3' width='2' height='34' rx='1'/%3E%3Crect x='64' y='8' width='2' height='24' rx='1'/%3E%3Crect x='68' y='14' width='2' height='12' rx='1'/%3E%3Crect x='72' y='6' width='2' height='28' rx='1'/%3E%3Crect x='76' y='10' width='2' height='20' rx='1'/%3E%3Crect x='80' y='2' width='2' height='36' rx='1'/%3E%3Crect x='84' y='8' width='2' height='24' rx='1'/%3E%3Crect x='88' y='12' width='2' height='16' rx='1'/%3E%3Crect x='92' y='5' width='2' height='30' rx='1'/%3E%3Crect x='96' y='10' width='2' height='20' rx='1'/%3E%3C/svg%3E");
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 40'%3E%3Crect x='0' y='10' width='2' height='20' rx='1'/%3E%3Crect x='4' y='5' width='2' height='30' rx='1'/%3E%3Crect x='8' y='15' width='2' height='10' rx='1'/%3E%3Crect x='12' y='2' width='2' height='36' rx='1'/%3E%3Crect x='16' y='8' width='2' height='24' rx='1'/%3E%3Crect x='20' y='12' width='2' height='16' rx='1'/%3E%3Crect x='24' y='5' width='2' height='30' rx='1'/%3E%3Crect x='28' y='10' width='2' height='20' rx='1'/%3E%3Crect x='32' y='0' width='2' height='40' rx='1'/%3E%3Crect x='36' y='8' width='2' height='24' rx='1'/%3E%3Crect x='40' y='14' width='2' height='12' rx='1'/%3E%3Crect x='44' y='4' width='2' height='32' rx='1'/%3E%3Crect x='48' y='10' width='2' height='20' rx='1'/%3E%3Crect x='52' y='6' width='2' height='28' rx='1'/%3E%3Crect x='56' y='12' width='2' height='16' rx='1'/%3E%3Crect x='60' y='3' width='2' height='34' rx='1'/%3E%3Crect x='64' y='8' width='2' height='24' rx='1'/%3E%3Crect x='68' y='14' width='2' height='12' rx='1'/%3E%3Crect x='72' y='6' width='2' height='28' rx='1'/%3E%3Crect x='76' y='10' width='2' height='20' rx='1'/%3E%3Crect x='80' y='2' width='2' height='36' rx='1'/%3E%3Crect x='84' y='8' width='2' height='24' rx='1'/%3E%3Crect x='88' y='12' width='2' height='16' rx='1'/%3E%3Crect x='92' y='5' width='2' height='30' rx='1'/%3E%3Crect x='96' y='10' width='2' height='20' rx='1'/%3E%3C/svg%3E");
+  background-color: var(--color-icon-secondary);
+}
+
+.media-card--audio .media-card__waveform-bars {
+  background: none;
+}
+
+/* === Wrapper for card + clip name === */
+.media-card-wrapper {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  width: 100%;
+}
+
+/* === Clip name label below card (single line, ellipsis) === */
+.media-card__clip-name {
+  margin-top: var(--spacing-xs);
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  color: var(--color-text-heading);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.media-card__clip-name--editing {
+  margin-top: var(--spacing-xs);
+  min-width: 0;
+}
+
+.media-card__clip-name-input {
+  width: 100%;
+  min-width: 0;
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  color: var(--color-text-heading);
+  background: var(--color-surface-page-surface-default);
+  border: var(--stroke-width-md) solid var(--color-border-border-focused);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  outline: none;
+  box-sizing: border-box;
+}

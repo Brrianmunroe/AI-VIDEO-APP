@@ -1,0 +1,72 @@
+---
+description: Document key project decisions in DECISIONS.md for case study
+alwaysApply: true
+---
+
+# Document Key Decisions
+
+When a **key decision** is made (not minor implementation details, but significant choices that affect architecture, scope, user experience, or technical direction), it must be documented in `DECISIONS.md` using the following format:
+
+## Required Format
+
+```markdown
+## Decision: [Brief descriptive title]
+- **Date:** YYYY-MM-DD
+- **Context:** [What situation or problem led to this decision?]
+- **Options considered:**
+  - [Option A]
+  - [Option B]
+  - [Option C] (if applicable)
+- **Decision:** [The chosen option/solution]
+- **Why (tradeoffs):**
+  - Pros: [benefits of the decision]
+  - Cons: [drawbacks or limitations]
+- **Impact on MVP:** [How does this affect the MVP scope, timeline, or architecture?]
+- **Follow-ups:** [Any next steps, deferred items, or related decisions needed]
+```
+
+## What Qualifies as a "Key Decision"
+
+Document decisions that are:
+- **Architectural choices** (framework, database, storage approach)
+- **Scope changes** (feature inclusion/exclusion, MVP boundaries)
+- **Technical tradeoffs** (local vs cloud, performance vs simplicity)
+- **User experience direction** (UI patterns, workflow approaches)
+- **Integration choices** (APIs, export formats, third-party tools)
+
+Do **not** document:
+- Minor implementation details
+- Bug fixes
+- Code refactoring that doesn't change behavior
+- Styling choices (unless they affect UX significantly)
+
+## When to Document
+
+- **During planning**: When discussing options and making a choice
+- **After implementation**: If a decision was made implicitly, document it retroactively
+- **When asked**: If the user asks "should we document this?", it's likely key enough
+
+## How to Add
+
+1. Open `DECISIONS.md`
+2. Add a new entry at the **top** of the file (after the header, before existing decisions)
+3. Use the exact format above
+4. Include all required fields
+5. Be specific and concrete in descriptions
+
+## Example
+
+```markdown
+## Decision: Use SQLite instead of JSON files for project storage
+- **Date:** 2026-02-04
+- **Context:** Need to store project data (transcripts, selects, timeline, media metadata).
+- **Options considered:**
+  - A) Local JSON files (one file per project)
+  - B) SQLite database
+- **Decision:** **Option B** - SQLite database.
+- **Why (tradeoffs):**
+  - Pros: better architectural thinking for case study; structured queries; relationships; scales better; shows engineering judgment.
+  - Cons: slightly more setup (schema design) but sets up proper data architecture.
+- **Impact on MVP:** Requires schema design for Project → Media → Transcript → Selects relationships.
+- **Follow-ups:** Design schema for Project → Media → Transcript → Selects relationships.
+```
