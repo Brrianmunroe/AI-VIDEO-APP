@@ -4,6 +4,36 @@ This file captures **case-study-worthy** decisions: major scope cuts, platform b
 
 ---
 
+## Decision: Single-clip playback on Timeline (Interview Selects) screen
+- **Date:** 2026-02-11
+- **Context:** Need transcript, playback, and timeline to work in unison like a video editor. Need to decide scope: one clip at a time vs full sequence on the Timeline screen.
+- **Options considered:**
+  - A) Single clip: user selects one clip from Interview Selects; show that clip’s video, transcript, and timeline only
+  - B) Sequence: show a sequence of all (or accepted) clips; playback and transcript follow the sequence
+- **Decision:** **Option A** — Single-clip playback on the Timeline screen.
+- **Why (tradeoffs):**
+  - Pros: simpler implementation; clear mental model (select clip → review that clip); transcript and duration map 1:1 to the one source; Timeline Review screen remains the place for sequence/export.
+  - Cons: user must select a clip to see playback/transcript; sequence playback deferred to Timeline Review.
+- **Impact on MVP:** Timeline screen holds currentTimeSec, isPlaying, and selected clip; loads transcript and video URL for selected clip only; PlaybackModule and TranscriptPanel are controlled by that state.
+- **Follow-ups:** None.
+
+---
+
+## Decision: Custom media protocol (media://) for video playback URL
+- **Date:** 2026-02-11
+- **Context:** Renderer needs a playable URL for the selected clip. File paths are in main process; we could expose path via IPC or serve via custom protocol.
+- **Options considered:**
+  - A) Custom protocol (e.g. media://local/{mediaId}) that streams the file from main with Range support for seeking
+  - B) IPC media:getPlaybackPath returning file path; renderer uses file:// (Electron can allow for known paths)
+- **Decision:** **Option A** — Custom protocol media://local/{mediaId}.
+- **Why (tradeoffs):**
+  - Pros: same behavior in dev and prod; no raw paths in renderer; supports Range requests so HTML5 video seeking works; consistent with existing thumbnail:// pattern.
+  - Cons: more main-process code (streaming, Range handling); slightly more complexity than file path.
+- **Impact on MVP:** protocol.registerSchemesAsPrivileged for 'media'; protocol.handle('media', …) in main streams file from mediaService.getFilePathForPlayback(mediaId) with Content-Type and Accept-Ranges; Timeline passes videoUrl = `media://local/${selectedSelectId}` to PlaybackModule.
+- **Follow-ups:** None.
+
+---
+
 ## Decision: Video thumbnails via FFmpeg frame extraction
 - **Date:** 2026-02-08
 - **Context:** Need a thumbnail image per video clip for MediaCard (and future MediaFileCard) so users can identify clips at a glance.

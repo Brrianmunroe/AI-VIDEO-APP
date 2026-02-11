@@ -73,6 +73,16 @@
   color: var(--color-text-placeholder);
 }
 
+/* Video element fills the 16:9 player-inner */
+.playback-module__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background-color: var(--color-primary-950);
+}
+
 /* === Toolbar (inside player-section) === */
 .playback-module__toolbar {
   flex-shrink: 0;

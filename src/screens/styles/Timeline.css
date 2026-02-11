@@ -54,3 +54,37 @@
   width: 100%;
   aspect-ratio: 16 / 9;
 }
+
+/* Placeholder when project missing or media loading */
+.timeline__main--placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-xl);
+}
+
+.timeline__placeholder-message {
+  margin: 0;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-body);
+  color: var(--color-text-placeholder);
+}
+
+.timeline__back-link {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-body);
+  color: var(--color-text-action);
+  background: none;
+  border: none;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  cursor: pointer;
+  text-decoration: underline;
+  border-radius: var(--radius-sm);
+}
+
+.timeline__back-link:hover {
+  color: var(--color-text-heading);
+}

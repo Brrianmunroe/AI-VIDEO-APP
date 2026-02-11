@@ -1,42 +1,22 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import Icon from './Icon';
 import Button from './Button';
 import HighlightContainer from './HighlightContainer';
 import './styles/TranscriptPanel.css';
 
-/** Mock transcript lines until API exists (extended for scroll testing) */
-const MOCK_TRANSCRIPT = [
-  { time: '0:00', text: 'Welcome to the interview. Can you tell us about your background?' },
-  { time: '0:08', text: 'Sure. I started in design about ten years ago.' },
-  { time: '0:14', text: 'Initially I was focused on print, then moved into digital.' },
-  { time: '0:22', text: 'What drew you to video editing specifically?' },
-  { time: '0:28', text: 'The combination of story and rhythm. Every cut changes the meaning.' },
-  { time: '0:36', text: "That's a great way to put it. How do you approach a new project?" },
-  { time: '0:44', text: 'I always start with the transcript and the emotional beats.' },
-  { time: '0:52', text: 'Then I build the timeline around those moments.' },
-  { time: '1:00', text: 'Can you walk us through a typical edit from start to finish?' },
-  { time: '1:08', text: 'I start by watching everything and making notes on paper.' },
-  { time: '1:16', text: 'Then I do a rough cut without overthinking it.' },
-  { time: '1:24', text: 'The second pass is where I refine the rhythm and pacing.' },
-  { time: '1:32', text: 'How do you decide when to cut on action versus dialogue?' },
-  { time: '1:40', text: 'It depends on the energy. Action wants to breathe; dialogue can be tighter.' },
-  { time: '1:48', text: 'What role does music play in your process?' },
-  { time: '1:56', text: 'I often cut to a temp track, then the final score changes everything.' },
-  { time: '2:04', text: 'Do you prefer working alone or with a director in the room?' },
-  { time: '2:12', text: 'A bit of both. I need focus time, then feedback loops.' },
-  { time: '2:20', text: "What's the hardest part of editing for you?" },
-  { time: '2:28', text: "Killing your darlings. You have to let go of what doesn't serve the story." },
-  { time: '2:36', text: 'Any advice for someone just starting out in editing?' },
-  { time: '2:44', text: 'Edit a lot. Short films, reels, anything. Quantity teaches you rhythm.' },
-  { time: '2:52', text: 'How do you handle client feedback that you disagree with?' },
-  { time: '3:00', text: "I try to understand the note behind the note. Usually it's about clarity or tone." },
-  { time: '3:08', text: 'What tools do you use day to day?' },
-  { time: '3:16', text: 'Premiere for most projects; sometimes Resolve for color and finish.' },
-  { time: '3:24', text: 'Do you think AI will change editing in the next few years?' },
-  { time: '3:32', text: "It'll handle more of the mechanical work. The creative choices will still be human." },
-  { time: '3:40', text: 'Thanks so much for your time today.' },
-  { time: '3:48', text: 'Happy to share. Good luck with the project.' },
-];
+/** Format seconds to M:SS or 0:00 for display */
+function formatTimecode(seconds) {
+  const s = Math.max(0, Number(seconds));
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${String(sec).padStart(2, '0')}`;
+}
+
+/** Get display time for a line (supports { start, end, text } or legacy { time, text }) */
+function lineTime(line) {
+  if (line.start != null) return formatTimecode(line.start);
+  return line.time ?? '0:00';
+}
 
 const TABS = [
   { id: 'interview', label: 'Interview Selects' },
@@ -45,7 +25,9 @@ const TABS = [
 ];
 
 function TranscriptPanel({
-  transcript = MOCK_TRANSCRIPT,
+  transcript = [],
+  currentTimeSec,
+  onSeek,
   selects: selectsProp = [],
   selectedSelectId,
   onSelectClip,
@@ -56,21 +38,53 @@ function TranscriptPanel({
   onProceedToReviewTimeline,
   allDecided = false,
 }) {
-  const selects = selectsProp ?? [];
-  /** Show only pending and accepted; deleted clips disappear from the list */
-  const visibleSelects = selects.filter((s) => s.status !== 'deleted');
+  const selects = Array.isArray(selectsProp) ? selectsProp : [];
+  const transcriptList = Array.isArray(transcript) ? transcript : [];
+  /** Show only pending and accepted with valid id; deleted clips disappear from the list */
+  const visibleSelects = selects.filter((s) => s != null && s.id != null && s.status !== 'deleted');
   const selectedClip = visibleSelects.find((s) => s.id === selectedSelectId);
   const selectedIsPending = selectedClip?.status === 'pending';
   const [activeTab, setActiveTab] = useState('interview');
   const [search, setSearch] = useState('');
+  const activeLineRef = useRef(null);
 
   const filteredLines = useMemo(() => {
-    if (!search.trim()) return transcript;
+    if (!search.trim()) return transcriptList;
     const q = search.trim().toLowerCase();
-    return transcript.filter(
-      (line) => line.text.toLowerCase().includes(q) || line.time.includes(q)
+    return transcriptList.filter(
+      (line) =>
+        line != null &&
+        ((line.text && line.text.toLowerCase().includes(q)) ||
+          lineTime(line).toLowerCase().includes(q))
     );
-  }, [transcript, search]);
+  }, [transcriptList, search]);
+
+  const currentTime = currentTimeSec != null ? Number(currentTimeSec) : null;
+  const activeLineIndex = useMemo(() => {
+    if (currentTime == null || transcriptList.length === 0) return -1;
+    const idx = transcriptList.findIndex(
+      (line) => line != null && line.start != null && line.end != null && currentTime >= line.start && currentTime < line.end
+    );
+    return idx;
+  }, [transcriptList, currentTime]);
+
+  useEffect(() => {
+    if (activeLineIndex >= 0 && activeLineRef.current) {
+      activeLineRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [activeLineIndex]);
+
+  const handleLineClick = useCallback(
+    (line) => {
+      if (line.start != null && typeof onSeek === 'function') {
+        onSeek(line.start);
+      }
+    },
+    [onSeek]
+  );
+
+  const showNoTranscript = transcriptList.length === 0 && selectedSelectId != null;
+  const showSelectClip = selectedSelectId == null;
 
   return (
     <div className={`transcript-panel ${className}`.trim()} role="region" aria-label="Transcript">
@@ -157,16 +171,54 @@ function TranscriptPanel({
             {/* Transcript container: fills available space (does not hug content) */}
             <div className="transcript-panel__transcript-container">
               <div className="transcript-panel__content">
-                <ul className="transcript-panel__lines" aria-label="Transcript lines">
-                  {filteredLines.map((line, i) => (
-                    <li key={`${line.time}-${i}`} className="transcript-panel__line">
-                      <span className="transcript-panel__time" aria-hidden="true">
-                        {line.time}
-                      </span>
-                      <span className="transcript-panel__text">{line.text}</span>
-                    </li>
-                  ))}
-                </ul>
+                {showSelectClip && (
+                  <div className="transcript-panel__placeholder">
+                    Select a clip to view transcript and playback.
+                  </div>
+                )}
+                {showNoTranscript && (
+                  <div className="transcript-panel__placeholder">
+                    No transcript for this clip.
+                  </div>
+                )}
+                {!showSelectClip && !showNoTranscript && (
+                  <ul className="transcript-panel__lines" aria-label="Transcript lines">
+                    {filteredLines.map((line, i) => {
+                      const isActive =
+                        currentTime != null &&
+                        line.start != null &&
+                        line.end != null &&
+                        currentTime >= line.start &&
+                        currentTime < line.end;
+                      const isClickable = line.start != null && typeof onSeek === 'function';
+                      return (
+                        <li
+                          key={`${line.start ?? line.time ?? i}-${i}`}
+                          ref={isActive ? activeLineRef : undefined}
+                          className={`transcript-panel__line${isActive ? ' transcript-panel__line--active' : ''}${isClickable ? ' transcript-panel__line--clickable' : ''}`}
+                          onClick={isClickable ? () => handleLineClick(line) : undefined}
+                          onKeyDown={
+                            isClickable
+                              ? (e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    handleLineClick(line);
+                                  }
+                                }
+                              : undefined
+                          }
+                          role={isClickable ? 'button' : undefined}
+                          tabIndex={isClickable ? 0 : undefined}
+                        >
+                          <span className="transcript-panel__time" aria-hidden="true">
+                            {lineTime(line)}
+                          </span>
+                          <span className="transcript-panel__text">{line.text}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </div>
             </div>
           </div>

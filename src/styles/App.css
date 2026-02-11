@@ -19,3 +19,54 @@
   padding: 0;
   color: var(--color-grey-0, #FFFFFF);
 }
+
+/* Error boundary fallback when a screen throws */
+.app-error-fallback {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xl);
+  gap: var(--spacing-lg);
+  background-color: var(--color-surface-page-surface-default);
+  color: var(--color-text-heading);
+  font-family: var(--font-family-body);
+}
+
+.app-error-fallback__message {
+  font-size: var(--font-size-heading-03);
+  font-weight: var(--font-weight-heading-03);
+  margin: 0;
+}
+
+.app-error-fallback__detail {
+  font-size: var(--font-size-body);
+  color: var(--color-text-placeholder);
+  margin: 0;
+  padding: var(--spacing-md);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-primary-950);
+  max-width: 100%;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.app-error-fallback__stack {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-placeholder);
+  margin: 0;
+  padding: var(--spacing-md);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-primary-950);
+  max-width: 100%;
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre-wrap;
+  text-align: left;
+}
+
+.app-error-fallback__button {
+  flex-shrink: 0;
+}

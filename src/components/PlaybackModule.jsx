@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Icon from './Icon';
 import './styles/PlaybackModule.css';
 
@@ -50,21 +50,51 @@ function getRulerTicks(durationFrames, pixelsPerFrame) {
 const MOCK_VIDEO_CLIPS = [{ id: 'v1', startFrame: 0, durationFrames: 1152, label: 'Clip 1' }];
 const MOCK_AUDIO_CLIPS = [{ id: 'a1', startFrame: 0, durationFrames: 1152, label: 'Audio 1' }];
 
-function PlaybackModule({ className = '', videoClips: videoClipsProp, durationFrames: durationFramesProp, toolbarExtra }) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [playheadFrame, setPlayheadFrame] = useState(0);
+function PlaybackModule({
+  className = '',
+  videoUrl,
+  durationSec = 0,
+  currentTimeSec = 0,
+  isPlaying = false,
+  onTimeUpdate,
+  onSeek,
+  onPlayStateChange,
+  videoClips: videoClipsProp,
+  durationFrames: durationFramesProp,
+  toolbarExtra,
+}) {
+  const isControlled = videoUrl != null && typeof onSeek === 'function';
+  const [internalPlaying, setInternalPlaying] = useState(false);
+  const [internalPlayheadFrame, setInternalPlayheadFrame] = useState(0);
   const [inPointFrame, setInPointFrame] = useState(null);
   const [outPointFrame, setOutPointFrame] = useState(null);
   const [internalVideoClips] = useState(MOCK_VIDEO_CLIPS);
   const [audioClips] = useState(MOCK_AUDIO_CLIPS);
   const [pixelsPerFrame, setPixelsPerFrame] = useState(DEFAULT_PX_PER_FRAME);
 
-  const videoClips = videoClipsProp?.length ? videoClipsProp : internalVideoClips;
-  const durationFrames = durationFramesProp ?? (videoClipsProp?.length ? videoClipsProp.reduce((sum, c) => sum + (c.durationFrames ?? 0), 0) : 2880);
-
+  const videoRef = useRef(null);
   const viewportRef = useRef(null);
   const contentRef = useRef(null);
   const isDraggingRef = useRef(false);
+
+  const durationSecNum = Number(durationSec);
+  const safeDurationSec = Number.isFinite(durationSecNum) && durationSecNum >= 0 ? durationSecNum : 0;
+  const durationFrames = isControlled
+    ? Math.max(0, Math.round(safeDurationSec * FPS))
+    : (Number.isFinite(durationFramesProp) && durationFramesProp >= 0
+        ? durationFramesProp
+        : (Array.isArray(videoClipsProp) && videoClipsProp.length > 0
+            ? videoClipsProp.reduce((sum, c) => sum + (c.durationFrames ?? 0), 0)
+            : 2880));
+  const currentTimeSecNum = Number(currentTimeSec);
+  const safeCurrentTimeSec = Number.isFinite(currentTimeSecNum) && currentTimeSecNum >= 0 ? currentTimeSecNum : 0;
+  const playheadFrame = isControlled
+    ? Math.max(0, Math.min(durationFrames, Math.round(safeCurrentTimeSec * FPS)))
+    : internalPlayheadFrame;
+  const isPlayingState = isControlled ? isPlaying : internalPlaying;
+  const videoClips = isControlled
+    ? (durationFrames > 0 ? [{ id: 'source', startFrame: 0, durationFrames, label: 'Source' }] : [])
+    : (Array.isArray(videoClipsProp) && videoClipsProp.length > 0 ? videoClipsProp : internalVideoClips);
 
   const contentWidthPx = durationFrames * pixelsPerFrame;
   const stripWidthPx = 64 + contentWidthPx;
@@ -96,9 +126,14 @@ function PlaybackModule({ className = '', videoClips: videoClipsProp, durationFr
       if (isDraggingRef.current) return;
       if (e.target.closest('.playback-module__playhead')) return;
       const frame = getFrameFromClientX(e.clientX);
-      if (frame != null) setPlayheadFrame(frame);
+      if (frame == null) return;
+      if (isControlled && onSeek) {
+        onSeek(frame / FPS);
+      } else {
+        setInternalPlayheadFrame(frame);
+      }
     },
-    [getFrameFromClientX]
+    [getFrameFromClientX, isControlled, onSeek]
   );
 
   const handlePlayheadMouseDown = useCallback((e) => {
@@ -107,11 +142,16 @@ function PlaybackModule({ className = '', videoClips: videoClipsProp, durationFr
     isDraggingRef.current = true;
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const onMove = (e) => {
       if (!isDraggingRef.current) return;
       const frame = getFrameFromClientX(e.clientX);
-      if (frame != null) setPlayheadFrame(frame);
+      if (frame == null) return;
+      if (isControlled && onSeek) {
+        onSeek(frame / FPS);
+      } else {
+        setInternalPlayheadFrame(frame);
+      }
     };
     const onUp = () => {
       isDraggingRef.current = false;
@@ -122,7 +162,38 @@ function PlaybackModule({ className = '', videoClips: videoClipsProp, durationFr
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };
-  }, [getFrameFromClientX]);
+  }, [getFrameFromClientX, isControlled, onSeek]);
+
+  useEffect(() => {
+    if (!isControlled) return;
+    const video = videoRef.current;
+    if (!video) return;
+    const t = Math.max(0, Number(currentTimeSec));
+    if (Math.abs(video.currentTime - t) > 0.15) {
+      video.currentTime = t;
+    }
+  }, [currentTimeSec, isControlled]);
+
+  useEffect(() => {
+    if (!isControlled) return;
+    const video = videoRef.current;
+    if (!video) return;
+    if (isPlaying) {
+      video.play().catch(() => {});
+    } else {
+      video.pause();
+    }
+  }, [isPlaying, isControlled]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !isControlled || !onTimeUpdate) return;
+    const onTimeUpdateEvent = () => {
+      onTimeUpdate(video.currentTime);
+    };
+    video.addEventListener('timeupdate', onTimeUpdateEvent);
+    return () => video.removeEventListener('timeupdate', onTimeUpdateEvent);
+  }, [isControlled, onTimeUpdate]);
 
   const zoomIn = useCallback(() => {
     setPixelsPerFrame((p) => Math.min(MAX_PX_PER_FRAME, p * 1.5));
@@ -134,7 +205,11 @@ function PlaybackModule({ className = '', videoClips: videoClipsProp, durationFr
 
   const handleToolbarClick = (id) => {
     if (id === 'play') {
-      setIsPlaying((p) => !p);
+      if (isControlled && onPlayStateChange) {
+        onPlayStateChange(!isPlayingState);
+      } else {
+        setInternalPlaying((p) => !p);
+      }
       return;
     }
     if (id === 'mark-in') {
@@ -153,11 +228,15 @@ function PlaybackModule({ className = '', videoClips: videoClipsProp, durationFr
       return;
     }
     if (id === 'back') {
-      setPlayheadFrame(inPointFrame != null ? inPointFrame : 0);
+      const targetFrame = inPointFrame != null ? inPointFrame : 0;
+      if (isControlled && onSeek) onSeek(targetFrame / FPS);
+      else setInternalPlayheadFrame(targetFrame);
       return;
     }
     if (id === 'forward') {
-      setPlayheadFrame(outPointFrame != null ? outPointFrame : durationFrames);
+      const targetFrame = outPointFrame != null ? outPointFrame : durationFrames;
+      if (isControlled && onSeek) onSeek(targetFrame / FPS);
+      else setInternalPlayheadFrame(targetFrame);
       return;
     }
   };
@@ -170,13 +249,33 @@ function PlaybackModule({ className = '', videoClips: videoClipsProp, durationFr
   const shadeLeftPx = hasInOut ? frameToPx(Math.min(inPointFrame, outPointFrame)) : null;
   const shadeWidthPx = hasInOut ? frameToPx(Math.abs(outPointFrame - inPointFrame)) : null;
 
+  const showVideo = isControlled && videoUrl;
+  const showPlaceholder = !showVideo;
+
   return (
     <div className={`playback-module ${className}`.trim()} role="region" aria-label="Playback">
       <div className="playback-module__player-section">
         <div className="playback-module__player">
-          <div className="playback-module__player-inner">
-            <span className="playback-module__player-label">Video</span>
-          </div>
+          {showVideo && (
+            <div className="playback-module__player-inner">
+              <video
+                ref={videoRef}
+                className="playback-module__video"
+                src={videoUrl}
+                playsInline
+                muted={false}
+                controls={false}
+                aria-label="Video playback"
+              />
+            </div>
+          )}
+          {showPlaceholder && (
+            <div className="playback-module__player-inner">
+              <span className="playback-module__player-label">
+                {isControlled && !videoUrl ? 'Select a clip' : 'Video'}
+              </span>
+            </div>
+          )}
         </div>
         <div className="playback-module__toolbar" role="toolbar" aria-label="Playback controls">
           <div className="playback-module__toolbar-spacer playback-module__toolbar-spacer--left" aria-hidden="true" />

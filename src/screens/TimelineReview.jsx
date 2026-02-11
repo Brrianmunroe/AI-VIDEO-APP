@@ -5,13 +5,17 @@ import Button from '../components/Button';
 import ExportTimelineModal from '../components/ExportTimelineModal';
 import './styles/TimelineReview.css';
 
+const FPS = 24;
+
 function buildTimelineFromAccepted(acceptedClips) {
   if (!acceptedClips || acceptedClips.length === 0) {
     return { videoClips: [], durationFrames: 0 };
   }
   let startFrame = 0;
   const videoClips = acceptedClips.map((c) => {
-    const durationFrames = c.durationFrames ?? 480;
+    const durationFrames =
+      c.durationFrames ??
+      (c.duration != null ? Math.max(0, Math.round(Number(c.duration) * FPS)) : 480);
     const clip = {
       id: c.id,
       startFrame,

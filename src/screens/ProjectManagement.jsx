@@ -21,11 +21,10 @@ function ProjectManagement({ onOpenProject }) {
 
     try {
       const result = await window.electronAPI.projects.getAll();
-      if (result.success) {
-        setProjects(result.data);
-      }
+      setProjects(Array.isArray(result?.data) ? result.data : []);
     } catch (error) {
       console.error('Failed to load projects:', error);
+      setProjects([]);
     } finally {
       setLoading(false);
     }
@@ -128,7 +127,7 @@ function ProjectManagement({ onOpenProject }) {
         <h2 className="section-title">Recent Projects</h2>
         {loading ? (
           <div className="loading-state">Loading projects...</div>
-        ) : projects.length === 0 ? (
+        ) : !Array.isArray(projects) || projects.length === 0 ? (
           <div className="empty-state">No projects yet. Create your first project to get started!</div>
         ) : (
           <div className="projects-table-wrapper">

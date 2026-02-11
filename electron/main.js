@@ -1,17 +1,20 @@
 import { app, BrowserWindow, ipcMain, dialog, protocol } from 'electron';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, createReadStream, statSync } from 'fs';
+import { Readable } from 'stream';
 import { initializeDatabase, closeDatabase } from './db/index.js';
 import * as projectService from './services/projectService.js';
 import * as mediaService from './services/mediaService.js';
+import * as transcriptionService from './services/transcriptionService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Register custom thumbnail protocol before app ready (required for protocol.handle)
+// Register custom thumbnail and media protocols before app ready (required for protocol.handle)
 protocol.registerSchemesAsPrivileged([
   { scheme: 'thumbnail', privileges: { standard: true, secure: true, supportFetchAPI: true } },
+  { scheme: 'media', privileges: { standard: true, secure: true, supportFetchAPI: true } },
 ]);
 
 // Keep a global reference of the window object
@@ -132,6 +135,65 @@ app.whenReady().then(() => {
       });
     } catch (err) {
       console.warn('[Main] Thumbnail protocol error:', err?.message);
+      return new Response(null, { status: 500 });
+    }
+  });
+
+  // Serve media files for video playback (supports Range for seeking)
+  const VIDEO_MIME = {
+    '.mp4': 'video/mp4',
+    '.mov': 'video/quicktime',
+    '.avi': 'video/x-msvideo',
+    '.mkv': 'video/x-matroska',
+    '.m4v': 'video/x-m4v',
+  };
+  protocol.handle('media', (request) => {
+    try {
+      const url = new URL(request.url);
+      const pathParts = url.pathname.replace(/^\/+/, '').split('/');
+      const mediaId = parseInt(pathParts[pathParts.length - 1], 10);
+      if (!Number.isFinite(mediaId)) {
+        return new Response(null, { status: 404 });
+      }
+      const filePath = mediaService.getFilePathForPlayback(mediaId);
+      if (!filePath) {
+        return new Response(null, { status: 404 });
+      }
+      const ext = filePath.slice(filePath.lastIndexOf('.')).toLowerCase();
+      const contentType = VIDEO_MIME[ext] || 'application/octet-stream';
+      const stat = statSync(filePath);
+      const fileSize = stat.size;
+      const rangeHeader = request.headers.get('Range');
+      if (rangeHeader && rangeHeader.startsWith('bytes=')) {
+        const [, rangePart] = rangeHeader.split('=');
+        const [startStr, endStr] = rangePart.split('-');
+        const start = parseInt(startStr, 10) || 0;
+        const end = endStr ? parseInt(endStr, 10) : fileSize - 1;
+        const chunkSize = end - start + 1;
+        const stream = createReadStream(filePath, { start, end });
+        const webStream = Readable.toWeb(stream);
+        return new Response(webStream, {
+          status: 206,
+          headers: {
+            'Content-Type': contentType,
+            'Content-Length': String(chunkSize),
+            'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+            'Accept-Ranges': 'bytes',
+          },
+        });
+      }
+      const stream = createReadStream(filePath);
+      const webStream = Readable.toWeb(stream);
+      return new Response(webStream, {
+        status: 200,
+        headers: {
+          'Content-Type': contentType,
+          'Content-Length': String(fileSize),
+          'Accept-Ranges': 'bytes',
+        },
+      });
+    } catch (err) {
+      console.warn('[Main] Media protocol error:', err?.message);
       return new Response(null, { status: 500 });
     }
   });
@@ -347,6 +409,16 @@ ipcMain.handle('media:setMasterAudio', (event, mediaId, isMaster) => {
   try {
     mediaService.setMasterAudio(mediaId, isMaster);
     return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Transcription IPC
+ipcMain.handle('transcription:getByMediaId', (event, mediaId) => {
+  try {
+    const data = transcriptionService.getTranscriptByMediaId(mediaId);
+    return { success: true, data };
   } catch (error) {
     return { success: false, error: error.message };
   }

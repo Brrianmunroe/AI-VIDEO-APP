@@ -36,6 +36,11 @@ try {
     setMasterAudio: (mediaId, isMaster) => ipcRenderer.invoke('media:setMasterAudio', mediaId, isMaster),
     delete: (mediaId) => ipcRenderer.invoke('media:delete', mediaId),
   },
+
+  // Transcription
+  transcription: {
+    getByMediaId: (mediaId) => ipcRenderer.invoke('transcription:getByMediaId', mediaId),
+  },
   });
   console.log('[Preload] electronAPI exposed successfully');
 } catch (error) {

@@ -127,6 +127,47 @@ async function getMediaDurationSeconds(filePath) {
 }
 
 /**
+ * Extract audio from a video or audio file to 16 kHz mono WAV (for Whisper transcription).
+ * Creates the output directory if missing. Uses ffmpeg with same discovery as thumbnail/duration.
+ * @param {string} sourcePath - Path to the source media file (video or audio)
+ * @param {string} wavOutputPath - Path for the output WAV file
+ * @returns {Promise<boolean>} - true if extraction succeeded and output file exists, false otherwise
+ */
+export async function extractAudioTo16kWav(sourcePath, wavOutputPath) {
+  if (!sourcePath || !wavOutputPath) return false;
+  const outDir = join(wavOutputPath, '..');
+  if (!existsSync(outDir)) {
+    mkdirSync(outDir, { recursive: true });
+  }
+  const args = [
+    '-y',
+    '-i', sourcePath,
+    '-vn',
+    '-acodec', 'pcm_s16le',
+    '-ar', '16000',
+    '-ac', '1',
+    wavOutputPath,
+  ];
+  const opts = { timeout: 300000, env: getFfmpegEnv() };
+
+  for (const ffmpegPath of getFfmpegCandidates()) {
+    try {
+      await execFileAsync(ffmpegPath, args, opts);
+      if (existsSync(wavOutputPath)) {
+        return true;
+      }
+    } catch (err) {
+      if (ffmpegPath === 'ffmpeg' && err?.code === 'ENOENT') {
+        console.warn('[media] ffmpeg not in PATH; trying known install locations for audio extraction.');
+      }
+      continue;
+    }
+  }
+  console.warn('[media] Could not extract audio to 16kHz WAV for', sourcePath.split(/[/\\]/).pop(), '(install ffmpeg for transcription)');
+  return false;
+}
+
+/**
  * Get all media files for a project
  */
 export function getMediaByProject(projectId) {
@@ -295,6 +336,17 @@ export function getThumbnailPath(mediaId) {
   const db = getDatabase();
   const row = db.prepare('SELECT thumbnail_path FROM media WHERE id = ?').get(mediaId);
   const path = row?.thumbnail_path || null;
+  return path && existsSync(path) ? path : null;
+}
+
+/**
+ * Get the filesystem path for a media item's source file (for playback via custom protocol).
+ * Returns null if media not found or file does not exist.
+ */
+export function getFilePathForPlayback(mediaId) {
+  const db = getDatabase();
+  const row = db.prepare('SELECT file_path FROM media WHERE id = ?').get(mediaId);
+  const path = row?.file_path || null;
   return path && existsSync(path) ? path : null;
 }
 

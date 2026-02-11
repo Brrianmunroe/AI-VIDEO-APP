@@ -245,6 +245,27 @@
   margin-bottom: 0;
 }
 
+.transcript-panel__line--clickable {
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  margin-left: calc(-1 * var(--spacing-sm));
+  margin-right: calc(-1 * var(--spacing-sm));
+  padding-left: var(--spacing-sm);
+}
+
+.transcript-panel__line--clickable:hover {
+  background-color: var(--color-surface-secondary-button-surface-hover);
+}
+
+.transcript-panel__line--active {
+  background-color: var(--color-surface-secondary-button-surface-hover);
+}
+
+.transcript-panel__line--clickable.transcript-panel__line--active {
+  background-color: var(--color-surface-secondary-button-surface-hover);
+}
+
 .transcript-panel__time {
   flex-shrink: 0;
   color: var(--color-text-label);
