@@ -44,18 +44,9 @@ const TABS = [
   { id: 'clipinfo', label: 'Clip info' },
 ];
 
-/** Mock AI-cut clips until selects API exists (clip item shape: id, thumbnail, clipName, highlightCount, selectionReason?) */
-const MOCK_SELECTS = [
-  { id: '1', thumbnail: 'https://picsum.photos/seed/clip1/320/180', clipName: 'clip_0001.mp4', highlightCount: 3 },
-  { id: '2', thumbnail: 'https://picsum.photos/seed/clip2/320/180', clipName: 'clip_0002.mp4', highlightCount: 5 },
-  { id: '3', thumbnail: 'https://picsum.photos/seed/clip3/320/180', clipName: 'clip_0003.mp4', highlightCount: 2 },
-  { id: '4', thumbnail: 'https://picsum.photos/seed/clip4/320/180', clipName: 'clip_0004.mp4', highlightCount: 4 },
-  { id: '5', thumbnail: 'https://picsum.photos/seed/clip5/320/180', clipName: 'clip_0005.mp4', highlightCount: 1 },
-];
-
 function TranscriptPanel({
   transcript = MOCK_TRANSCRIPT,
-  selects: selectsProp,
+  selects: selectsProp = [],
   selectedSelectId,
   onSelectClip,
   onSelectInfo,
@@ -65,7 +56,7 @@ function TranscriptPanel({
   onProceedToReviewTimeline,
   allDecided = false,
 }) {
-  const selects = selectsProp ?? MOCK_SELECTS;
+  const selects = selectsProp ?? [];
   /** Show only pending and accepted; deleted clips disappear from the list */
   const visibleSelects = selects.filter((s) => s.status !== 'deleted');
   const selectedClip = visibleSelects.find((s) => s.id === selectedSelectId);
@@ -133,20 +124,26 @@ function TranscriptPanel({
           >
             <div className="transcript-panel__selects-container">
               <div className="transcript-panel__selects-content" role="list" aria-label="Interview selects">
-                <div className="transcript-panel__selects-list">
-                  {visibleSelects.map((item) => (
-                    <HighlightContainer
-                      key={item.id}
-                      thumbnail={item.thumbnail}
-                      clipName={item.clipName}
-                      highlightCount={item.highlightCount}
-                      status={item.status}
-                      selected={selectedSelectId === item.id}
-                      onClick={() => onSelectClip?.(item.id)}
-                      onInfoClick={() => onSelectInfo?.(item.id)}
-                    />
-                  ))}
-                </div>
+                {visibleSelects.length === 0 ? (
+                  <div className="transcript-panel__placeholder">
+                    No clips in this project. Upload videos in the Import step.
+                  </div>
+                ) : (
+                  <div className="transcript-panel__selects-list">
+                    {visibleSelects.map((item) => (
+                      <HighlightContainer
+                        key={item.id}
+                        thumbnail={item.thumbnail}
+                        clipName={item.clipName}
+                        highlightCount={item.highlightCount}
+                        status={item.status}
+                        selected={selectedSelectId === item.id}
+                        onClick={() => onSelectClip?.(item.id)}
+                        onInfoClick={() => onSelectInfo?.(item.id)}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -1,23 +1,38 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import ProjectHeader from '../components/ProjectHeader';
 import TranscriptPanel from '../components/TranscriptPanel';
 import PlaybackModule from '../components/PlaybackModule';
 import './styles/Timeline.css';
 
-/** Mock AI-cut selects; each gets status pending | accepted | deleted */
-const INITIAL_SELECTS = [
-  { id: '1', thumbnail: 'https://picsum.photos/seed/clip1/320/180', clipName: 'clip_0001.mp4', highlightCount: 3, durationFrames: 480 },
-  { id: '2', thumbnail: 'https://picsum.photos/seed/clip2/320/180', clipName: 'clip_0002.mp4', highlightCount: 5, durationFrames: 360 },
-  { id: '3', thumbnail: 'https://picsum.photos/seed/clip3/320/180', clipName: 'clip_0003.mp4', highlightCount: 2, durationFrames: 420 },
-  { id: '4', thumbnail: 'https://picsum.photos/seed/clip4/320/180', clipName: 'clip_0004.mp4', highlightCount: 4, durationFrames: 300 },
-  { id: '5', thumbnail: 'https://picsum.photos/seed/clip5/320/180', clipName: 'clip_0005.mp4', highlightCount: 1, durationFrames: 480 },
-];
+function mediaToSelect(m) {
+  return {
+    id: m.id,
+    thumbnail: m.thumbnail ?? null,
+    clipName: m.clipName || m.name || '',
+    highlightCount: 0,
+    status: 'pending',
+  };
+}
 
 function Timeline({ project, onBack, onNavigateToTimelineReview }) {
-  const [selects, setSelects] = useState(() =>
-    INITIAL_SELECTS.map((s) => ({ ...s, status: 'pending' }))
-  );
+  const [selects, setSelects] = useState([]);
   const [selectedSelectId, setSelectedSelectId] = useState(null);
+
+  useEffect(() => {
+    if (!project || !window.electronAPI?.media?.getByProject) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await window.electronAPI.media.getByProject(project.id);
+        if (cancelled || !result.success) return;
+        const data = result.data ?? [];
+        setSelects(data.map(mediaToSelect));
+      } catch (err) {
+        console.error('Failed to load project media:', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [project?.id]);
 
   const handleAccept = useCallback((clipId) => {
     setSelects((prev) =>
