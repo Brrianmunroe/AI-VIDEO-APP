@@ -40,6 +40,7 @@ try {
   // Transcription
   transcription: {
     getByMediaId: (mediaId) => ipcRenderer.invoke('transcription:getByMediaId', mediaId),
+    runForProject: (projectId) => ipcRenderer.invoke('transcription:runForProject', projectId),
   },
   });
   console.log('[Preload] electronAPI exposed successfully');

@@ -423,3 +423,12 @@ ipcMain.handle('transcription:getByMediaId', (event, mediaId) => {
     return { success: false, error: error.message };
   }
 });
+
+ipcMain.handle('transcription:runForProject', async (event, projectId) => {
+  try {
+    const result = await transcriptionService.runForProject(projectId);
+    return { success: true, ...result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});

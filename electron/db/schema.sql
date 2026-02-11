@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS transcripts (
   media_id INTEGER NOT NULL,
   text TEXT NOT NULL, -- Full transcript text
   words TEXT NOT NULL, -- JSON blob: [{"word": "hello", "start": 0.5, "end": 0.8}, ...]
+  empty_reason TEXT, -- NULL = has content; 'no_audio' = no audio/extract failed; 'transcription_failed' = Whisper failed or no speech
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (media_id) REFERENCES media(id) ON DELETE CASCADE
 );

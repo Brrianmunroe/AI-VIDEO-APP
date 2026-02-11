@@ -26,6 +26,8 @@ const TABS = [
 
 function TranscriptPanel({
   transcript = [],
+  transcriptEmptyReason = null,
+  transcriptionErrors = [],
   currentTimeSec,
   onSeek,
   selects: selectsProp = [],
@@ -69,10 +71,11 @@ function TranscriptPanel({
   }, [transcriptList, currentTime]);
 
   useEffect(() => {
+    if (activeTab !== 'transcript') return;
     if (activeLineIndex >= 0 && activeLineRef.current) {
       activeLineRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
-  }, [activeLineIndex]);
+  }, [activeTab, activeLineIndex]);
 
   const handleLineClick = useCallback(
     (line) => {
@@ -85,6 +88,11 @@ function TranscriptPanel({
 
   const showNoTranscript = transcriptList.length === 0 && selectedSelectId != null;
   const showSelectClip = selectedSelectId == null;
+  const noTranscriptMessage =
+    transcriptEmptyReason === 'no_audio'
+      ? 'No audio to transcribe.'
+      : 'Could not generate transcript.';
+  const hasTranscriptionErrors = Array.isArray(transcriptionErrors) && transcriptionErrors.length > 0;
 
   return (
     <div className={`transcript-panel ${className}`.trim()} role="region" aria-label="Transcript">
@@ -170,6 +178,12 @@ function TranscriptPanel({
           >
             {/* Transcript container: fills available space (does not hug content) */}
             <div className="transcript-panel__transcript-container">
+              {hasTranscriptionErrors && (
+                <div className="transcript-panel__transcription-error-banner" role="status">
+                  Transcription failed for some clips. Check Whisper/FFmpeg setup if this persists.
+                </div>
+              )}
+              <div className="transcript-panel__transcript-content-wrap">
               <div className="transcript-panel__content">
                 {showSelectClip && (
                   <div className="transcript-panel__placeholder">
@@ -178,7 +192,7 @@ function TranscriptPanel({
                 )}
                 {showNoTranscript && (
                   <div className="transcript-panel__placeholder">
-                    No transcript for this clip.
+                    {noTranscriptMessage}
                   </div>
                 )}
                 {!showSelectClip && !showNoTranscript && (
@@ -219,6 +233,7 @@ function TranscriptPanel({
                     })}
                   </ul>
                 )}
+              </div>
               </div>
             </div>
           </div>

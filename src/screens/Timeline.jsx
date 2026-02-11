@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import ProjectHeader from '../components/ProjectHeader';
 import TranscriptPanel from '../components/TranscriptPanel';
 import PlaybackModule from '../components/PlaybackModule';
@@ -32,6 +32,16 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
   const [currentTimeSec, setCurrentTimeSec] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [transcriptLines, setTranscriptLines] = useState([]);
+  const [transcriptEmptyReason, setTranscriptEmptyReason] = useState(null);
+  const [transcriptionErrors, setTranscriptionErrors] = useState([]);
+  const selectedSelectIdRef = useRef(null);
+  const transcriptionStartedForProjectIdRef = useRef(null);
+  const transcriptionInProgressRef = useRef(false);
+
+  useEffect(() => {
+    selectedSelectIdRef.current = selectedSelectId;
+  }, [selectedSelectId]);
+
   useEffect(() => {
     if (!project || typeof project.id === 'undefined' || !window.electronAPI?.media?.getByProject) {
       setSelects([]);
@@ -58,6 +68,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
   useEffect(() => {
     if (!selectedSelectId) {
       setTranscriptLines([]);
+      setTranscriptEmptyReason(null);
       setCurrentTimeSec(0);
       setIsPlaying(false);
       return;
@@ -72,13 +83,63 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
         if (cancelled) return;
         const data = result?.success ? result.data : null;
         setTranscriptLines(data?.words ? wordsToLines(data.words) : []);
+        setTranscriptEmptyReason(
+          data == null
+            ? null
+            : !data.words || data.words.length === 0
+              ? (data.emptyReason ?? null)
+              : null
+        );
       } catch (err) {
         console.error('Failed to load transcript:', err);
-        if (!cancelled) setTranscriptLines([]);
+        if (!cancelled) {
+          setTranscriptLines([]);
+          setTranscriptEmptyReason(null);
+        }
       }
     })();
     return () => { cancelled = true; };
   }, [selectedSelectId]);
+
+  // Run transcription for all project media without a transcript (once per project, not while in progress)
+  useEffect(() => {
+    if (!project?.id || !window.electronAPI?.transcription?.runForProject) return;
+    if (transcriptionInProgressRef.current) return;
+    if (transcriptionStartedForProjectIdRef.current === project.id) return;
+
+    transcriptionInProgressRef.current = true;
+    transcriptionStartedForProjectIdRef.current = project.id;
+
+    window.electronAPI.transcription
+      .runForProject(project.id)
+      .then((result) => {
+        if (!result?.success) {
+          console.error('Transcription runForProject failed:', result?.error);
+          setTranscriptionErrors([{ mediaId: null, message: result?.error || 'Transcription failed' }]);
+          return;
+        }
+        if (result.errors?.length > 0) {
+          setTranscriptionErrors(result.errors);
+        }
+        const mediaIdToRefresh = selectedSelectIdRef.current;
+        if (mediaIdToRefresh == null) return;
+        return window.electronAPI.transcription.getByMediaId(mediaIdToRefresh).then((res) => {
+          if (!res?.success || selectedSelectIdRef.current !== mediaIdToRefresh) return;
+          const data = res.data;
+          setTranscriptLines(data?.words ? wordsToLines(data.words) : []);
+          setTranscriptEmptyReason(
+            data && (!data.words || data.words.length === 0) ? (data.emptyReason ?? null) : null
+          );
+        });
+      })
+      .catch((err) => {
+        console.error('Transcription runForProject failed:', err);
+        setTranscriptionErrors([{ mediaId: null, message: err?.message || String(err) }]);
+      })
+      .finally(() => {
+        transcriptionInProgressRef.current = false;
+      });
+  }, [project?.id]);
 
   const handleAccept = useCallback((clipId) => {
     setSelects((prev) =>
@@ -157,6 +218,8 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
             onProceedToReviewTimeline={handleProceedToReviewTimeline}
             allDecided={allDecided}
             transcript={Array.isArray(transcriptLines) ? transcriptLines : []}
+            transcriptEmptyReason={transcriptEmptyReason}
+            transcriptionErrors={transcriptionErrors}
             currentTimeSec={currentTimeSec}
             onSeek={handleSeek}
           />

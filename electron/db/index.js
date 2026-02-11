@@ -91,6 +91,14 @@ function runMigrations() {
   if (!hasThumbnailPath) {
     db.exec('ALTER TABLE media ADD COLUMN thumbnail_path TEXT');
   }
+
+  // Add empty_reason to transcripts if missing (for existing databases)
+  const hasEmptyReason = db.prepare(
+    "SELECT 1 FROM pragma_table_info('transcripts') WHERE name = 'empty_reason'"
+  ).get();
+  if (!hasEmptyReason) {
+    db.exec('ALTER TABLE transcripts ADD COLUMN empty_reason TEXT');
+  }
 }
 
 /**

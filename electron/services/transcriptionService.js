@@ -56,8 +56,8 @@ function checkWhisperReady() {
   return result.ok ? { ok: true } : { ok: false, message: result.message };
 }
 
-/** Parse timestamp string "00:00:14.310" or "00:00:14,310" to seconds */
-function parseTimestamp(str) {
+/** Parse SRT timestamp "00:00:14,310" or "00:00:14.310" to seconds */
+function parseSrtTimestamp(str) {
   if (typeof str !== 'string') return 0;
   const parts = str.trim().split(':');
   if (parts.length < 3) return 0;
@@ -68,18 +68,44 @@ function parseTimestamp(str) {
 }
 
 /**
- * Run whisper.cpp main binary with JSON output and parse transcription.
+ * Parse SRT file content into segments { start, end, text }.
+ * SRT format: optional BOM, then blocks of "index\nHH:MM:SS,mmm --> HH:MM:SS,mmm\ntext\n\n"
+ */
+function parseSrtContent(content) {
+  if (!content || typeof content !== 'string') return [];
+  const normalized = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+  const blocks = normalized.split(/\n\s*\n/).filter((b) => b.trim());
+  const segments = [];
+  for (const block of blocks) {
+    const lines = block.split('\n').map((l) => l.trim()).filter(Boolean);
+    if (lines.length < 2) continue;
+    const timeLine = lines[1];
+    const match = timeLine.match(/^(\d{2}:\d{2}:\d{2}[,.]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[,.]\d{3})$/);
+    if (!match) continue;
+    const start = parseSrtTimestamp(match[1]);
+    const end = parseSrtTimestamp(match[2]);
+    const text = lines.slice(2).join(' ').trim();
+    if (text.length > 0) {
+      segments.push({ start, end, text });
+    }
+  }
+  return segments;
+}
+
+/**
+ * Run whisper.cpp main binary with SRT output and parse the result.
+ * The main binary only supports -osrt (not -oj/-of); it writes to <wavPath>.srt.
  * Returns array of { start (seconds), end (seconds), text } or null on failure.
  */
-async function runWhisperAndParseJson(wavPath, outputBasePath, whisperCppDir, mainBinary) {
+async function runWhisperAndParseSrt(wavPath, whisperCppDir, mainBinary) {
   const modelArg = `models/${DEFAULT_WHISPER_MODEL}`;
   const args = [
     '-m', modelArg,
     '-f', wavPath,
     '-l', 'auto',
-    '-oj',
-    '-of', outputBasePath,
+    '-osrt',
   ];
+  console.log('[transcription] Running Whisper:', mainBinary, 'cwd:', whisperCppDir, 'args:', args.join(' '));
   try {
     await execFileAsync(mainBinary, args, {
       cwd: whisperCppDir,
@@ -87,36 +113,25 @@ async function runWhisperAndParseJson(wavPath, outputBasePath, whisperCppDir, ma
       maxBuffer: 50 * 1024 * 1024,
     });
   } catch (err) {
-    console.warn('[transcription] Whisper binary failed:', err?.message);
+    console.warn('[transcription] Whisper binary failed:', err?.message, err?.code);
     return null;
   }
-  const jsonPath = `${outputBasePath}.json`;
-  if (!existsSync(jsonPath)) {
-    console.warn('[transcription] Whisper did not produce JSON:', jsonPath);
+  const srtPath = `${wavPath}.srt`;
+  if (!existsSync(srtPath)) {
+    console.warn('[transcription] Whisper did not produce SRT:', srtPath);
     return null;
   }
-  let data;
+  console.log('[transcription] SRT produced, parsing:', srtPath);
   try {
-    const raw = readFileSync(jsonPath, 'utf8');
-    data = JSON.parse(raw);
+    const raw = readFileSync(srtPath, 'utf8');
+    const segments = parseSrtContent(raw);
+    return segments;
   } catch (err) {
-    console.warn('[transcription] Failed to parse Whisper JSON:', err?.message);
+    console.warn('[transcription] Failed to parse Whisper SRT:', err?.message);
     return null;
-  }
-  try {
-    if (!data.transcription || !Array.isArray(data.transcription)) {
-      return [];
-    }
-    return data.transcription.map((seg) => {
-      const ts = seg.timestamps || {};
-      const from = parseTimestamp(ts.from);
-      const to = parseTimestamp(ts.to);
-      const text = typeof seg.text === 'string' ? seg.text.trim() : '';
-      return { start: from, end: to, text };
-    }).filter((seg) => seg.text.length > 0);
   } finally {
     try {
-      if (existsSync(jsonPath)) unlinkSync(jsonPath);
+      if (existsSync(srtPath)) unlinkSync(srtPath);
     } catch (_) {}
   }
 }
@@ -132,12 +147,12 @@ function getTranscriptionAudioDir() {
 
 /**
  * Get transcript for a media id, if any.
- * Returns { id, mediaId, text, words } or null.
+ * Returns { id, mediaId, text, words, emptyReason, createdAt } or null.
  */
 export function getTranscriptByMediaId(mediaId) {
   const db = getDatabase();
   const row = db.prepare(
-    'SELECT id, media_id, text, words, created_at FROM transcripts WHERE media_id = ?'
+    'SELECT id, media_id, text, words, empty_reason, created_at FROM transcripts WHERE media_id = ?'
   ).get(mediaId);
   if (!row) return null;
   return {
@@ -145,6 +160,7 @@ export function getTranscriptByMediaId(mediaId) {
     mediaId: row.media_id,
     text: row.text,
     words: JSON.parse(row.words || '[]'),
+    emptyReason: row.empty_reason ?? null,
     createdAt: row.created_at,
   };
 }
@@ -175,21 +191,23 @@ export function getTranscriptsByProject(projectId) {
  * Insert an empty transcript for a media item (e.g. no audio or no speech detected).
  * @param {object} db - Database instance
  * @param {number} mediaId
- * @returns {{ id: number, mediaId: number, text: string, words: Array }}
+ * @param {string} [reason] - 'no_audio' | 'transcription_failed'; why the transcript is empty
+ * @returns {{ id: number, mediaId: number, text: string, words: Array, emptyReason: string|null }}
  */
-function insertEmptyTranscript(db, mediaId) {
+function insertEmptyTranscript(db, mediaId, reason = null) {
   const insertStmt = db.prepare(
-    'INSERT INTO transcripts (media_id, text, words) VALUES (?, ?, ?)'
+    'INSERT INTO transcripts (media_id, text, words, empty_reason) VALUES (?, ?, ?, ?)'
   );
-  insertStmt.run(mediaId, '', JSON.stringify([]));
+  insertStmt.run(mediaId, '', JSON.stringify([]), reason);
   const row = db.prepare(
-    'SELECT id, media_id, text, words FROM transcripts WHERE media_id = ?'
+    'SELECT id, media_id, text, words, empty_reason FROM transcripts WHERE media_id = ?'
   ).get(mediaId);
   return {
     id: row.id,
     mediaId: row.media_id,
     text: '',
     words: [],
+    emptyReason: row.empty_reason ?? null,
   };
 }
 
@@ -220,20 +238,19 @@ export async function runForMedia(mediaId) {
 
   const audioDir = getTranscriptionAudioDir();
   const wavPath = join(audioDir, `media_${mediaId}.wav`);
-  const outputBasePath = join(audioDir, `media_${mediaId}_out`);
 
+  console.log('[transcription] Extracting audio for media', mediaId, 'to', wavPath);
   const extracted = await extractAudioTo16kWav(media.file_path, wavPath);
   if (!extracted) {
     console.warn('[transcription] No audio or could not extract for media', mediaId, '- saving empty transcript.');
-    const empty = insertEmptyTranscript(db, mediaId);
+    const empty = insertEmptyTranscript(db, mediaId, 'no_audio');
     return empty;
   }
 
   let segments;
   try {
-    segments = await runWhisperAndParseJson(
+    segments = await runWhisperAndParseSrt(
       wavPath,
-      outputBasePath,
       paths.whisperCppDir,
       paths.mainBinary
     );
@@ -247,7 +264,7 @@ export async function runForMedia(mediaId) {
     if (segments === null) {
       console.warn('[transcription] Whisper returned no transcript for media', mediaId, '- saving empty transcript.');
     }
-    return insertEmptyTranscript(db, mediaId);
+    return insertEmptyTranscript(db, mediaId, 'transcription_failed');
   }
 
   const words = segments.map((seg) => ({
@@ -263,13 +280,14 @@ export async function runForMedia(mediaId) {
   insertStmt.run(mediaId, text, JSON.stringify(words));
 
   const row = db.prepare(
-    'SELECT id, media_id, text, words FROM transcripts WHERE media_id = ?'
+    'SELECT id, media_id, text, words, empty_reason FROM transcripts WHERE media_id = ?'
   ).get(mediaId);
   return {
     id: row.id,
     mediaId: row.media_id,
     text: row.text,
     words: JSON.parse(row.words || '[]'),
+    emptyReason: row.empty_reason ?? null,
   };
 }
 
@@ -280,18 +298,24 @@ export async function runForMedia(mediaId) {
  * @returns {Promise<{ transcribed: number, skipped: number, errors: Array<{ mediaId: number, message: string }> }>}
  */
 export async function runForProject(projectId) {
+  console.log('[transcription] runForProject started, projectId:', projectId);
   const mediaList = getMediaByProject(projectId);
+  console.log('[transcription] Media count:', mediaList.length);
   const transcribed = [];
   const errors = [];
 
   for (const media of mediaList) {
     const hasTranscript = getTranscriptByMediaId(media.id) !== null;
     if (hasTranscript) {
+      console.log('[transcription] Skipping media', media.id, '(already has transcript)');
       continue;
     }
     try {
+      console.log('[transcription] Transcribing media', media.id);
       const result = await runForMedia(media.id);
       transcribed.push(result);
+      const wordCount = result?.words?.length ?? 0;
+      console.log('[transcription] Done media', media.id, 'segments:', wordCount);
     } catch (err) {
       const message = err?.message || String(err);
       errors.push({ mediaId: media.id, message });
@@ -299,6 +323,7 @@ export async function runForProject(projectId) {
     }
   }
 
+  console.log('[transcription] runForProject finished. transcribed:', transcribed.length, 'errors:', errors.length);
   return {
     transcribed: transcribed.length,
     skipped: mediaList.length - transcribed.length - errors.length,
