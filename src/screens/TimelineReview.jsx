@@ -1,6 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import ProjectHeader from '../components/ProjectHeader';
 import PlaybackModule from '../components/PlaybackModule';
+import Button from '../components/Button';
+import ExportTimelineModal from '../components/ExportTimelineModal';
 import './styles/TimelineReview.css';
 
 function buildTimelineFromAccepted(acceptedClips) {
@@ -28,6 +30,17 @@ function TimelineReview({ project, onBack, acceptedClips = [] }) {
     [acceptedClips]
   );
 
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+
+  const handleExportToTimeline = useCallback(() => {
+    setExportModalOpen(true);
+  }, []);
+
+  const handleExportConfirm = useCallback((platform, payload) => {
+    // Placeholder: wire to actual export (e.g. EDL for Premiere) when implemented
+    console.log('Export timeline', { platform, ...payload });
+  }, []);
+
   return (
     <div className="timeline-review">
       <ProjectHeader
@@ -40,8 +53,20 @@ function TimelineReview({ project, onBack, acceptedClips = [] }) {
           className="timeline-review__playback"
           videoClips={videoClips}
           durationFrames={durationFrames}
+          toolbarExtra={
+            <Button variant="primary" onClick={handleExportToTimeline}>
+              Export to timeline
+            </Button>
+          }
         />
       </div>
+      <ExportTimelineModal
+        isOpen={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        onExport={handleExportConfirm}
+        videoClips={videoClips}
+        durationFrames={durationFrames}
+      />
     </div>
   );
 }

@@ -77,12 +77,35 @@
 .playback-module__toolbar {
   flex-shrink: 0;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: var(--spacing-md);
-  padding: var(--spacing-sm) var(--spacing-md) 0;
+  padding: var(--spacing-sm) 0 var(--spacing-sm);
   border-top: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Equal-width spacers so toolbar-controls stay centered in the container */
+.playback-module__toolbar-spacer {
+  flex: 1 1 0%;
+  min-width: 0;
+}
+
+.playback-module__toolbar-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+  flex: 0 0 auto;
+}
+
+.playback-module__toolbar-extra {
+  flex: 1 1 0%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .playback-module__toolbar-btn-wrap {

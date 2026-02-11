@@ -50,15 +50,17 @@ function getRulerTicks(durationFrames, pixelsPerFrame) {
 const MOCK_VIDEO_CLIPS = [{ id: 'v1', startFrame: 0, durationFrames: 1152, label: 'Clip 1' }];
 const MOCK_AUDIO_CLIPS = [{ id: 'a1', startFrame: 0, durationFrames: 1152, label: 'Audio 1' }];
 
-function PlaybackModule({ className = '' }) {
+function PlaybackModule({ className = '', videoClips: videoClipsProp, durationFrames: durationFramesProp, toolbarExtra }) {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [durationFrames] = useState(2880);
   const [playheadFrame, setPlayheadFrame] = useState(0);
   const [inPointFrame, setInPointFrame] = useState(null);
   const [outPointFrame, setOutPointFrame] = useState(null);
-  const [videoClips] = useState(MOCK_VIDEO_CLIPS);
+  const [internalVideoClips] = useState(MOCK_VIDEO_CLIPS);
   const [audioClips] = useState(MOCK_AUDIO_CLIPS);
   const [pixelsPerFrame, setPixelsPerFrame] = useState(DEFAULT_PX_PER_FRAME);
+
+  const videoClips = videoClipsProp?.length ? videoClipsProp : internalVideoClips;
+  const durationFrames = durationFramesProp ?? (videoClipsProp?.length ? videoClipsProp.reduce((sum, c) => sum + (c.durationFrames ?? 0), 0) : 2880);
 
   const viewportRef = useRef(null);
   const contentRef = useRef(null);
@@ -177,25 +179,31 @@ function PlaybackModule({ className = '' }) {
           </div>
         </div>
         <div className="playback-module__toolbar" role="toolbar" aria-label="Playback controls">
-          {TOOLBAR_BUTTONS.map(({ id, icon, label, tooltip }) => (
-            <div key={id} className="playback-module__toolbar-btn-wrap">
-              <span className="playback-module__toolbar-tooltip" role="tooltip">
-                {tooltip}
-              </span>
-              <button
-                type="button"
-                className="playback-module__toolbar-btn"
-                onClick={() => handleToolbarClick(id)}
-                aria-label={label}
-              >
-                <Icon
-                  type={icon}
-                  size="md"
-                  state={id === 'play' && isPlaying ? 'selected' : 'primary'}
-                />
-              </button>
-            </div>
-          ))}
+          <div className="playback-module__toolbar-spacer playback-module__toolbar-spacer--left" aria-hidden="true" />
+          <div className="playback-module__toolbar-controls">
+            {TOOLBAR_BUTTONS.map(({ id, icon, label, tooltip }) => (
+              <div key={id} className="playback-module__toolbar-btn-wrap">
+                <span className="playback-module__toolbar-tooltip" role="tooltip">
+                  {tooltip}
+                </span>
+                <button
+                  type="button"
+                  className="playback-module__toolbar-btn"
+                  onClick={() => handleToolbarClick(id)}
+                  aria-label={label}
+                >
+                  <Icon
+                    type={icon}
+                    size="md"
+                    state={id === 'play' && isPlaying ? 'selected' : 'primary'}
+                  />
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="playback-module__toolbar-extra">
+            {toolbarExtra}
+          </div>
         </div>
       </div>
 
