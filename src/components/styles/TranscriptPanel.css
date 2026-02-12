@@ -316,11 +316,13 @@
   white-space: pre;
 }
 
-/* Highlighted selection: white background ~50% opacity. Consider adding --color-highlight-selection-bg to design-system.json. */
-.transcript-panel__word--highlight {
+/* Solid highlight run: one continuous background for consecutive highlighted words (no gaps). */
+.transcript-panel__highlight-run {
   background-color: rgba(255, 255, 255, 0.5);
+  color: var(--color-blue-950);
   border-radius: var(--radius-sm);
   padding: 0 var(--spacing-xxs);
+  white-space: pre-wrap;
 }
 
 /* Ordinal pill (1, 2, 3) at start of each highlight */

@@ -374,73 +374,114 @@ function TranscriptPanel({
                           </span>
                         );
                       } else {
+                        const runs = [];
+                        let run = { highlightId: null, wordIndices: [] };
                         words.forEach((w, wi) => {
-                          const isWordActive =
-                            currentTime != null &&
-                            currentTime >= w.start &&
-                            currentTime < w.end;
-                          const wordClickable = isClickable && w.start != null;
                           const highlightInfo = getWordHighlightInfo(w.start, w.end, highlights);
-                          if (wi > 0) wordNodes.push(<span key={`s-${i}-${wi}`} className="transcript-panel__word-gap"> </span>);
-                          Object.entries(highlightBoundaries).forEach(([hid, b]) => {
-                            if (b.first?.lineIdx === i && b.first?.wordIdx === wi) {
+                          const hid = highlightInfo ? highlightInfo.id : null;
+                          if (hid === run.highlightId) {
+                            run.wordIndices.push(wi);
+                          } else {
+                            if (run.wordIndices.length > 0) runs.push({ ...run });
+                            run = { highlightId: hid, wordIndices: [wi] };
+                          }
+                        });
+                        if (run.wordIndices.length > 0) runs.push(run);
+
+                        runs.forEach((r, runIdx) => {
+                          const firstWi = r.wordIndices[0];
+                          const lastWi = r.wordIndices[r.wordIndices.length - 1];
+                          if (r.highlightId) {
+                            Object.entries(highlightBoundaries).forEach(([hid, b]) => {
+                              if (hid !== r.highlightId) return;
+                              if (b.first?.lineIdx === i && b.first?.wordIdx === firstWi) {
+                                wordNodes.push(
+                                  <span key={`ord-${hid}`} className="transcript-panel__ordinal-pill" aria-label={`Highlight ${b.ordinal}`}>
+                                    {b.ordinal}
+                                  </span>
+                                );
+                                wordNodes.push(
+                                  <span
+                                    key={`in-${hid}`}
+                                    className="transcript-panel__handle transcript-panel__handle--in"
+                                    role="slider"
+                                    tabIndex={0}
+                                    aria-label={`Highlight ${b.ordinal} in point. Drag to adjust.`}
+                                    aria-valuenow={highlights.find((h) => h.id === hid)?.in}
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setDraggingHandle({ highlightId: hid, inOrOut: 'in' });
+                                    }}
+                                  />
+                                );
+                              }
+                            });
+                            wordNodes.push(
+                              <span key={`run-${i}-${runIdx}`} className="transcript-panel__highlight-run">
+                                {r.wordIndices.map((wi, idx) => {
+                                  const w = words[wi];
+                                  const isWordActive =
+                                    currentTime != null && currentTime >= w.start && currentTime < w.end;
+                                  const wordClickable = isClickable && w.start != null;
+                                  return (
+                                    <React.Fragment key={`w-${i}-${wi}`}>
+                                      {idx > 0 ? ' ' : null}
+                                      <span
+                                        className={`transcript-panel__word${isWordActive ? ' transcript-panel__word--active' : ''}${wordClickable ? ' transcript-panel__word--clickable' : ''}`}
+                                        aria-current={isWordActive ? 'true' : undefined}
+                                        data-word-start={w.start}
+                                        data-word-end={w.end}
+                                        onClick={wordClickable ? (e) => handleWordClick(e, w) : undefined}
+                                      >
+                                        {w.word}
+                                      </span>
+                                    </React.Fragment>
+                                  );
+                                })}
+                              </span>
+                            );
+                            Object.entries(highlightBoundaries).forEach(([hid, b]) => {
+                              if (hid !== r.highlightId) return;
+                              if (b.last?.lineIdx === i && b.last?.wordIdx === lastWi) {
+                                wordNodes.push(
+                                  <span
+                                    key={`out-${hid}`}
+                                    className="transcript-panel__handle transcript-panel__handle--out"
+                                    role="slider"
+                                    tabIndex={0}
+                                    aria-label={`Highlight ${b.ordinal} out point. Drag to adjust.`}
+                                    aria-valuenow={highlights.find((h) => h.id === hid)?.out}
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setDraggingHandle({ highlightId: hid, inOrOut: 'out' });
+                                    }}
+                                  />
+                                );
+                              }
+                            });
+                          } else {
+                            r.wordIndices.forEach((wi, idx) => {
+                              const w = words[wi];
+                              const isWordActive =
+                                currentTime != null && currentTime >= w.start && currentTime < w.end;
+                              const wordClickable = isClickable && w.start != null;
+                              if (idx > 0) wordNodes.push(<span key={`s-${i}-${wi}`} className="transcript-panel__word-gap"> </span>);
                               wordNodes.push(
                                 <span
-                                  key={`ord-${hid}`}
-                                  className="transcript-panel__ordinal-pill"
-                                  aria-label={`Highlight ${b.ordinal}`}
+                                  key={`w-${i}-${wi}`}
+                                  className={`transcript-panel__word${isWordActive ? ' transcript-panel__word--active' : ''}${wordClickable ? ' transcript-panel__word--clickable' : ''}`}
+                                  aria-current={isWordActive ? 'true' : undefined}
+                                  data-word-start={w.start}
+                                  data-word-end={w.end}
+                                  onClick={wordClickable ? (e) => handleWordClick(e, w) : undefined}
                                 >
-                                  {b.ordinal}
+                                  {w.word}
                                 </span>
                               );
-                              wordNodes.push(
-                                <span
-                                  key={`in-${hid}`}
-                                  className="transcript-panel__handle transcript-panel__handle--in"
-                                  role="slider"
-                                  tabIndex={0}
-                                  aria-label={`Highlight ${b.ordinal} in point. Drag to adjust.`}
-                                  aria-valuenow={highlights.find((h) => h.id === hid)?.in}
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setDraggingHandle({ highlightId: hid, inOrOut: 'in' });
-                                  }}
-                                />
-                              );
-                            }
-                          });
-                          wordNodes.push(
-                            <span
-                              key={`w-${i}-${wi}`}
-                              className={`transcript-panel__word${isWordActive ? ' transcript-panel__word--active' : ''}${wordClickable ? ' transcript-panel__word--clickable' : ''}${highlightInfo ? ' transcript-panel__word--highlight' : ''}`}
-                              aria-current={isWordActive ? 'true' : undefined}
-                              data-word-start={w.start}
-                              data-word-end={w.end}
-                              onClick={wordClickable ? (e) => handleWordClick(e, w) : undefined}
-                            >
-                              {w.word}
-                            </span>
-                          );
-                          Object.entries(highlightBoundaries).forEach(([hid, b]) => {
-                            if (b.last?.lineIdx === i && b.last?.wordIdx === wi) {
-                              wordNodes.push(
-                                <span
-                                  key={`out-${hid}`}
-                                  className="transcript-panel__handle transcript-panel__handle--out"
-                                  role="slider"
-                                  tabIndex={0}
-                                  aria-label={`Highlight ${b.ordinal} out point. Drag to adjust.`}
-                                  aria-valuenow={highlights.find((h) => h.id === hid)?.out}
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setDraggingHandle({ highlightId: hid, inOrOut: 'out' });
-                                  }}
-                                />
-                              );
-                            }
-                          });
+                            });
+                          }
                         });
                       }
                       return (
