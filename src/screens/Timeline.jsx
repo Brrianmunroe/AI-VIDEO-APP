@@ -4,15 +4,47 @@ import TranscriptPanel from '../components/TranscriptPanel';
 import PlaybackModule from '../components/PlaybackModule';
 import './styles/Timeline.css';
 
+/** Generate a unique id for a highlight (e.g. for React keys and updates). */
+function generateHighlightId() {
+  return `highlight_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
+}
+
+/** Normalize highlights: sort by in, ensure in < out, clamp to [0, duration]. */
+function normalizeHighlights(highlights, durationSec) {
+  if (!Array.isArray(highlights) || highlights.length === 0) return [];
+  const dur = Number.isFinite(durationSec) && durationSec >= 0 ? durationSec : 86400;
+  return highlights
+    .filter((h) => h != null && typeof h.id === 'string')
+    .map((h) => ({
+      id: h.id,
+      in: Math.max(0, Math.min(dur, Number(h.in) || 0)),
+      out: Math.max(0, Math.min(dur, Number(h.out) || 0)),
+    }))
+    .filter((h) => h.out > h.in)
+    .sort((a, b) => a.in - b.in);
+}
+
 function mediaToSelect(m) {
   if (!m || m.id == null) return null;
+  const duration = m.duration != null ? Number(m.duration) : 0;
+  const rawHighlights = Array.isArray(m.highlights) ? m.highlights : [];
+  const highlights = rawHighlights.length
+    ? rawHighlights.map((h) => ({
+        id: h.id != null ? String(h.id) : generateHighlightId(),
+        in: Number(h.in) || 0,
+        out: Number(h.out) || 0,
+      }))
+    : (duration > 0
+        ? [{ id: generateHighlightId(), in: 0, out: Math.min(30, duration) }]
+        : []);
   return {
     id: m.id,
     thumbnail: m.thumbnail ?? null,
     clipName: m.clipName || m.name || '',
-    highlightCount: 0,
-    status: 'pending',
-    duration: m.duration != null ? Number(m.duration) : 0,
+    highlightCount: highlights.length,
+    status: m.status || 'pending',
+    duration,
+    highlights: normalizeHighlights(highlights, duration),
   };
 }
 
@@ -255,6 +287,60 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
     setSelectedSelectId((id) => (id === clipId ? null : id));
   }, []);
 
+  const updateSelectHighlights = useCallback((mediaId, nextHighlights) => {
+    setSelects((prev) =>
+      prev.map((s) => {
+        if (s.id !== mediaId) return s;
+        const duration = s.duration != null ? Number(s.duration) : 0;
+        const normalized = normalizeHighlights(
+          Array.isArray(nextHighlights) ? nextHighlights : [],
+          duration
+        );
+        return {
+          ...s,
+          highlights: normalized,
+          highlightCount: normalized.length,
+        };
+      })
+    );
+  }, []);
+
+  const handleAddHighlightFromInOut = useCallback(
+    (inSec, outSec) => {
+      if (selectedSelectId == null) return;
+      const inNum = Number(inSec);
+      const outNum = Number(outSec);
+      if (!Number.isFinite(inNum) || !Number.isFinite(outNum) || outNum <= inNum) return;
+      const clip = selectsList.find((s) => s.id === selectedSelectId);
+      const current = Array.isArray(clip?.highlights) ? clip.highlights : [];
+      const next = [...current, { id: generateHighlightId(), in: inNum, out: outNum }];
+      updateSelectHighlights(selectedSelectId, next);
+    },
+    [selectedSelectId, selectsList, updateSelectHighlights]
+  );
+
+  const handleHighlightInOutChange = useCallback(
+    (highlightId, patch) => {
+      if (selectedSelectId == null) return;
+      const clip = selectsList.find((s) => s.id === selectedSelectId);
+      const current = Array.isArray(clip?.highlights) ? clip.highlights : [];
+      const next = current.map((h) => (h.id === highlightId ? { ...h, ...patch } : h));
+      updateSelectHighlights(selectedSelectId, next);
+    },
+    [selectedSelectId, selectsList, updateSelectHighlights]
+  );
+
+  const handleRemoveHighlight = useCallback(
+    (highlightId) => {
+      if (selectedSelectId == null) return;
+      const clip = selectsList.find((s) => s.id === selectedSelectId);
+      const current = Array.isArray(clip?.highlights) ? clip.highlights : [];
+      const next = current.filter((h) => h.id !== highlightId);
+      updateSelectHighlights(selectedSelectId, next);
+    },
+    [selectedSelectId, selectsList, updateSelectHighlights]
+  );
+
   const allDecided = selectsList.length > 0 && selectsList.every((s) => s.status === 'accepted' || s.status === 'deleted');
   const acceptedClips = selectsList.filter((s) => s.status === 'accepted');
 
@@ -325,6 +411,9 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
             transcriptionErrors={transcriptionErrors}
             currentTimeSec={currentTimeSec}
             onSeek={handleSeek}
+            highlights={selectedClip?.highlights ?? []}
+            onHighlightsChange={updateSelectHighlights}
+            onAddHighlightFromSelection={handleAddHighlightFromInOut}
           />
         </div>
         <div className="timeline__playback-column">
@@ -338,6 +427,10 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
             onTimeUpdate={handleTimeUpdate}
             onSeek={handleSeek}
             onPlayStateChange={handlePlayStateChange}
+            highlightRanges={selectedClip?.highlights ?? []}
+            onAddHighlightFromInOut={handleAddHighlightFromInOut}
+            onHighlightInOutChange={handleHighlightInOutChange}
+            onRemoveHighlight={handleRemoveHighlight}
           />
         </div>
       </div>

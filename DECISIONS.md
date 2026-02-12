@@ -4,6 +4,21 @@ This file captures **case-study-worthy** decisions: major scope cuts, platform b
 
 ---
 
+## Decision: Per-clip highlight ranges (many per clip) with transcript and timeline in sync
+- **Date:** 2026-02-12
+- **Context:** Users need to mark “the best bits” inside each clip for the story. Those ranges should be visible in the transcript and on the timeline, editable (e.g. drag handles), and passed to the review timeline.
+- **Options considered:**
+  - A) One in/out per clip (single range)
+  - B) Many highlight ranges per clip with stable ids; transcript and timeline share one source of truth
+- **Decision:** **Option B** — Each select has `highlights: Array<{ id, in, out }>` (seconds). Transcript shows highlighted spans (white ~50% background), ordinal pills (1, 2, 3), and draggable in/out handles that snap to word boundaries. Timeline shows the same regions and ordinals. Review timeline builds one segment per highlight (or whole clip if no highlights).
+- **Why (tradeoffs):**
+  - Pros: one clip can contribute several segments to the edit; clear identity via `id` for reorder/delete later; transcript and timeline stay in sync from single state in Timeline.jsx.
+  - Cons: more UI (handles, ordinals) and logic (word-overlap, snap-to-word drag).
+- **Impact on MVP:** Timeline holds `highlights` on each select and `updateSelectHighlights`; TranscriptPanel and PlaybackModule receive highlights/highlightRanges and render regions + ordinals; buildTimelineFromAccepted emits one segment per highlight; stub pre-fill gives one default highlight per clip when AI does not.
+- **Follow-ups:** Add design token for highlight selection background (e.g. `--color-highlight-selection-bg`) if standardizing; optional keyboard nudge for handles.
+
+---
+
 ## Decision: Optional word-level transcript timestamps for read-along sync
 - **Date:** 2026-02-11
 - **Context:** Transcript read-along highlight was driven by estimated word times (segment duration split evenly). Users reported timing feeling off; true word-level timestamps provide the best sync.

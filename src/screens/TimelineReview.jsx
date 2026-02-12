@@ -12,19 +12,43 @@ function buildTimelineFromAccepted(acceptedClips) {
     return { videoClips: [], durationFrames: 0 };
   }
   let startFrame = 0;
-  const videoClips = acceptedClips.map((c) => {
-    const durationFrames =
-      c.durationFrames ??
-      (c.duration != null ? Math.max(0, Math.round(Number(c.duration) * FPS)) : 480);
-    const clip = {
-      id: c.id,
-      startFrame,
-      durationFrames,
-      label: c.clipName || `Clip ${c.id}`,
-    };
-    startFrame += durationFrames;
-    return clip;
-  });
+  const videoClips = [];
+  const fullClipDurationFrames = (c) =>
+    c.durationFrames ??
+    (c.duration != null ? Math.max(0, Math.round(Number(c.duration) * FPS)) : 480);
+
+  for (const c of acceptedClips) {
+    const highlights = Array.isArray(c.highlights) ? c.highlights : [];
+    if (highlights.length === 0) {
+      const durationFrames = fullClipDurationFrames(c);
+      videoClips.push({
+        id: c.id,
+        startFrame,
+        durationFrames,
+        label: c.clipName || `Clip ${c.id}`,
+        sourceInSec: 0,
+        sourceOutSec: c.duration != null ? Number(c.duration) : durationFrames / FPS,
+      });
+      startFrame += durationFrames;
+    } else {
+      for (let i = 0; i < highlights.length; i++) {
+        const h = highlights[i];
+        const inSec = Math.max(0, Number(h.in) || 0);
+        const outSec = Math.max(inSec, Number(h.out) || 0);
+        const durationFrames = Math.max(0, Math.round((outSec - inSec) * FPS));
+        videoClips.push({
+          id: `${c.id}_h${i}`,
+          sourceMediaId: c.id,
+          startFrame,
+          durationFrames,
+          label: `${c.clipName || `Clip ${c.id}`} (${i + 1})`,
+          sourceInSec: inSec,
+          sourceOutSec: outSec,
+        });
+        startFrame += durationFrames;
+      }
+    }
+  }
   return { videoClips, durationFrames: startFrame };
 }
 

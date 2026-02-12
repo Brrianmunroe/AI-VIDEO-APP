@@ -309,3 +309,66 @@
   padding: 0 var(--spacing-xxs);
   border-radius: var(--radius-sm);
 }
+
+/* Inline word gap (space between words) */
+.transcript-panel__word-gap {
+  user-select: none;
+  white-space: pre;
+}
+
+/* Highlighted selection: white background ~50% opacity. Consider adding --color-highlight-selection-bg to design-system.json. */
+.transcript-panel__word--highlight {
+  background-color: rgba(255, 255, 255, 0.5);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--spacing-xxs);
+}
+
+/* Ordinal pill (1, 2, 3) at start of each highlight */
+.transcript-panel__ordinal-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25em;
+  height: 1.25em;
+  padding: 0 var(--spacing-xxs);
+  margin-right: var(--spacing-xxs);
+  font-family: var(--font-family-numbers);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-body);
+  line-height: 1;
+  color: var(--color-text-heading);
+  background-color: var(--color-surface-secondary-button-surface-default);
+  border: var(--stroke-width-sm) solid var(--color-border-border-default);
+  border-radius: var(--radius-round);
+  vertical-align: middle;
+}
+
+/* Draggable in/out handles */
+.transcript-panel__handle {
+  display: inline-block;
+  width: 6px;
+  height: 1.2em;
+  margin: 0 var(--spacing-xxs);
+  background-color: var(--color-border-border-focused);
+  border-radius: var(--radius-sm);
+  cursor: col-resize;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.transcript-panel__handle:hover {
+  background-color: var(--color-primary-500);
+}
+
+.transcript-panel__handle--in {
+  margin-left: 0;
+}
+
+.transcript-panel__handle--out {
+  margin-right: 0;
+}
+
+.transcript-panel__handle:focus-visible {
+  outline: 2px solid var(--color-border-border-focused);
+  outline-offset: 2px;
+}

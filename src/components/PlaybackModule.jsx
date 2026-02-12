@@ -94,7 +94,12 @@ function PlaybackModule({
   videoClips: videoClipsProp,
   durationFrames: durationFramesProp,
   toolbarExtra,
+  highlightRanges: highlightRangesProp = [],
+  onAddHighlightFromInOut,
+  onHighlightInOutChange,
+  onRemoveHighlight,
 }) {
+  const highlightRanges = Array.isArray(highlightRangesProp) ? highlightRangesProp : [];
   const isControlled = videoUrl != null && typeof onSeek === 'function';
   const [internalPlaying, setInternalPlaying] = useState(false);
   const [internalPlayheadFrame, setInternalPlayheadFrame] = useState(0);
@@ -103,6 +108,8 @@ function PlaybackModule({
   const [internalVideoClips] = useState(MOCK_VIDEO_CLIPS);
   const [audioClips] = useState(MOCK_AUDIO_CLIPS);
   const [pixelsPerFrame, setPixelsPerFrame] = useState(DEFAULT_PX_PER_FRAME);
+  const [selectedHighlightId, setSelectedHighlightId] = useState(null);
+  const [draggingHighlight, setDraggingHighlight] = useState(null);
 
   const videoRef = useRef(null);
   const viewportRef = useRef(null);
@@ -146,11 +153,10 @@ function PlaybackModule({
 
   const getFrameFromClientX = useCallback(
     (clientX) => {
-      const viewport = viewportRef.current;
       const content = contentRef.current;
-      if (!viewport || !content) return null;
+      if (!content) return null;
       const rect = content.getBoundingClientRect();
-      const x = clientX - rect.left + viewport.scrollLeft;
+      const x = clientX - rect.left;
       return pxToFrame(x);
     },
     [pxToFrame]
@@ -161,6 +167,14 @@ function PlaybackModule({
       try {
         if (isDraggingRef.current) return;
         if (e.target.closest('.playback-module__playhead')) return;
+        if (e.target.closest('.playback-module__highlight-handle')) return;
+        const region = e.target.closest('.playback-module__highlight-region');
+        if (region) {
+          const id = region.getAttribute('data-highlight-id');
+          if (id) setSelectedHighlightId(id);
+          return;
+        }
+        setSelectedHighlightId(null);
         const frame = getFrameFromClientX(e.clientX);
         if (frame == null) return;
         if (isControlled && onSeek) {
@@ -202,6 +216,34 @@ function PlaybackModule({
       document.removeEventListener('mouseup', onUp);
     };
   }, [getFrameFromClientX, isControlled, onSeek]);
+
+  useEffect(() => {
+    if (!draggingHighlight || typeof onHighlightInOutChange !== 'function') return;
+    const { highlightId, side } = draggingHighlight;
+    const highlight = highlightRanges.find((h) => h.id === highlightId);
+    if (!highlight) return;
+    const handleMove = (e) => {
+      const frame = getFrameFromClientX(e.clientX);
+      if (frame == null) return;
+      const sec = Math.max(0, Math.min(safeDurationSec, frame / FPS));
+      if (side === 'in') {
+        const outSec = Number(highlight.out) ?? safeDurationSec;
+        const newIn = Math.min(sec, outSec - 0.05);
+        if (newIn >= 0) onHighlightInOutChange(highlightId, { in: newIn });
+      } else {
+        const inSec = Number(highlight.in) ?? 0;
+        const newOut = Math.max(sec, inSec + 0.05);
+        if (newOut <= safeDurationSec) onHighlightInOutChange(highlightId, { out: newOut });
+      }
+    };
+    const handleUp = () => setDraggingHighlight(null);
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseup', handleUp);
+    };
+  }, [draggingHighlight, highlightRanges, getFrameFromClientX, onHighlightInOutChange, safeDurationSec]);
 
   useEffect(() => {
     if (!isControlled) return;
@@ -277,11 +319,25 @@ function PlaybackModule({
     if (id === 'mark-out') {
       setOutPointFrame(playheadFrame);
       if (inPointFrame != null && inPointFrame > playheadFrame) setInPointFrame(null);
+      if (inPointFrame != null && typeof onAddHighlightFromInOut === 'function') {
+        const inSec = inPointFrame / FPS;
+        const outSec = playheadFrame / FPS;
+        if (outSec > inSec) {
+          onAddHighlightFromInOut(inSec, outSec);
+          setInPointFrame(null);
+          setOutPointFrame(null);
+        }
+      }
       return;
     }
     if (id === 'clear-in') {
-      setInPointFrame(null);
-      setOutPointFrame(null);
+      if (selectedHighlightId != null && typeof onRemoveHighlight === 'function') {
+        onRemoveHighlight(selectedHighlightId);
+        setSelectedHighlightId(null);
+      } else {
+        setInPointFrame(null);
+        setOutPointFrame(null);
+      }
       return;
     }
     if (id === 'back') {
@@ -305,6 +361,21 @@ function PlaybackModule({
   const hasInOut = inPointFrame != null && outPointFrame != null;
   const shadeLeftPx = hasInOut ? frameToPx(Math.min(inPointFrame, outPointFrame)) : null;
   const shadeWidthPx = hasInOut ? frameToPx(Math.abs(outPointFrame - inPointFrame)) : null;
+
+  const highlightRegions = React.useMemo(() => {
+    if (highlightRanges.length === 0) return [];
+    return highlightRanges.map((h, index) => {
+      const inFrame = Math.max(0, Math.round((Number(h.in) || 0) * FPS));
+      const outFrame = Math.max(inFrame, Math.round((Number(h.out) || 0) * FPS));
+      const durationFramesRegion = Math.min(outFrame - inFrame, durationFrames - inFrame);
+      return {
+        id: h.id,
+        leftPx: frameToPx(inFrame),
+        widthPx: frameToPx(durationFramesRegion),
+        ordinal: index + 1,
+      };
+    });
+  }, [highlightRanges, durationFrames, frameToPx]);
 
   const showVideo = isControlled && videoUrl;
   const showPlaceholder = !showVideo;
@@ -461,21 +532,53 @@ function PlaybackModule({
                 </div>
               </div>
 
-              {hasInOut && shadeWidthPx != null && shadeLeftPx != null && (
+              {highlightRegions.length > 0 &&
+                highlightRegions.map((region) => (
+                  <div
+                    key={region.id}
+                    className={`playback-module__highlight-region${selectedHighlightId === region.id ? ' playback-module__highlight-region--selected' : ''}`}
+                    style={{ left: region.leftPx, width: region.widthPx }}
+                    data-highlight-id={region.id}
+                    aria-label={`Highlight ${region.ordinal}`}
+                  >
+                    <span
+                      className="playback-module__highlight-handle playback-module__highlight-handle--in"
+                      aria-label={`Highlight ${region.ordinal} in point`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setDraggingHighlight({ highlightId: region.id, side: 'in' });
+                      }}
+                    />
+                    <span className="playback-module__highlight-ordinal" aria-hidden="true">
+                      {region.ordinal}
+                    </span>
+                    <span
+                      className="playback-module__highlight-handle playback-module__highlight-handle--out"
+                      aria-label={`Highlight ${region.ordinal} out point`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setDraggingHighlight({ highlightId: region.id, side: 'out' });
+                      }}
+                    />
+                  </div>
+                ))}
+              {highlightRegions.length === 0 && hasInOut && shadeWidthPx != null && shadeLeftPx != null && (
                 <div
                   className="playback-module__inout-shade"
                   style={{ left: shadeLeftPx, width: shadeWidthPx }}
                   aria-hidden="true"
                 />
               )}
-              {inLeftPx != null && (
+              {highlightRegions.length === 0 && inLeftPx != null && (
                 <div
                   className="playback-module__in-marker"
                   style={{ left: inLeftPx }}
                   aria-hidden="true"
                 />
               )}
-              {outLeftPx != null && (
+              {highlightRegions.length === 0 && outLeftPx != null && (
                 <div
                   className="playback-module__out-marker"
                   style={{ left: outLeftPx }}

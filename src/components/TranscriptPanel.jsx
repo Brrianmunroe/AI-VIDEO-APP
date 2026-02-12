@@ -4,6 +4,53 @@ import Button from './Button';
 import HighlightContainer from './HighlightContainer';
 import './styles/TranscriptPanel.css';
 
+/** Check if word [wStart, wEnd] overlaps highlight [hIn, hOut]. */
+function wordOverlapsHighlight(wStart, wEnd, hIn, hOut) {
+  return wStart < hOut && wEnd > hIn;
+}
+
+/**
+ * Get first and last word indices (lineIdx, wordIdx) for each highlight.
+ * Words are from transcript lines (each line has .words or we use lineToWords).
+ */
+function getHighlightBoundaries(transcriptLines, highlights) {
+  const boundaries = {};
+  if (!Array.isArray(highlights) || highlights.length === 0) return boundaries;
+  const list = Array.isArray(transcriptLines) ? transcriptLines : [];
+  highlights.forEach((h, index) => {
+    let first = null;
+    let last = null;
+    for (let lineIdx = 0; lineIdx < list.length; lineIdx++) {
+      const line = list[lineIdx];
+      const words = Array.isArray(line?.words) && line.words.length > 0 ? line.words : lineToWords(line);
+      for (let wordIdx = 0; wordIdx < words.length; wordIdx++) {
+        const w = words[wordIdx];
+        if (!w || w.start == null || w.end == null) continue;
+        if (!wordOverlapsHighlight(w.start, w.end, h.in, h.out)) continue;
+        if (first == null) first = { lineIdx, wordIdx };
+        last = { lineIdx, wordIdx };
+      }
+    }
+    if (first != null && last != null) boundaries[h.id] = { first, last, ordinal: index + 1 };
+  });
+  return boundaries;
+}
+
+/**
+ * For a given (lineIdx, wordIdx) and word start/end, return which highlight (id, ordinal) contains it.
+ * Uses first matching highlight by array order.
+ */
+function getWordHighlightInfo(wordStart, wordEnd, highlights) {
+  if (!Array.isArray(highlights) || highlights.length === 0) return null;
+  for (let i = 0; i < highlights.length; i++) {
+    const h = highlights[i];
+    if (wordOverlapsHighlight(wordStart, wordEnd, h.in, h.out)) {
+      return { id: h.id, ordinal: i + 1 };
+    }
+  }
+  return null;
+}
+
 /** Format seconds to M:SS or 0:00 for display */
 function formatTimecode(seconds) {
   const s = Math.max(0, Number(seconds));
@@ -60,9 +107,13 @@ function TranscriptPanel({
   onAccept,
   onProceedToReviewTimeline,
   allDecided = false,
+  highlights: highlightsProp = [],
+  onHighlightsChange,
+  onAddHighlightFromSelection,
 }) {
   const selects = Array.isArray(selectsProp) ? selectsProp : [];
   const transcriptList = Array.isArray(transcript) ? transcript : [];
+  const highlights = Array.isArray(highlightsProp) ? highlightsProp : [];
   /** Show only pending and accepted with valid id; deleted clips disappear from the list */
   const visibleSelects = selects.filter((s) => s != null && s.id != null && s.status !== 'deleted');
   const selectedClip = visibleSelects.find((s) => s.id === selectedSelectId);
@@ -70,6 +121,8 @@ function TranscriptPanel({
   const [activeTab, setActiveTab] = useState('interview');
   const [search, setSearch] = useState('');
   const activeLineRef = useRef(null);
+  const transcriptContentRef = useRef(null);
+  const [draggingHandle, setDraggingHandle] = useState(null);
 
   const filteredLines = useMemo(() => {
     if (!search.trim()) return transcriptList;
@@ -81,6 +134,11 @@ function TranscriptPanel({
           lineTime(line).toLowerCase().includes(q))
     );
   }, [transcriptList, search]);
+
+  const highlightBoundaries = useMemo(
+    () => getHighlightBoundaries(filteredLines, highlights),
+    [filteredLines, highlights]
+  );
 
   const currentTime = currentTimeSec != null ? Number(currentTimeSec) : null;
   const activeLineIndex = useMemo(() => {
@@ -116,6 +174,70 @@ function TranscriptPanel({
     },
     [onSeek]
   );
+
+  const applyHighlightInOut = useCallback(
+    (highlightId, nextIn, nextOut) => {
+      if (typeof onHighlightsChange !== 'function' || selectedSelectId == null) return;
+      const next = highlights.map((h) =>
+        h.id === highlightId ? { ...h, in: nextIn ?? h.in, out: nextOut ?? h.out } : h
+      );
+      onHighlightsChange(selectedSelectId, next);
+    },
+    [highlights, onHighlightsChange, selectedSelectId]
+  );
+
+  const handleTranscriptContentMouseUp = useCallback(() => {
+    if (draggingHandle) return;
+    if (typeof onAddHighlightFromSelection !== 'function' || selectedSelectId == null) return;
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    const range = selection.getRangeAt(0);
+    if (range.collapsed) return;
+    const content = transcriptContentRef.current;
+    if (!content || !content.contains(selection.anchorNode)) return;
+    const words = content.querySelectorAll('.transcript-panel__word[data-word-start][data-word-end]');
+    let minStart = Infinity;
+    let maxEnd = -Infinity;
+    for (const el of words) {
+      if (range.intersectsNode(el)) {
+        const s = Number(el.getAttribute('data-word-start'));
+        const e = Number(el.getAttribute('data-word-end'));
+        if (Number.isFinite(s) && Number.isFinite(e)) {
+          minStart = Math.min(minStart, s);
+          maxEnd = Math.max(maxEnd, e);
+        }
+      }
+    }
+    if (minStart < maxEnd) {
+      onAddHighlightFromSelection(minStart, maxEnd);
+      selection.removeAllRanges();
+    }
+  }, [draggingHandle, onAddHighlightFromSelection, selectedSelectId]);
+
+  useEffect(() => {
+    if (!draggingHandle) return;
+    const handleMove = (e) => {
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      if (!el) return;
+      const start = el.getAttribute?.('data-word-start');
+      const end = el.getAttribute?.('data-word-end');
+      const tStart = start != null ? Number(start) : null;
+      const tEnd = end != null ? Number(end) : null;
+      if (!Number.isFinite(tStart) || !Number.isFinite(tEnd)) return;
+      if (draggingHandle.inOrOut === 'in') {
+        applyHighlightInOut(draggingHandle.highlightId, tStart, undefined);
+      } else {
+        applyHighlightInOut(draggingHandle.highlightId, undefined, tEnd);
+      }
+    };
+    const handleUp = () => setDraggingHandle(null);
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseup', handleUp);
+    };
+  }, [draggingHandle, applyHighlightInOut]);
 
   const showNoTranscript = transcriptList.length === 0 && selectedSelectId != null;
   const showSelectClip = selectedSelectId == null;
@@ -215,7 +337,11 @@ function TranscriptPanel({
                 </div>
               )}
               <div className="transcript-panel__transcript-content-wrap">
-              <div className="transcript-panel__content">
+              <div
+                ref={transcriptContentRef}
+                className="transcript-panel__content"
+                onMouseUp={handleTranscriptContentMouseUp}
+              >
                 {showSelectClip && (
                   <div className="transcript-panel__placeholder">
                     Select a clip to view transcript and playback.
@@ -236,6 +362,87 @@ function TranscriptPanel({
                         currentTime >= line.start &&
                         currentTime < line.end;
                       const isClickable = line.start != null && typeof onSeek === 'function';
+                      const words =
+                        Array.isArray(line.words) && line.words.length > 0
+                          ? line.words
+                          : lineToWords(line);
+                      const wordNodes = [];
+                      if (words.length === 0) {
+                        wordNodes.push(
+                          <span key="text" className="transcript-panel__text-inner">
+                            {line.text ?? ''}
+                          </span>
+                        );
+                      } else {
+                        words.forEach((w, wi) => {
+                          const isWordActive =
+                            currentTime != null &&
+                            currentTime >= w.start &&
+                            currentTime < w.end;
+                          const wordClickable = isClickable && w.start != null;
+                          const highlightInfo = getWordHighlightInfo(w.start, w.end, highlights);
+                          if (wi > 0) wordNodes.push(<span key={`s-${i}-${wi}`} className="transcript-panel__word-gap"> </span>);
+                          Object.entries(highlightBoundaries).forEach(([hid, b]) => {
+                            if (b.first?.lineIdx === i && b.first?.wordIdx === wi) {
+                              wordNodes.push(
+                                <span
+                                  key={`ord-${hid}`}
+                                  className="transcript-panel__ordinal-pill"
+                                  aria-label={`Highlight ${b.ordinal}`}
+                                >
+                                  {b.ordinal}
+                                </span>
+                              );
+                              wordNodes.push(
+                                <span
+                                  key={`in-${hid}`}
+                                  className="transcript-panel__handle transcript-panel__handle--in"
+                                  role="slider"
+                                  tabIndex={0}
+                                  aria-label={`Highlight ${b.ordinal} in point. Drag to adjust.`}
+                                  aria-valuenow={highlights.find((h) => h.id === hid)?.in}
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setDraggingHandle({ highlightId: hid, inOrOut: 'in' });
+                                  }}
+                                />
+                              );
+                            }
+                          });
+                          wordNodes.push(
+                            <span
+                              key={`w-${i}-${wi}`}
+                              className={`transcript-panel__word${isWordActive ? ' transcript-panel__word--active' : ''}${wordClickable ? ' transcript-panel__word--clickable' : ''}${highlightInfo ? ' transcript-panel__word--highlight' : ''}`}
+                              aria-current={isWordActive ? 'true' : undefined}
+                              data-word-start={w.start}
+                              data-word-end={w.end}
+                              onClick={wordClickable ? (e) => handleWordClick(e, w) : undefined}
+                            >
+                              {w.word}
+                            </span>
+                          );
+                          Object.entries(highlightBoundaries).forEach(([hid, b]) => {
+                            if (b.last?.lineIdx === i && b.last?.wordIdx === wi) {
+                              wordNodes.push(
+                                <span
+                                  key={`out-${hid}`}
+                                  className="transcript-panel__handle transcript-panel__handle--out"
+                                  role="slider"
+                                  tabIndex={0}
+                                  aria-label={`Highlight ${b.ordinal} out point. Drag to adjust.`}
+                                  aria-valuenow={highlights.find((h) => h.id === hid)?.out}
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setDraggingHandle({ highlightId: hid, inOrOut: 'out' });
+                                  }}
+                                />
+                              );
+                            }
+                          });
+                        });
+                      }
                       return (
                         <li
                           key={`${line.start ?? line.time ?? i}-${i}`}
@@ -259,32 +466,7 @@ function TranscriptPanel({
                             {lineTime(line)}
                           </span>
                           <span className="transcript-panel__text">
-                            {(() => {
-                              const words =
-                                Array.isArray(line.words) && line.words.length > 0
-                                  ? line.words
-                                  : lineToWords(line);
-                              if (words.length === 0) return line.text ?? '';
-                              return words.map((w, wi) => {
-                                const isWordActive =
-                                  currentTime != null &&
-                                  currentTime >= w.start &&
-                                  currentTime < w.end;
-                                const wordClickable = isClickable && w.start != null;
-                                return (
-                                  <React.Fragment key={`${i}-${wi}`}>
-                                    <span
-                                      className={`transcript-panel__word${isWordActive ? ' transcript-panel__word--active' : ''}${wordClickable ? ' transcript-panel__word--clickable' : ''}`}
-                                      aria-current={isWordActive ? 'true' : undefined}
-                                      onClick={wordClickable ? (e) => handleWordClick(e, w) : undefined}
-                                    >
-                                      {w.word}
-                                    </span>
-                                    {wi < words.length - 1 ? ' ' : null}
-                                  </React.Fragment>
-                                );
-                              });
-                            })()}
+                            {wordNodes}
                           </span>
                         </li>
                       );
