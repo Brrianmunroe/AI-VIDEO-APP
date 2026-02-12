@@ -18,6 +18,27 @@ function lineTime(line) {
   return line.time ?? '0:00';
 }
 
+/**
+ * Estimate word-level timestamps within a chunk by splitting text on spaces
+ * and distributing the chunk's [start, end] evenly per word (equal time per word).
+ * Returns array of { word, start, end } for rendering and word-level highlight.
+ */
+function lineToWords(line) {
+  if (line == null || typeof line.text !== 'string') return [];
+  const start = Number(line.start);
+  const end = Number(line.end);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return [];
+  const words = line.text.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return [];
+  const duration = end - start;
+  const step = duration / words.length;
+  return words.map((word, idx) => ({
+    word,
+    start: start + idx * step,
+    end: start + (idx + 1) * step,
+  }));
+}
+
 const TABS = [
   { id: 'interview', label: 'Interview Selects' },
   { id: 'transcript', label: 'Transcript' },
@@ -81,6 +102,16 @@ function TranscriptPanel({
     (line) => {
       if (line.start != null && typeof onSeek === 'function') {
         onSeek(line.start);
+      }
+    },
+    [onSeek]
+  );
+
+  const handleWordClick = useCallback(
+    (e, w) => {
+      e.stopPropagation();
+      if (w.start != null && typeof onSeek === 'function') {
+        onSeek(w.start);
       }
     },
     [onSeek]
@@ -209,7 +240,7 @@ function TranscriptPanel({
                         <li
                           key={`${line.start ?? line.time ?? i}-${i}`}
                           ref={isActive ? activeLineRef : undefined}
-                          className={`transcript-panel__line${isActive ? ' transcript-panel__line--active' : ''}${isClickable ? ' transcript-panel__line--clickable' : ''}`}
+                          className={`transcript-panel__line${isClickable ? ' transcript-panel__line--clickable' : ''}`}
                           onClick={isClickable ? () => handleLineClick(line) : undefined}
                           onKeyDown={
                             isClickable
@@ -227,7 +258,34 @@ function TranscriptPanel({
                           <span className="transcript-panel__time" aria-hidden="true">
                             {lineTime(line)}
                           </span>
-                          <span className="transcript-panel__text">{line.text}</span>
+                          <span className="transcript-panel__text">
+                            {(() => {
+                              const words =
+                                Array.isArray(line.words) && line.words.length > 0
+                                  ? line.words
+                                  : lineToWords(line);
+                              if (words.length === 0) return line.text ?? '';
+                              return words.map((w, wi) => {
+                                const isWordActive =
+                                  currentTime != null &&
+                                  currentTime >= w.start &&
+                                  currentTime < w.end;
+                                const wordClickable = isClickable && w.start != null;
+                                return (
+                                  <React.Fragment key={`${i}-${wi}`}>
+                                    <span
+                                      className={`transcript-panel__word${isWordActive ? ' transcript-panel__word--active' : ''}${wordClickable ? ' transcript-panel__word--clickable' : ''}`}
+                                      aria-current={isWordActive ? 'true' : undefined}
+                                      onClick={wordClickable ? (e) => handleWordClick(e, w) : undefined}
+                                    >
+                                      {w.word}
+                                    </span>
+                                    {wi < words.length - 1 ? ' ' : null}
+                                  </React.Fragment>
+                                );
+                              });
+                            })()}
+                          </span>
                         </li>
                       );
                     })}
