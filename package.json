@@ -11,8 +11,16 @@
     "electron": "electron .",
     "electron:dev": "concurrently \"vite\" \"wait-on http-get://localhost:5173 && electron .\"",
     "build:electron": "vite build && electron-builder",
+    "build:electron:full": "node scripts/prepare-transcribe-bundle.js && npm run build:electron",
+    "prepare:transcribe": "node scripts/prepare-transcribe-bundle.js",
     "tokens:generate": "node scripts/generate-tokens.js",
     "rebuild:sqlite": "npm rebuild better-sqlite3"
+  },
+  "build": {
+    "extraResources": [
+      { "from": "resources/python", "to": "python", "filter": ["**/*"] },
+      { "from": "resources/transcribe_words.py", "to": "transcribe_words.py" }
+    ]
   },
   "keywords": [
     "video-editing",

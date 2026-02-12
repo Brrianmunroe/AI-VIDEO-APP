@@ -55,6 +55,8 @@ npm run build:electron
 
 This creates a distributable app in the `dist` folder.
 
+To build an app that includes **word-level transcript sync** (no Python install required for users), run `npm run build:electron:full` instead. That runs `prepare:transcribe` (downloads standalone Python and faster-whisper) then builds the app. See [docs/SETUP_TRANSCRIPTION.md](docs/SETUP_TRANSCRIPTION.md) for details.
+
 ## Project Structure
 
 ```

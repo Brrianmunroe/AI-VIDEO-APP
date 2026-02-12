@@ -4,6 +4,22 @@ This file captures **case-study-worthy** decisions: major scope cuts, platform b
 
 ---
 
+## Decision: Optional word-level transcript timestamps for read-along sync
+- **Date:** 2026-02-11
+- **Context:** Transcript read-along highlight was driven by estimated word times (segment duration split evenly). Users reported timing feeling off; true word-level timestamps provide the best sync.
+- **Options considered:**
+  - A) User-adjustable offset (quick fix; no pipeline change)
+  - B) Keep estimation, refine (e.g. character-proportional)
+  - C) Real word-level timestamps from alignment (Python/faster-whisper or WhisperX)
+- **Decision:** **Option C** — Optional word-level pipeline when Python + faster-whisper are available; fallback to existing Whisper (segment-level) otherwise.
+- **Why (tradeoffs):**
+  - Pros: best UX (highlight matches speech); no user tuning; backward compatible (existing DB rows and no-Python setups unchanged).
+  - Cons: optional dependency (Python, pip install faster-whisper); extra code path in transcription service and frontend line-building.
+- **Impact on MVP:** scripts/transcribe_words.py (WAV in, JSON words out); runForMedia tries it first, then Whisper; frontend buildTranscriptLines() groups word-level data into lines with .words; TranscriptPanel uses line.words when present for highlight.
+- **Follow-ups:** Document in docs/SETUP_TRANSCRIPTION.md (optional section 4). Re-transcribing existing media with Python installed will produce word-level data.
+
+---
+
 ## Decision: Single-clip playback on Timeline (Interview Selects) screen
 - **Date:** 2026-02-11
 - **Context:** Need transcript, playback, and timeline to work in unison like a video editor. Need to decide scope: one clip at a time vs full sequence on the Timeline screen.

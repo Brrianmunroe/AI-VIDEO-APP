@@ -1,0 +1,19 @@
+---
+description: Summarize technical talk neatly and digestibly for non-technical readers
+alwaysApply: true
+---
+
+# Non-technical feedback
+
+When you give **any technical explanation, feedback, or summary** (code, architecture, errors, options, tradeoffs), present it so a **non-technical person** can follow it.
+
+## How to do it
+
+- **Plain language:** Prefer everyday words. If you need a technical term, briefly explain it or rephrase in plain language.
+- **Short:** A few sentences or bullets. Avoid long technical essays.
+- **Lead with the takeaway:** Say what it means for the user or the product first, then add “how” or detail if needed.
+- **One-line summary for complex topics:** For anything involved, start with a single “In short” or “TL;DR” line.
+
+## Tone
+
+Write as if talking to a smart colleague who doesn’t code or manage servers. All feedback should feel neat and digestible.

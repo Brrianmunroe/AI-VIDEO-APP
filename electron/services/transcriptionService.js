@@ -19,6 +19,7 @@ import { getMediaByProject, extractAudioTo16kWav } from './mediaService.js';
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_WHISPER_MODEL = 'ggml-base.en.bin';
+const WORD_SCRIPT_TIMEOUT_MS = 300000; // 5 minutes
 
 /**
  * Get Whisper paths. Returns { ok: true, whisperCppDir, mainBinary, modelPath } or { ok: false, message }.
@@ -90,6 +91,61 @@ function parseSrtContent(content) {
     }
   }
   return segments;
+}
+
+/**
+ * Resolve path to Python executable and transcribe_words script (bundled when packaged, system when not).
+ */
+function getWordLevelScriptPaths() {
+  const plat = platform();
+  if (app.isPackaged && process.resourcesPath) {
+    const resourcesPath = process.resourcesPath;
+    const pythonDir = join(resourcesPath, 'python');
+    const scriptPath = join(resourcesPath, 'transcribe_words.py');
+    const pythonPath =
+      plat === 'win32'
+        ? join(pythonDir, 'python.exe')
+        : join(pythonDir, 'bin', 'python3');
+    return { pythonPath, scriptPath };
+  }
+  const appPath = app.getAppPath();
+  const scriptPath = join(appPath, 'scripts', 'transcribe_words.py');
+  const pythonPath = plat === 'win32' ? 'python' : 'python3';
+  return { pythonPath, scriptPath };
+}
+
+/**
+ * Run the Python word-level transcription script (faster-whisper).
+ * Returns array of { word, start, end } or null on failure.
+ */
+async function runWordLevelScript(wavPath) {
+  const { pythonPath, scriptPath } = getWordLevelScriptPaths();
+  if (!existsSync(scriptPath)) return null;
+  if (app.isPackaged && !existsSync(pythonPath)) return null;
+  try {
+    const { stdout } = await execFileAsync(pythonPath, [scriptPath, wavPath], {
+      encoding: 'utf8',
+      timeout: WORD_SCRIPT_TIMEOUT_MS,
+    });
+    const parsed = JSON.parse(stdout || '{}');
+    const words = Array.isArray(parsed?.words) ? parsed.words : [];
+    const valid = words.filter(
+      (w) =>
+        w != null &&
+        typeof w.word === 'string' &&
+        Number.isFinite(Number(w.start)) &&
+        Number.isFinite(Number(w.end))
+    );
+    if (valid.length === 0) return null;
+    return valid.map((w) => ({
+      word: w.word,
+      start: Number(w.start),
+      end: Number(w.end),
+    }));
+  } catch (err) {
+    console.warn('[transcription] Word-level script failed:', err?.message);
+    return null;
+  }
 }
 
 /**
@@ -247,31 +303,43 @@ export async function runForMedia(mediaId) {
     return empty;
   }
 
-  let segments;
+  let words = null;
   try {
-    segments = await runWhisperAndParseSrt(
-      wavPath,
-      paths.whisperCppDir,
-      paths.mainBinary
-    );
-  } finally {
+    words = await runWordLevelScript(wavPath);
+  } catch (_) {}
+
+  if (words == null || words.length === 0) {
+    let segments;
+    try {
+      segments = await runWhisperAndParseSrt(
+        wavPath,
+        paths.whisperCppDir,
+        paths.mainBinary
+      );
+    } finally {
+      try {
+        if (existsSync(wavPath)) unlinkSync(wavPath);
+      } catch (_) {}
+    }
+
+    if (segments === null || segments.length === 0) {
+      if (segments === null) {
+        console.warn('[transcription] Whisper returned no transcript for media', mediaId, '- saving empty transcript.');
+      }
+      return insertEmptyTranscript(db, mediaId, 'transcription_failed');
+    }
+
+    words = segments.map((seg) => ({
+      word: seg.text,
+      start: seg.start,
+      end: seg.end,
+    }));
+  } else {
     try {
       if (existsSync(wavPath)) unlinkSync(wavPath);
     } catch (_) {}
   }
 
-  if (segments === null || segments.length === 0) {
-    if (segments === null) {
-      console.warn('[transcription] Whisper returned no transcript for media', mediaId, '- saving empty transcript.');
-    }
-    return insertEmptyTranscript(db, mediaId, 'transcription_failed');
-  }
-
-  const words = segments.map((seg) => ({
-    word: seg.text,
-    start: seg.start,
-    end: seg.end,
-  }));
   const text = words.map((w) => w.word).join(' ');
 
   const insertStmt = db.prepare(
