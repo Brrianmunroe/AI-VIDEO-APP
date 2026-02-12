@@ -16,7 +16,7 @@ function mediaToSelect(m) {
   };
 }
 
-/** Normalize transcript words to lines with { start, end, text } */
+/** Normalize segment-level words to lines with { start, end, text } (no .words) */
 function wordsToLines(words) {
   if (!Array.isArray(words) || words.length === 0) return [];
   return words.map((w) => ({
@@ -24,6 +24,68 @@ function wordsToLines(words) {
     end: Number(w.end) || 0,
     text: typeof w.word === 'string' ? w.word : String(w.word ?? ''),
   }));
+}
+
+const LINE_GAP_THRESHOLD_SEC = 0.5;
+/** Max words per line when there's no punctuation or long pause (phrase-length chunks). */
+const MAX_WORDS_PER_LINE = 14;
+
+/** True if word (after trim) ends with sentence-ending punctuation. */
+function wordEndsSentence(word) {
+  if (word == null || typeof word !== 'string') return false;
+  const t = word.trim();
+  return t.length > 0 && /[.!?]$/.test(t);
+}
+
+/**
+ * Build transcript lines from API words. If data is word-level (many single-word items),
+ * group by sentence end, time gap, or max words per line; attach .words per line. Else segment-level.
+ */
+function buildTranscriptLines(words) {
+  if (!Array.isArray(words) || words.length === 0) return [];
+  const normalized = words.map((w) => ({
+    word: typeof w.word === 'string' ? w.word : String(w.word ?? ''),
+    start: Number(w.start) || 0,
+    end: Number(w.end) || 0,
+  }));
+  const trimmedSingleWord = (w) => !/\s/.test((w.word || '').trim()) && (w.word || '').trim().length > 0;
+  const noSpaces = normalized.filter(trimmedSingleWord).length;
+  const isWordLevel = normalized.length > 8 && noSpaces / normalized.length >= 0.85;
+  if (!isWordLevel) return wordsToLines(normalized);
+  const lines = [];
+  let lineWords = [normalized[0]];
+  for (let i = 1; i < normalized.length; i++) {
+    const prev = normalized[i - 1];
+    const curr = normalized[i];
+    const gap = curr.start - prev.end;
+    const prevEndsSentence = wordEndsSentence(prev.word);
+    const atMaxWords = lineWords.length >= MAX_WORDS_PER_LINE;
+    const shouldBreak =
+      (prevEndsSentence || gap > LINE_GAP_THRESHOLD_SEC || atMaxWords) && lineWords.length > 0;
+    if (shouldBreak) {
+      const first = lineWords[0];
+      const last = lineWords[lineWords.length - 1];
+      lines.push({
+        start: first.start,
+        end: last.end,
+        text: lineWords.map((w) => w.word).join(' '),
+        words: lineWords,
+      });
+      lineWords = [];
+    }
+    lineWords.push(curr);
+  }
+  if (lineWords.length > 0) {
+    const first = lineWords[0];
+    const last = lineWords[lineWords.length - 1];
+    lines.push({
+      start: first.start,
+      end: last.end,
+      text: lineWords.map((w) => w.word).join(' '),
+      words: lineWords,
+    });
+  }
+  return lines;
 }
 
 function Timeline({ project, onBack, onNavigateToTimelineReview }) {
@@ -82,7 +144,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
         const result = await window.electronAPI.transcription.getByMediaId(selectedSelectId);
         if (cancelled) return;
         const data = result?.success ? result.data : null;
-        setTranscriptLines(data?.words ? wordsToLines(data.words) : []);
+        setTranscriptLines(data?.words ? buildTranscriptLines(data.words) : []);
         setTranscriptEmptyReason(
           data == null
             ? null
@@ -126,7 +188,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
         return window.electronAPI.transcription.getByMediaId(mediaIdToRefresh).then((res) => {
           if (!res?.success || selectedSelectIdRef.current !== mediaIdToRefresh) return;
           const data = res.data;
-          setTranscriptLines(data?.words ? wordsToLines(data.words) : []);
+          setTranscriptLines(data?.words ? buildTranscriptLines(data.words) : []);
           setTranscriptEmptyReason(
             data && (!data.words || data.words.length === 0) ? (data.emptyReason ?? null) : null
           );
