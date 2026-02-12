@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Icon from './Icon';
+import AudioWaveform from './AudioWaveform';
 import './styles/PlaybackModule.css';
 
 const FPS = 24;
@@ -50,9 +51,40 @@ function getRulerTicks(durationFrames, pixelsPerFrame) {
 const MOCK_VIDEO_CLIPS = [{ id: 'v1', startFrame: 0, durationFrames: 1152, label: 'Clip 1' }];
 const MOCK_AUDIO_CLIPS = [{ id: 'a1', startFrame: 0, durationFrames: 1152, label: 'Audio 1' }];
 
+const MAX_CONTENT_WIDTH_PX = 50000;
+
+/** Catches waveform render errors so the rest of the timeline stays usable. */
+class WaveformErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div
+          className="playback-module__waveform-fallback"
+          style={this.props.fallbackStyle}
+          aria-hidden="true"
+        >
+          <span className="playback-module__waveform-fallback-label">Waveform unavailable</span>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function PlaybackModule({
   className = '',
   videoUrl,
+  selectedMediaId,
+  preloadedWaveform,
   durationSec = 0,
   currentTimeSec = 0,
   isPlaying = false,
@@ -96,8 +128,11 @@ function PlaybackModule({
     ? (durationFrames > 0 ? [{ id: 'source', startFrame: 0, durationFrames, label: 'Source' }] : [])
     : (Array.isArray(videoClipsProp) && videoClipsProp.length > 0 ? videoClipsProp : internalVideoClips);
 
-  const contentWidthPx = durationFrames * pixelsPerFrame;
+  const contentWidthPx = Number.isFinite(durationFrames * pixelsPerFrame)
+    ? Math.max(0, durationFrames * pixelsPerFrame)
+    : 0;
   const stripWidthPx = 64 + contentWidthPx;
+  const waveformWidthPx = Math.min(MAX_CONTENT_WIDTH_PX, contentWidthPx);
 
   const pxToFrame = useCallback(
     (px) => {
@@ -123,14 +158,18 @@ function PlaybackModule({
 
   const handleTimelineClick = useCallback(
     (e) => {
-      if (isDraggingRef.current) return;
-      if (e.target.closest('.playback-module__playhead')) return;
-      const frame = getFrameFromClientX(e.clientX);
-      if (frame == null) return;
-      if (isControlled && onSeek) {
-        onSeek(frame / FPS);
-      } else {
-        setInternalPlayheadFrame(frame);
+      try {
+        if (isDraggingRef.current) return;
+        if (e.target.closest('.playback-module__playhead')) return;
+        const frame = getFrameFromClientX(e.clientX);
+        if (frame == null) return;
+        if (isControlled && onSeek) {
+          onSeek(frame / FPS);
+        } else {
+          setInternalPlayheadFrame(frame);
+        }
+      } catch (err) {
+        console.error('[PlaybackModule] timeline click error:', err);
       }
     },
     [getFrameFromClientX, isControlled, onSeek]
@@ -194,6 +233,24 @@ function PlaybackModule({
     video.addEventListener('timeupdate', onTimeUpdateEvent);
     return () => video.removeEventListener('timeupdate', onTimeUpdateEvent);
   }, [isControlled, onTimeUpdate]);
+
+  // High-frequency time updates while playing so transcript word highlight stays in sync
+  useEffect(() => {
+    if (!isControlled || !isPlayingState || !onTimeUpdate) return;
+    const video = videoRef.current;
+    if (!video) return;
+    let rafId = null;
+    const tick = () => {
+      if (videoRef.current && !videoRef.current.paused) {
+        onTimeUpdate(videoRef.current.currentTime);
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => {
+      if (rafId != null) cancelAnimationFrame(rafId);
+    };
+  }, [isControlled, isPlayingState, onTimeUpdate]);
 
   const zoomIn = useCallback(() => {
     setPixelsPerFrame((p) => Math.min(MAX_PX_PER_FRAME, p * 1.5));
@@ -378,16 +435,29 @@ function PlaybackModule({
               </div>
               <div className="playback-module__track playback-module__track--audio">
                 <div className="playback-module__track-content">
-                  {audioClips.map((clip) => (
-                    <div
-                      key={clip.id}
-                      className="playback-module__clip playback-module__clip--audio"
-                      style={{
-                        left: frameToPx(clip.startFrame),
-                        width: frameToPx(clip.durationFrames),
-                      }}
-                    />
-                  ))}
+                  <WaveformErrorBoundary fallbackStyle={{ width: waveformWidthPx, height: 48 }}>
+                    {showVideo && videoUrl ? (
+                      <AudioWaveform
+                        mediaId={selectedMediaId}
+                        videoUrl={videoUrl}
+                        preloadedPeaks={preloadedWaveform?.peaks}
+                        widthPx={waveformWidthPx}
+                        heightPx={48}
+                        durationSec={safeDurationSec}
+                      />
+                    ) : (
+                      audioClips.map((clip) => (
+                        <div
+                          key={clip.id}
+                          className="playback-module__clip playback-module__clip--audio"
+                          style={{
+                            left: frameToPx(clip.startFrame),
+                            width: frameToPx(clip.durationFrames),
+                          }}
+                        />
+                      ))
+                    )}
+                  </WaveformErrorBoundary>
                 </div>
               </div>
 

@@ -96,13 +96,44 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
   const [transcriptLines, setTranscriptLines] = useState([]);
   const [transcriptEmptyReason, setTranscriptEmptyReason] = useState(null);
   const [transcriptionErrors, setTranscriptionErrors] = useState([]);
+  const [waveformCache, setWaveformCache] = useState({});
   const selectedSelectIdRef = useRef(null);
   const transcriptionStartedForProjectIdRef = useRef(null);
   const transcriptionInProgressRef = useRef(false);
 
+  const selectsList = Array.isArray(selects) ? selects : [];
+
   useEffect(() => {
     selectedSelectIdRef.current = selectedSelectId;
   }, [selectedSelectId]);
+
+  // Pre-load waveform peaks for all project clips so the waveform is ready when a clip is selected
+  const waveformCacheProjectIdRef = useRef(null);
+  const selectIdsKey = selectsList.filter((s) => s?.id != null).map((s) => s.id).join(',');
+  useEffect(() => {
+    if (!project?.id || !window.electronAPI?.waveform?.getPeaks) return;
+    if (waveformCacheProjectIdRef.current !== project.id) {
+      waveformCacheProjectIdRef.current = project.id;
+      setWaveformCache({});
+      return;
+    }
+    const mediaIds = selectsList.filter((s) => s?.id != null).map((s) => s.id);
+    if (mediaIds.length === 0) return;
+
+    let cancelled = false;
+    mediaIds.forEach((mediaId) => {
+      window.electronAPI.waveform.getPeaks(mediaId).then((result) => {
+        if (cancelled) return;
+        if (result?.success && Array.isArray(result.peaks)) {
+          setWaveformCache((prev) => ({
+            ...prev,
+            [mediaId]: { peaks: result.peaks, durationSec: result.durationSec ?? 0 },
+          }));
+        }
+      }).catch(() => { /* ignore per-clip failures */ });
+    });
+    return () => { cancelled = true; };
+  }, [project?.id, selectIdsKey]);
 
   useEffect(() => {
     if (!project || typeof project.id === 'undefined' || !window.electronAPI?.media?.getByProject) {
@@ -144,7 +175,15 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
         const result = await window.electronAPI.transcription.getByMediaId(selectedSelectId);
         if (cancelled) return;
         const data = result?.success ? result.data : null;
-        setTranscriptLines(data?.words ? buildTranscriptLines(data.words) : []);
+        let lines = [];
+        if (data?.words?.length) {
+          try {
+            lines = buildTranscriptLines(data.words);
+          } catch (e) {
+            console.warn('Failed to build transcript lines:', e?.message);
+          }
+        }
+        setTranscriptLines(lines);
         setTranscriptEmptyReason(
           data == null
             ? null
@@ -216,7 +255,6 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
     setSelectedSelectId((id) => (id === clipId ? null : id));
   }, []);
 
-  const selectsList = Array.isArray(selects) ? selects : [];
   const allDecided = selectsList.length > 0 && selectsList.every((s) => s.status === 'accepted' || s.status === 'deleted');
   const acceptedClips = selectsList.filter((s) => s.status === 'accepted');
 
@@ -227,7 +265,10 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
 
   const selectedClip = selectsList.find((s) => s.id === selectedSelectId);
   const videoUrl = selectedSelectId ? `media://local/${selectedSelectId}` : null;
-  const durationSec = selectedClip?.duration != null ? selectedClip.duration : 0;
+  const rawDuration = selectedClip?.duration != null ? selectedClip.duration : 0;
+  const durationSec = Number.isFinite(Number(rawDuration))
+    ? Math.max(0, Math.min(86400, Number(rawDuration)))
+    : 0;
 
   const handleSeek = useCallback((seconds) => {
     setCurrentTimeSec(seconds);
@@ -289,6 +330,8 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
         <div className="timeline__playback-column">
           <PlaybackModule
             videoUrl={videoUrl}
+            selectedMediaId={selectedSelectId}
+            preloadedWaveform={selectedSelectId ? waveformCache[selectedSelectId] : null}
             durationSec={durationSec}
             currentTimeSec={currentTimeSec}
             isPlaying={isPlaying}

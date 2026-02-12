@@ -42,6 +42,11 @@ try {
     getByMediaId: (mediaId) => ipcRenderer.invoke('transcription:getByMediaId', mediaId),
     runForProject: (projectId) => ipcRenderer.invoke('transcription:runForProject', projectId),
   },
+
+  // Waveform (peaks from main process via FFmpeg)
+  waveform: {
+    getPeaks: (mediaId) => ipcRenderer.invoke('waveform:getPeaks', mediaId),
+  },
   });
   console.log('[Preload] electronAPI exposed successfully');
 } catch (error) {

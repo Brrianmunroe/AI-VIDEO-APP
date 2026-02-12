@@ -433,6 +433,22 @@
   border: var(--stroke-width-md) solid var(--color-border-border-default);
 }
 
+/* Waveform error fallback (error boundary) */
+.playback-module__waveform-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-surface-secondary-button-surface-hover);
+  border: var(--stroke-width-md) solid var(--color-border-border-default);
+  border-radius: var(--radius-sm);
+}
+.playback-module__waveform-fallback-label {
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
+  color: var(--color-text-placeholder);
+}
+
 /* Playhead: white triangle at ruler (points at notch) + vertical line through tracks */
 .playback-module__playhead {
   position: absolute;

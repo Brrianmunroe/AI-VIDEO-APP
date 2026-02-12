@@ -26,7 +26,7 @@ function getFfprobeCandidates() {
 }
 
 /** Common paths where ffmpeg is installed (Electron often has minimal PATH) */
-function getFfmpegCandidates() {
+export function getFfmpegCandidates() {
   const candidates = ['ffmpeg'];
   if (platform() === 'darwin') {
     candidates.push('/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg');
@@ -43,7 +43,8 @@ function getFfprobeEnv() {
   return { ...process.env, PATH: (process.env.PATH || '') + extra };
 }
 
-function getFfmpegEnv() {
+/** Exported for use by waveformService (FFmpeg extraction). */
+export function getFfmpegEnv() {
   return getFfprobeEnv();
 }
 

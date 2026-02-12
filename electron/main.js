@@ -7,6 +7,7 @@ import { initializeDatabase, closeDatabase } from './db/index.js';
 import * as projectService from './services/projectService.js';
 import * as mediaService from './services/mediaService.js';
 import * as transcriptionService from './services/transcriptionService.js';
+import * as waveformService from './services/waveformService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -430,5 +431,15 @@ ipcMain.handle('transcription:runForProject', async (event, projectId) => {
     return { success: true, ...result };
   } catch (error) {
     return { success: false, error: error.message };
+  }
+});
+
+// Waveform IPC
+ipcMain.handle('waveform:getPeaks', async (event, mediaId) => {
+  try {
+    const result = await waveformService.getPeaks(mediaId);
+    return { success: true, peaks: result.peaks, durationSec: result.durationSec };
+  } catch (err) {
+    return { success: false, error: err?.message || String(err) };
   }
 });
