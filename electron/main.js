@@ -415,6 +415,15 @@ ipcMain.handle('media:setMasterAudio', (event, mediaId, isMaster) => {
   }
 });
 
+ipcMain.handle('media:updateHighlights', (event, mediaId, highlights) => {
+  try {
+    mediaService.updateMediaHighlights(mediaId, highlights);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 // Transcription IPC
 ipcMain.handle('transcription:getByMediaId', (event, mediaId) => {
   try {

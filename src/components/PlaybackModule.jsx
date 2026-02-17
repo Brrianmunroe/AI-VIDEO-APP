@@ -98,6 +98,14 @@ function PlaybackModule({
   onAddHighlightFromInOut,
   onHighlightInOutChange,
   onRemoveHighlight,
+  editableTimeline = false,
+  onSegmentTrim,
+  mediaDurationById = {},
+  selectedSegmentId,
+  onSelectSegment,
+  onSplitAtPlayhead,
+  onDeleteSegment,
+  showFullClipTimeline = false,
 }) {
   const highlightRanges = Array.isArray(highlightRangesProp) ? highlightRangesProp : [];
   const isControlled = videoUrl != null && typeof onSeek === 'function';
@@ -110,46 +118,125 @@ function PlaybackModule({
   const [pixelsPerFrame, setPixelsPerFrame] = useState(DEFAULT_PX_PER_FRAME);
   const [selectedHighlightId, setSelectedHighlightId] = useState(null);
   const [draggingHighlight, setDraggingHighlight] = useState(null);
+  const [draggingSegmentHandle, setDraggingSegmentHandle] = useState(null);
+  const [viewportContentWidthPx, setViewportContentWidthPx] = useState(0);
 
   const videoRef = useRef(null);
   const viewportRef = useRef(null);
   const contentRef = useRef(null);
   const isDraggingRef = useRef(false);
+  const playheadFrameRef = useRef(0);
+
+  const LABEL_COLUMN_PX = 64;
+
+  // Measure timeline viewport so content can fill at least the container width
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const updateWidth = () => {
+      const w = viewport.getBoundingClientRect().width;
+      setViewportContentWidthPx(Math.max(0, w - LABEL_COLUMN_PX));
+    };
+    updateWidth();
+    const ro = new ResizeObserver(updateWidth);
+    ro.observe(viewport);
+    return () => ro.disconnect();
+  }, []);
 
   const durationSecNum = Number(durationSec);
   const safeDurationSec = Number.isFinite(durationSecNum) && durationSecNum >= 0 ? durationSecNum : 0;
-  const durationFrames = isControlled
+  const fullDurationFrames = isControlled
     ? Math.max(0, Math.round(safeDurationSec * FPS))
     : (Number.isFinite(durationFramesProp) && durationFramesProp >= 0
         ? durationFramesProp
         : (Array.isArray(videoClipsProp) && videoClipsProp.length > 0
             ? videoClipsProp.reduce((sum, c) => sum + (c.durationFrames ?? 0), 0)
             : 2880));
+
+  // When we have highlights, show only the effective segment (selected or single/first highlight)
+  const effectiveSegment = React.useMemo(() => {
+    if (!isControlled || highlightRanges.length === 0) return null;
+    const selected = selectedHighlightId != null
+      ? highlightRanges.find((h) => h.id === selectedHighlightId)
+      : null;
+    if (selected != null && Number(selected.in) < Number(selected.out)) return selected;
+    const first = highlightRanges[0];
+    if (first != null && Number(first.in) < Number(first.out)) return first;
+    return null;
+  }, [isControlled, highlightRanges, selectedHighlightId]);
+
+  const segmentStartSec = effectiveSegment != null ? Number(effectiveSegment.in) : 0;
+  const segmentEndSec = effectiveSegment != null ? Number(effectiveSegment.out) : safeDurationSec;
+  const segmentDurationSec = Math.max(0, segmentEndSec - segmentStartSec);
+  // When showFullClipTimeline is true (e.g. Interview Selects page), always show full clip length and all highlights
+  const useFullTimeline = showFullClipTimeline && isControlled && fullDurationFrames > 0;
+  const durationFrames = useFullTimeline
+    ? fullDurationFrames
+    : (effectiveSegment != null
+        ? Math.max(0, Math.round(segmentDurationSec * FPS))
+        : fullDurationFrames);
+
   const currentTimeSecNum = Number(currentTimeSec);
   const safeCurrentTimeSec = Number.isFinite(currentTimeSecNum) && currentTimeSecNum >= 0 ? currentTimeSecNum : 0;
   const playheadFrame = isControlled
-    ? Math.max(0, Math.min(durationFrames, Math.round(safeCurrentTimeSec * FPS)))
+    ? (useFullTimeline
+        ? Math.max(0, Math.min(durationFrames, Math.round(safeCurrentTimeSec * FPS)))
+        : (effectiveSegment != null
+            ? Math.max(0, Math.min(durationFrames, Math.round((safeCurrentTimeSec - segmentStartSec) * FPS)))
+            : Math.max(0, Math.min(durationFrames, Math.round(safeCurrentTimeSec * FPS)))))
     : internalPlayheadFrame;
   const isPlayingState = isControlled ? isPlaying : internalPlaying;
   const videoClips = isControlled
     ? (durationFrames > 0 ? [{ id: 'source', startFrame: 0, durationFrames, label: 'Source' }] : [])
     : (Array.isArray(videoClipsProp) && videoClipsProp.length > 0 ? videoClipsProp : internalVideoClips);
 
-  const contentWidthPx = Number.isFinite(durationFrames * pixelsPerFrame)
+  const currentSequenceSegment = React.useMemo(() => {
+    if (!editableTimeline || !videoClips.length) return null;
+    return videoClips.find(
+      (seg) =>
+        playheadFrame >= seg.startFrame &&
+        playheadFrame < seg.startFrame + (seg.durationFrames ?? 0)
+    );
+  }, [editableTimeline, videoClips, playheadFrame]);
+
+  const sequenceVideoUrl =
+    currentSequenceSegment != null
+      ? `media://local/${currentSequenceSegment.sourceMediaId}`
+      : null;
+  const displayVideoUrl = isControlled ? videoUrl : sequenceVideoUrl;
+
+  // Playback range: when playing, use selected/first segment or in/out or full clip
+  const playbackRangeSec = React.useMemo(() => {
+    if (!isControlled || durationFrames <= 0) return null;
+    if (!useFullTimeline && effectiveSegment != null) {
+      return { startSec: segmentStartSec, endSec: segmentEndSec };
+    }
+    if (effectiveSegment != null && (selectedHighlightId != null || highlightRanges.length === 1)) {
+      return { startSec: segmentStartSec, endSec: segmentEndSec };
+    }
+    if (inPointFrame != null && outPointFrame != null && outPointFrame > inPointFrame) {
+      return { startSec: inPointFrame / FPS, endSec: outPointFrame / FPS };
+    }
+    return { startSec: 0, endSec: safeDurationSec };
+  }, [isControlled, durationFrames, useFullTimeline, effectiveSegment, segmentStartSec, segmentEndSec, selectedHighlightId, highlightRanges.length, inPointFrame, outPointFrame, safeDurationSec]);
+
+  const contentWidthFromDuration = Number.isFinite(durationFrames * pixelsPerFrame)
     ? Math.max(0, durationFrames * pixelsPerFrame)
     : 0;
-  const stripWidthPx = 64 + contentWidthPx;
+  const contentWidthPx = Math.max(viewportContentWidthPx, contentWidthFromDuration);
+  const effectivePixelsPerFrame = pixelsPerFrame;
+  const stripWidthPx = LABEL_COLUMN_PX + contentWidthPx;
   const waveformWidthPx = Math.min(MAX_CONTENT_WIDTH_PX, contentWidthPx);
 
   const pxToFrame = useCallback(
     (px) => {
-      const f = px / pixelsPerFrame;
+      const f = px / effectivePixelsPerFrame;
       return Math.max(0, Math.min(durationFrames, Math.round(f)));
     },
-    [pixelsPerFrame, durationFrames]
+    [effectivePixelsPerFrame, durationFrames]
   );
 
-  const frameToPx = useCallback((frame) => frame * pixelsPerFrame, [pixelsPerFrame]);
+  const frameToPx = useCallback((frame) => frame * effectivePixelsPerFrame, [effectivePixelsPerFrame]);
 
   const getFrameFromClientX = useCallback(
     (clientX) => {
@@ -178,7 +265,8 @@ function PlaybackModule({
         const frame = getFrameFromClientX(e.clientX);
         if (frame == null) return;
         if (isControlled && onSeek) {
-          onSeek(frame / FPS);
+          const seekSec = useFullTimeline ? frame / FPS : (effectiveSegment != null ? segmentStartSec + frame / FPS : frame / FPS);
+          onSeek(seekSec);
         } else {
           setInternalPlayheadFrame(frame);
         }
@@ -186,7 +274,7 @@ function PlaybackModule({
         console.error('[PlaybackModule] timeline click error:', err);
       }
     },
-    [getFrameFromClientX, isControlled, onSeek]
+    [getFrameFromClientX, isControlled, onSeek, useFullTimeline, effectiveSegment, segmentStartSec]
   );
 
   const handlePlayheadMouseDown = useCallback((e) => {
@@ -201,7 +289,8 @@ function PlaybackModule({
       const frame = getFrameFromClientX(e.clientX);
       if (frame == null) return;
       if (isControlled && onSeek) {
-        onSeek(frame / FPS);
+        const seekSec = useFullTimeline ? frame / FPS : (effectiveSegment != null ? segmentStartSec + frame / FPS : frame / FPS);
+        onSeek(seekSec);
       } else {
         setInternalPlayheadFrame(frame);
       }
@@ -215,7 +304,7 @@ function PlaybackModule({
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
     };
-  }, [getFrameFromClientX, isControlled, onSeek]);
+  }, [getFrameFromClientX, isControlled, onSeek, useFullTimeline, effectiveSegment, segmentStartSec]);
 
   useEffect(() => {
     if (!draggingHighlight || typeof onHighlightInOutChange !== 'function') return;
@@ -225,7 +314,11 @@ function PlaybackModule({
     const handleMove = (e) => {
       const frame = getFrameFromClientX(e.clientX);
       if (frame == null) return;
-      const sec = Math.max(0, Math.min(safeDurationSec, frame / FPS));
+      const sec = useFullTimeline
+        ? Math.max(0, Math.min(safeDurationSec, frame / FPS))
+        : (effectiveSegment != null
+            ? Math.max(segmentStartSec, Math.min(segmentEndSec, segmentStartSec + frame / FPS))
+            : Math.max(0, Math.min(safeDurationSec, frame / FPS)));
       if (side === 'in') {
         const outSec = Number(highlight.out) ?? safeDurationSec;
         const newIn = Math.min(sec, outSec - 0.05);
@@ -243,28 +336,159 @@ function PlaybackModule({
       document.removeEventListener('mousemove', handleMove);
       document.removeEventListener('mouseup', handleUp);
     };
-  }, [draggingHighlight, highlightRanges, getFrameFromClientX, onHighlightInOutChange, safeDurationSec]);
+  }, [draggingHighlight, highlightRanges, getFrameFromClientX, onHighlightInOutChange, safeDurationSec, useFullTimeline, effectiveSegment, segmentStartSec, segmentEndSec]);
 
   useEffect(() => {
-    if (!isControlled) return;
-    const video = videoRef.current;
-    if (!video) return;
-    const t = Math.max(0, Number(currentTimeSec));
-    if (Math.abs(video.currentTime - t) > 0.15) {
-      video.currentTime = t;
+    if (!draggingSegmentHandle || typeof onSegmentTrim !== 'function') return;
+    const { segmentId, side, startSourceIn, startSourceOut, startFrameAtDragStart } = draggingSegmentHandle;
+    const clip = videoClips.find((c) => c.id === segmentId);
+    if (!clip || clip.sourceMediaId == null) return;
+    const maxDur = Number(mediaDurationById[clip.sourceMediaId]);
+    const mediaDur = Number.isFinite(maxDur) && maxDur > 0 ? maxDur : 86400;
+    const handleMove = (e) => {
+      const frame = getFrameFromClientX(e.clientX);
+      if (frame == null) return;
+      const deltaFrames = frame - startFrameAtDragStart;
+      const deltaSec = deltaFrames / FPS;
+      if (side === 'in') {
+        let newIn = startSourceIn + deltaSec;
+        newIn = Math.max(0, Math.min(newIn, startSourceOut - 0.05, mediaDur));
+        onSegmentTrim(segmentId, { sourceInSec: newIn, sourceOutSec: startSourceOut });
+      } else {
+        let newOut = startSourceOut + deltaSec;
+        newOut = Math.max(startSourceIn + 0.05, Math.min(newOut, mediaDur));
+        onSegmentTrim(segmentId, { sourceInSec: startSourceIn, sourceOutSec: newOut });
+      }
+    };
+    const handleUp = () => setDraggingSegmentHandle(null);
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseup', handleUp);
+    };
+  }, [draggingSegmentHandle, videoClips, mediaDurationById, getFrameFromClientX, onSegmentTrim]);
+
+  // When showing segment-only view, keep playhead inside the segment (e.g. on load or when switching highlight)
+  useEffect(() => {
+    if (useFullTimeline || !isControlled || effectiveSegment == null || !onSeek) return;
+    const t = Number(currentTimeSec);
+    if (t < segmentStartSec - 0.01 || t > segmentEndSec + 0.01) {
+      onSeek(segmentStartSec);
     }
-  }, [currentTimeSec, isControlled]);
+  }, [useFullTimeline, isControlled, effectiveSegment, segmentStartSec, segmentEndSec, currentTimeSec, onSeek]);
 
   useEffect(() => {
-    if (!isControlled) return;
+    if (isControlled) {
+      const video = videoRef.current;
+      if (!video) return;
+      const t = Math.max(0, Number(currentTimeSec));
+      if (Math.abs(video.currentTime - t) > 0.15) {
+        video.currentTime = t;
+      }
+      return;
+    }
+    if (editableTimeline && currentSequenceSegment && videoRef.current) {
+      const video = videoRef.current;
+      const inSec = Number(currentSequenceSegment.sourceInSec) || 0;
+      const sourceTime = inSec + (playheadFrame - currentSequenceSegment.startFrame) / FPS;
+      const t = Math.max(inSec, Math.min(Number(currentSequenceSegment.sourceOutSec) || inSec + 1, sourceTime));
+      if (Math.abs(video.currentTime - t) > 0.1) {
+        video.currentTime = t;
+      }
+    }
+  }, [isControlled, currentTimeSec, editableTimeline, currentSequenceSegment, playheadFrame]);
+
+  useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    if (isPlaying) {
-      video.play().catch(() => {});
+    if (isControlled) {
+      if (isPlaying) {
+        video.play().catch(() => {});
+      } else {
+        video.pause();
+      }
     } else {
-      video.pause();
+      if (isPlayingState) {
+        video.play().catch(() => {});
+      } else {
+        video.pause();
+      }
     }
-  }, [isPlaying, isControlled]);
+  }, [isControlled, isPlaying, isPlayingState]);
+
+  playheadFrameRef.current = playheadFrame;
+
+  useEffect(() => {
+    if (isControlled || !editableTimeline || !videoClips.length) return;
+    const video = videoRef.current;
+    if (!video) return;
+    if (!isPlayingState) return;
+
+    let rafId = null;
+    const tick = () => {
+      const v = videoRef.current;
+      if (!v || v.paused) return;
+      const currentTime = v.currentTime;
+      const clips = videoClips;
+      const pf = playheadFrameRef.current;
+      const segIndex = clips.findIndex(
+        (seg) =>
+          pf >= seg.startFrame &&
+          pf < seg.startFrame + (seg.durationFrames ?? 0)
+      );
+      const segment = segIndex >= 0 ? clips[segIndex] : null;
+      if (!segment) {
+        rafId = requestAnimationFrame(tick);
+        return;
+      }
+      const inSec = Number(segment.sourceInSec) || 0;
+      const outSec = Number(segment.sourceOutSec) ?? inSec + 1;
+      const durationFramesSeg = segment.durationFrames ?? Math.round((outSec - inSec) * FPS);
+      let timelineFrame = segment.startFrame + (currentTime - inSec) * FPS;
+      timelineFrame = Math.max(segment.startFrame, Math.min(segment.startFrame + durationFramesSeg, timelineFrame));
+
+      if (currentTime >= outSec - 0.05) {
+        const nextIndex = segIndex + 1;
+        const nextSegment = nextIndex < clips.length ? clips[nextIndex] : null;
+        if (nextSegment) {
+          playheadFrameRef.current = nextSegment.startFrame;
+          setInternalPlayheadFrame(nextSegment.startFrame);
+          if (nextSegment.sourceMediaId === segment.sourceMediaId) {
+            v.currentTime = Number(nextSegment.sourceInSec) || 0;
+          }
+        } else {
+          setInternalPlaying(false);
+          playheadFrameRef.current = Math.min(durationFrames, segment.startFrame + durationFramesSeg);
+          setInternalPlayheadFrame(playheadFrameRef.current);
+        }
+      } else {
+        playheadFrameRef.current = Math.round(timelineFrame);
+        setInternalPlayheadFrame(playheadFrameRef.current);
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => {
+      if (rafId != null) cancelAnimationFrame(rafId);
+    };
+  }, [isControlled, editableTimeline, isPlayingState, videoClips, durationFrames]);
+
+  useEffect(() => {
+    if (isControlled || !editableTimeline || !currentSequenceSegment) return;
+    const video = videoRef.current;
+    if (!video) return;
+    const inSec = Number(currentSequenceSegment.sourceInSec) || 0;
+    const onLoaded = () => {
+      const v = videoRef.current;
+      if (v) {
+        v.currentTime = inSec;
+        if (isPlayingState) v.play().catch(() => {});
+      }
+    };
+    video.addEventListener('loadeddata', onLoaded);
+    return () => video.removeEventListener('loadeddata', onLoaded);
+  }, [isControlled, editableTimeline, currentSequenceSegment, isPlayingState]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -276,15 +500,26 @@ function PlaybackModule({
     return () => video.removeEventListener('timeupdate', onTimeUpdateEvent);
   }, [isControlled, onTimeUpdate]);
 
-  // High-frequency time updates while playing so transcript word highlight stays in sync
+  // High-frequency time updates while playing; stop at end of playback range (highlight or in/out)
   useEffect(() => {
-    if (!isControlled || !isPlayingState || !onTimeUpdate) return;
+    if (!isControlled || !isPlayingState) return;
     const video = videoRef.current;
     if (!video) return;
+    const range = playbackRangeSec;
     let rafId = null;
     const tick = () => {
-      if (videoRef.current && !videoRef.current.paused) {
-        onTimeUpdate(videoRef.current.currentTime);
+      const v = videoRef.current;
+      if (!v || v.paused) {
+        rafId = requestAnimationFrame(tick);
+        return;
+      }
+      const t = v.currentTime;
+      if (onTimeUpdate) onTimeUpdate(t);
+      if (range != null && t >= range.endSec - 0.05) {
+        v.pause();
+        v.currentTime = range.startSec;
+        if (onPlayStateChange) onPlayStateChange(false);
+        if (onSeek) onSeek(range.startSec);
       }
       rafId = requestAnimationFrame(tick);
     };
@@ -292,7 +527,7 @@ function PlaybackModule({
     return () => {
       if (rafId != null) cancelAnimationFrame(rafId);
     };
-  }, [isControlled, isPlayingState, onTimeUpdate]);
+  }, [isControlled, isPlayingState, onTimeUpdate, onPlayStateChange, onSeek, playbackRangeSec]);
 
   const zoomIn = useCallback(() => {
     setPixelsPerFrame((p) => Math.min(MAX_PX_PER_FRAME, p * 1.5));
@@ -302,9 +537,40 @@ function PlaybackModule({
     setPixelsPerFrame((p) => Math.max(MIN_PX_PER_FRAME, p / 1.5));
   }, []);
 
+  const handleTogglePlay = useCallback(() => {
+    if (isControlled && onPlayStateChange) {
+      if (!isPlayingState && playbackRangeSec) {
+        const startSec = playbackRangeSec.startSec;
+        const endSec = playbackRangeSec.endSec;
+        const t = Math.max(startSec, Math.min(endSec, Number(currentTimeSec)));
+        if (videoRef.current) videoRef.current.currentTime = t;
+        if (onSeek && (currentTimeSec < startSec || currentTimeSec >= endSec)) onSeek(startSec);
+      }
+      onPlayStateChange(!isPlayingState);
+    } else {
+      setInternalPlaying((p) => !p);
+    }
+  }, [isControlled, isPlayingState, onPlayStateChange, onSeek, playbackRangeSec, currentTimeSec]);
+
+  const handlePlayKeyDown = useCallback(
+    (e) => {
+      if (e.key !== ' ' || e.repeat) return;
+      e.preventDefault();
+      handleTogglePlay();
+    },
+    [handleTogglePlay]
+  );
+
   const handleToolbarClick = (id) => {
     if (id === 'play') {
       if (isControlled && onPlayStateChange) {
+        if (!isPlayingState && playbackRangeSec) {
+          const startSec = playbackRangeSec.startSec;
+          const endSec = playbackRangeSec.endSec;
+          const t = Math.max(startSec, Math.min(endSec, Number(currentTimeSec)));
+          if (videoRef.current) videoRef.current.currentTime = t;
+          if (onSeek && (currentTimeSec < startSec || currentTimeSec >= endSec)) onSeek(startSec);
+        }
         onPlayStateChange(!isPlayingState);
       } else {
         setInternalPlaying((p) => !p);
@@ -341,20 +607,28 @@ function PlaybackModule({
       return;
     }
     if (id === 'back') {
-      const targetFrame = inPointFrame != null ? inPointFrame : 0;
-      if (isControlled && onSeek) onSeek(targetFrame / FPS);
-      else setInternalPlayheadFrame(targetFrame);
+      if (effectiveSegment != null && isControlled && onSeek) {
+        onSeek(segmentStartSec);
+      } else {
+        const targetFrame = inPointFrame != null ? inPointFrame : 0;
+        if (isControlled && onSeek) onSeek(targetFrame / FPS);
+        else setInternalPlayheadFrame(targetFrame);
+      }
       return;
     }
     if (id === 'forward') {
-      const targetFrame = outPointFrame != null ? outPointFrame : durationFrames;
-      if (isControlled && onSeek) onSeek(targetFrame / FPS);
-      else setInternalPlayheadFrame(targetFrame);
+      if (effectiveSegment != null && isControlled && onSeek) {
+        onSeek(segmentEndSec);
+      } else {
+        const targetFrame = outPointFrame != null ? outPointFrame : durationFrames;
+        if (isControlled && onSeek) onSeek(targetFrame / FPS);
+        else setInternalPlayheadFrame(targetFrame);
+      }
       return;
     }
   };
 
-  const rulerTicks = getRulerTicks(durationFrames, pixelsPerFrame);
+  const rulerTicks = getRulerTicks(durationFrames, effectivePixelsPerFrame);
   const playheadLeftPx = frameToPx(playheadFrame);
   const inLeftPx = inPointFrame != null ? frameToPx(inPointFrame) : null;
   const outLeftPx = outPointFrame != null ? frameToPx(outPointFrame) : null;
@@ -363,6 +637,27 @@ function PlaybackModule({
   const shadeWidthPx = hasInOut ? frameToPx(Math.abs(outPointFrame - inPointFrame)) : null;
 
   const highlightRegions = React.useMemo(() => {
+    if (useFullTimeline && highlightRanges.length > 0) {
+      return highlightRanges.map((h, index) => {
+        const inFrame = Math.max(0, Math.round((Number(h.in) || 0) * FPS));
+        const outFrame = Math.max(inFrame, Math.round((Number(h.out) || 0) * FPS));
+        const durationFramesRegion = Math.min(outFrame - inFrame, fullDurationFrames - inFrame);
+        return {
+          id: h.id,
+          leftPx: frameToPx(inFrame),
+          widthPx: frameToPx(durationFramesRegion),
+          ordinal: index + 1,
+        };
+      });
+    }
+    if (effectiveSegment != null) {
+      return [{
+        id: effectiveSegment.id,
+        leftPx: 0,
+        widthPx: contentWidthPx,
+        ordinal: 1,
+      }];
+    }
     if (highlightRanges.length === 0) return [];
     return highlightRanges.map((h, index) => {
       const inFrame = Math.max(0, Math.round((Number(h.in) || 0) * FPS));
@@ -375,21 +670,57 @@ function PlaybackModule({
         ordinal: index + 1,
       };
     });
-  }, [highlightRanges, durationFrames, frameToPx]);
+  }, [useFullTimeline, effectiveSegment, highlightRanges, durationFrames, fullDurationFrames, frameToPx, contentWidthPx]);
 
-  const showVideo = isControlled && videoUrl;
+  const waveformSegment = React.useMemo(() => {
+    if (useFullTimeline) {
+      return { peaks: preloadedWaveform?.peaks, durationSec: safeDurationSec };
+    }
+    if (isControlled && effectiveSegment != null && preloadedWaveform?.peaks?.length && safeDurationSec > 0) {
+      const peaks = preloadedWaveform.peaks;
+      const fullDur = safeDurationSec;
+      const startIdx = Math.max(0, Math.floor((segmentStartSec / fullDur) * peaks.length));
+      const endIdx = Math.min(peaks.length, Math.ceil((segmentEndSec / fullDur) * peaks.length));
+      const sliced = peaks.slice(startIdx, endIdx);
+      return { peaks: sliced.length > 0 ? sliced : peaks, durationSec: segmentDurationSec };
+    }
+    if (!isControlled && currentSequenceSegment) {
+      const inSec = Number(currentSequenceSegment.sourceInSec) || 0;
+      const outSec = Number(currentSequenceSegment.sourceOutSec) ?? inSec + 1;
+      return { peaks: preloadedWaveform?.peaks, durationSec: Math.max(0, outSec - inSec) };
+    }
+    return { peaks: preloadedWaveform?.peaks, durationSec: safeDurationSec };
+  }, [useFullTimeline, isControlled, effectiveSegment, currentSequenceSegment, preloadedWaveform?.peaks, safeDurationSec, segmentStartSec, segmentEndSec, segmentDurationSec]);
+
+  const showVideo = displayVideoUrl != null;
   const showPlaceholder = !showVideo;
 
   return (
-    <div className={`playback-module ${className}`.trim()} role="region" aria-label="Playback">
+    <div
+      className={`playback-module ${className}`.trim()}
+      role="region"
+      aria-label="Playback"
+      tabIndex={0}
+      onKeyDown={handlePlayKeyDown}
+    >
       <div className="playback-module__player-section">
         <div className="playback-module__player">
           {showVideo && (
-            <div className="playback-module__player-inner">
+            <div
+              className="playback-module__player-inner"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleTogglePlay();
+              }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={handlePlayKeyDown}
+              aria-label={isPlayingState ? 'Pause' : 'Play'}
+            >
               <video
                 ref={videoRef}
                 className="playback-module__video"
-                src={videoUrl}
+                src={displayVideoUrl}
                 playsInline
                 muted={false}
                 controls={false}
@@ -400,7 +731,7 @@ function PlaybackModule({
           {showPlaceholder && (
             <div className="playback-module__player-inner">
               <span className="playback-module__player-label">
-                {isControlled && !videoUrl ? 'Select a clip' : 'Video'}
+                {showVideo ? 'Video' : (isControlled && !videoUrl ? 'Select a clip' : 'Video')}
               </span>
             </div>
           )}
@@ -422,7 +753,7 @@ function PlaybackModule({
                   <Icon
                     type={icon}
                     size="md"
-                    state={id === 'play' && isPlaying ? 'selected' : 'primary'}
+                    state={id === 'play' && isPlayingState ? 'selected' : 'primary'}
                   />
                 </button>
               </div>
@@ -464,11 +795,11 @@ function PlaybackModule({
               role="presentation"
             >
               <div
-                className={`playback-module__timeline-ruler${pixelsPerFrame >= FRAME_NOTCHES_MIN_PX_PER_FRAME ? ' playback-module__timeline-ruler--frame-notches' : ''}`}
+                className={`playback-module__timeline-ruler${effectivePixelsPerFrame >= FRAME_NOTCHES_MIN_PX_PER_FRAME ? ' playback-module__timeline-ruler--frame-notches' : ''}`}
                 style={{
-                  '--ruler-notch-major-step-px': `${24 * pixelsPerFrame}px`,
-                  '--ruler-notch-medium-step-px': `${6 * pixelsPerFrame}px`,
-                  '--ruler-notch-minor-step-px': `${pixelsPerFrame}px`,
+                  '--ruler-notch-major-step-px': `${24 * effectivePixelsPerFrame}px`,
+                  '--ruler-notch-medium-step-px': `${6 * effectivePixelsPerFrame}px`,
+                  '--ruler-notch-minor-step-px': `${effectivePixelsPerFrame}px`,
                   '--ruler-notch-major-height': 'var(--spacing-md)',
                   '--ruler-notch-medium-height': 'var(--spacing-sm)',
                   '--ruler-notch-minor-height': 'var(--spacing-xs)',
@@ -495,26 +826,64 @@ function PlaybackModule({
                   {videoClips.map((clip) => (
                     <div
                       key={clip.id}
-                      className="playback-module__clip playback-module__clip--video"
+                      className={`playback-module__clip playback-module__clip--video${editableTimeline && selectedSegmentId === clip.id ? ' playback-module__clip--selected' : ''}`}
                       style={{
                         left: frameToPx(clip.startFrame),
                         width: frameToPx(clip.durationFrames),
                       }}
-                    />
+                      onClick={editableTimeline && onSelectSegment ? (e) => { e.stopPropagation(); onSelectSegment(clip.id); } : undefined}
+                      role={editableTimeline ? 'button' : undefined}
+                      aria-label={editableTimeline ? clip.label || `Segment ${clip.id}` : undefined}
+                    >
+                      {editableTimeline && clip.sourceMediaId != null && (
+                        <>
+                          <span
+                            className="playback-module__segment-handle playback-module__segment-handle--in"
+                            aria-label={`Trim start of ${clip.label || clip.id}`}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setDraggingSegmentHandle({
+                                segmentId: clip.id,
+                                side: 'in',
+                                startSourceIn: Number(clip.sourceInSec) || 0,
+                                startSourceOut: Number(clip.sourceOutSec) || 0,
+                                startFrameAtDragStart: clip.startFrame,
+                              });
+                            }}
+                          />
+                          <span
+                            className="playback-module__segment-handle playback-module__segment-handle--out"
+                            aria-label={`Trim end of ${clip.label || clip.id}`}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setDraggingSegmentHandle({
+                                segmentId: clip.id,
+                                side: 'out',
+                                startSourceIn: Number(clip.sourceInSec) || 0,
+                                startSourceOut: Number(clip.sourceOutSec) || 0,
+                                startFrameAtDragStart: clip.startFrame + (clip.durationFrames ?? 0),
+                              });
+                            }}
+                          />
+                        </>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>
               <div className="playback-module__track playback-module__track--audio">
                 <div className="playback-module__track-content">
                   <WaveformErrorBoundary fallbackStyle={{ width: waveformWidthPx, height: 48 }}>
-                    {showVideo && videoUrl ? (
+                    {showVideo && displayVideoUrl ? (
                       <AudioWaveform
-                        mediaId={selectedMediaId}
-                        videoUrl={videoUrl}
-                        preloadedPeaks={preloadedWaveform?.peaks}
+                        mediaId={currentSequenceSegment?.sourceMediaId ?? selectedMediaId}
+                        videoUrl={displayVideoUrl}
+                        preloadedPeaks={waveformSegment.peaks}
                         widthPx={waveformWidthPx}
                         heightPx={48}
-                        durationSec={safeDurationSec}
+                        durationSec={waveformSegment.durationSec}
                       />
                     ) : (
                       audioClips.map((clip) => (
@@ -536,7 +905,7 @@ function PlaybackModule({
                 highlightRegions.map((region) => (
                   <div
                     key={region.id}
-                    className={`playback-module__highlight-region${selectedHighlightId === region.id ? ' playback-module__highlight-region--selected' : ''}`}
+                    className={`playback-module__highlight-region${selectedHighlightId === region.id ? ' playback-module__highlight-region--selected' : ''}${effectiveSegment != null && !useFullTimeline ? ' playback-module__highlight-region--segment-mode' : ''}`}
                     style={{ left: region.leftPx, width: region.widthPx }}
                     data-highlight-id={region.id}
                     aria-label={`Highlight ${region.ordinal}`}
@@ -613,7 +982,7 @@ function PlaybackModule({
             <span className="playback-module__zoom-icon">−</span>
           </button>
           <span className="playback-module__zoom-label" aria-live="polite">
-            {Math.round((pixelsPerFrame / DEFAULT_PX_PER_FRAME) * 100)}%
+            {Math.round((effectivePixelsPerFrame / DEFAULT_PX_PER_FRAME) * 100)}%
           </span>
           <button
             type="button"

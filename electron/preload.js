@@ -34,6 +34,7 @@ try {
     refreshDurations: (projectId) => ipcRenderer.invoke('media:refreshDurations', projectId),
     updateClipName: (mediaId, name) => ipcRenderer.invoke('media:updateClipName', mediaId, name),
     setMasterAudio: (mediaId, isMaster) => ipcRenderer.invoke('media:setMasterAudio', mediaId, isMaster),
+    updateHighlights: (mediaId, highlights) => ipcRenderer.invoke('media:updateHighlights', mediaId, highlights),
     delete: (mediaId) => ipcRenderer.invoke('media:delete', mediaId),
   },
 

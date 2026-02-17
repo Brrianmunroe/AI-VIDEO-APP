@@ -416,6 +416,11 @@
   pointer-events: none; /* allow timeline clicks to hit parent for seek */
 }
 
+.playback-module__track--audio .playback-module__track-content {
+  display: flex;
+  align-items: center;
+}
+
 .playback-module__clip {
   position: absolute;
   top: var(--spacing-sm);
@@ -432,6 +437,34 @@
 .playback-module__clip--audio {
   background-color: var(--color-primary-700);
   border: var(--stroke-width-md) solid var(--color-border-border-default);
+}
+
+.playback-module__clip--selected {
+  outline: 2px solid var(--color-border-border-focused);
+  outline-offset: -2px;
+  z-index: 1;
+}
+
+.playback-module__segment-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+  z-index: 2;
+  background-color: var(--color-border-border-focused);
+}
+
+.playback-module__segment-handle:hover {
+  background-color: var(--color-primary-500);
+}
+
+.playback-module__segment-handle--in {
+  left: 0;
+}
+
+.playback-module__segment-handle--out {
+  right: 0;
 }
 
 /* Waveform error fallback (error boundary) */
@@ -526,6 +559,16 @@
   outline: 2px solid var(--color-border-border-focused);
   outline-offset: -2px;
   z-index: 1;
+}
+
+/* Segment-only view: no full-width overlay so ruler/video/waveform stay visible; handles still show at edges */
+.playback-module__highlight-region--segment-mode {
+  background-color: transparent;
+  pointer-events: none;
+}
+
+.playback-module__highlight-region--segment-mode .playback-module__highlight-handle {
+  pointer-events: auto;
 }
 
 /* Draggable in/out handles on each highlight region */

@@ -99,6 +99,14 @@ function runMigrations() {
   if (!hasEmptyReason) {
     db.exec('ALTER TABLE transcripts ADD COLUMN empty_reason TEXT');
   }
+
+  // Add highlights to media if missing (for existing databases)
+  const hasHighlights = db.prepare(
+    "SELECT 1 FROM pragma_table_info('media') WHERE name = 'highlights'"
+  ).get();
+  if (!hasHighlights) {
+    db.exec('ALTER TABLE media ADD COLUMN highlights TEXT');
+  }
 }
 
 /**

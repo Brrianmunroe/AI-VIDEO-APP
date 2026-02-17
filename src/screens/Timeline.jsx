@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import ProjectHeader from '../components/ProjectHeader';
 import TranscriptPanel from '../components/TranscriptPanel';
 import PlaybackModule from '../components/PlaybackModule';
+import Button from '../components/Button';
 import './styles/Timeline.css';
 
 /** Generate a unique id for a highlight (e.g. for React keys and updates). */
@@ -34,9 +35,7 @@ function mediaToSelect(m) {
         in: Number(h.in) || 0,
         out: Number(h.out) || 0,
       }))
-    : (duration > 0
-        ? [{ id: generateHighlightId(), in: 0, out: Math.min(30, duration) }]
-        : []);
+    : [];
   return {
     id: m.id,
     thumbnail: m.thumbnail ?? null,
@@ -132,6 +131,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
   const selectedSelectIdRef = useRef(null);
   const transcriptionStartedForProjectIdRef = useRef(null);
   const transcriptionInProgressRef = useRef(false);
+  const persistHighlightsTimeoutRef = useRef(null);
 
   const selectsList = Array.isArray(selects) ? selects : [];
 
@@ -275,10 +275,14 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
   }, [project?.id]);
 
   const handleAccept = useCallback((clipId) => {
+    const clip = selectsList.find((s) => s.id === clipId);
     setSelects((prev) =>
       prev.map((s) => (s.id === clipId ? { ...s, status: 'accepted' } : s))
     );
-  }, []);
+    if (clip && window.electronAPI?.media?.updateHighlights) {
+      window.electronAPI.media.updateHighlights(clipId, clip.highlights || []).catch(() => {});
+    }
+  }, [selectsList]);
 
   const handleDelete = useCallback((clipId) => {
     setSelects((prev) =>
@@ -288,11 +292,12 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
   }, []);
 
   const updateSelectHighlights = useCallback((mediaId, nextHighlights) => {
+    let normalized = [];
     setSelects((prev) =>
       prev.map((s) => {
         if (s.id !== mediaId) return s;
         const duration = s.duration != null ? Number(s.duration) : 0;
-        const normalized = normalizeHighlights(
+        normalized = normalizeHighlights(
           Array.isArray(nextHighlights) ? nextHighlights : [],
           duration
         );
@@ -303,6 +308,13 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
         };
       })
     );
+    if (window.electronAPI?.media?.updateHighlights && normalized.length >= 0) {
+      if (persistHighlightsTimeoutRef.current) clearTimeout(persistHighlightsTimeoutRef.current);
+      persistHighlightsTimeoutRef.current = setTimeout(() => {
+        persistHighlightsTimeoutRef.current = null;
+        window.electronAPI.media.updateHighlights(mediaId, normalized).catch(() => {});
+      }, 500);
+    }
   }, []);
 
   const handleAddHighlightFromInOut = useCallback(
@@ -343,11 +355,35 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
 
   const allDecided = selectsList.length > 0 && selectsList.every((s) => s.status === 'accepted' || s.status === 'deleted');
   const acceptedClips = selectsList.filter((s) => s.status === 'accepted');
+  const acceptedClipsWithNoHighlights = acceptedClips.filter(
+    (c) => !Array.isArray(c.highlights) || c.highlights.length === 0
+  );
+
+  const [showNoHighlightsModal, setShowNoHighlightsModal] = useState(false);
+
+  useEffect(() => {
+    if (showNoHighlightsModal && acceptedClipsWithNoHighlights.length === 0) {
+      setShowNoHighlightsModal(false);
+    }
+  }, [showNoHighlightsModal, acceptedClipsWithNoHighlights.length]);
 
   const handleProceedToReviewTimeline = useCallback(() => {
     if (!allDecided || !onNavigateToTimelineReview) return;
+    if (acceptedClipsWithNoHighlights.length > 0) {
+      setShowNoHighlightsModal(true);
+      return;
+    }
     onNavigateToTimelineReview(acceptedClips);
-  }, [allDecided, acceptedClips, onNavigateToTimelineReview]);
+  }, [allDecided, acceptedClips, acceptedClipsWithNoHighlights.length, onNavigateToTimelineReview]);
+
+  const handleResolveNoHighlightsDelete = useCallback((clipId) => {
+    handleDelete(clipId);
+  }, [handleDelete]);
+
+  const handleResolveNoHighlightsReviewClip = useCallback((clipId) => {
+    setSelectedSelectId(clipId);
+    setShowNoHighlightsModal(false);
+  }, []);
 
   const selectedClip = selectsList.find((s) => s.id === selectedSelectId);
   const videoUrl = selectedSelectId ? `media://local/${selectedSelectId}` : null;
@@ -390,6 +426,57 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
 
   return (
     <div className="timeline">
+      {showNoHighlightsModal && acceptedClipsWithNoHighlights.length > 0 && (
+        <>
+          <div
+            className="timeline-no-highlights-modal-backdrop"
+            onClick={() => setShowNoHighlightsModal(false)}
+            aria-hidden="true"
+          />
+          <div
+            className="timeline-no-highlights-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="timeline-no-highlights-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="timeline-no-highlights-modal-title" className="timeline-no-highlights-modal__title">
+              Some accepted clips have no highlights
+            </h2>
+            <p className="timeline-no-highlights-modal__message">
+              Add at least one highlight to each accepted clip, or remove the clip from accepted.
+            </p>
+            <ul className="timeline-no-highlights-modal__list">
+              {acceptedClipsWithNoHighlights.map((clip) => (
+                <li key={clip.id} className="timeline-no-highlights-modal__item">
+                  <span className="timeline-no-highlights-modal__clip-name">{clip.clipName || `Clip ${clip.id}`}</span>
+                  <span className="timeline-no-highlights-modal__actions">
+                    <Button
+                      variant="secondary"
+                      onClick={() => handleResolveNoHighlightsDelete(clip.id)}
+                      className="timeline-no-highlights-modal__btn"
+                    >
+                      Delete
+                    </Button>
+                    <Button
+                      variant="primary"
+                      onClick={() => handleResolveNoHighlightsReviewClip(clip.id)}
+                      className="timeline-no-highlights-modal__btn"
+                    >
+                      Review clip
+                    </Button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <div className="timeline-no-highlights-modal__footer">
+              <Button variant="secondary" onClick={() => setShowNoHighlightsModal(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
       <ProjectHeader
         projectName={projectName}
         onBack={onBack}
@@ -431,6 +518,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
             onAddHighlightFromInOut={handleAddHighlightFromInOut}
             onHighlightInOutChange={handleHighlightInOutChange}
             onRemoveHighlight={handleRemoveHighlight}
+            showFullClipTimeline
           />
         </div>
       </div>

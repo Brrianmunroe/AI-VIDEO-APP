@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS media (
   height INTEGER, -- Video height in pixels
   clip_name TEXT, -- User-editable display name for the clip
   thumbnail_path TEXT, -- Path to extracted frame thumbnail (JPEG)
+  highlights TEXT, -- JSON array of highlight ranges: [{"id":"...","in":0,"out":10}, ...]
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );

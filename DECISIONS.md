@@ -4,6 +4,66 @@ This file captures **case-study-worthy** decisions: major scope cuts, platform b
 
 ---
 
+## Decision: Editable review timeline (trim, extend, split, delete, ripple)
+- **Date:** 2026-02-13
+- **Context:** Users want to fine-tune the master timeline before export (e.g. add a sentence to the end of a clip, split a segment, remove a segment) like in Premiere or Final Cut.
+- **Options considered:**
+  - A) Read-only review timeline; all edits only on Interview Selects
+  - B) Editable segments on the review timeline with trim handles, split at playhead, delete, and ripple
+- **Decision:** **Option B** — Timeline Review holds segments in state; users can trim/extend (drag segment handles), split at playhead, delete a segment; all edits trigger ripple (recompute startFrame for following segments). Export uses the current edited segment list.
+- **Why (tradeoffs):**
+  - Pros: matches user expectation from NLEs; no round-trip to Interview Selects for small tweaks.
+  - Cons: more UI and state (segment handles, selection, split/delete actions).
+- **Impact on MVP:** TimelineReview owns mutable segments; applyRipple() helper; PlaybackModule gains editableTimeline, onSegmentTrim, onSplitAtPlayhead, selectedSegmentId, onSelectSegment; sequence playback shows segment under playhead.
+- **Follow-ups:** None.
+
+---
+
+## Decision: Warning for accepted clips with no highlights
+- **Date:** 2026-02-13
+- **Context:** If a user accepts a clip but never added any highlights, the master timeline would omit it (highlights-only). We need to avoid confusion and give a path to fix.
+- **Options considered:**
+  - A) Allow proceed; show empty timeline or skip silently
+  - B) Block proceed and show a warning with options: Delete the clip or Review (focus clip to add highlights)
+- **Decision:** **Option B** — Proceed to review timeline is blocked when any accepted clip has zero highlights; a modal lists those clips and offers "Delete" (mark deleted) or "Review clip" (focus that clip so user can add highlights).
+- **Why (tradeoffs):**
+  - Pros: clear feedback; user can fix without losing context.
+  - Cons: one more modal and flow.
+- **Impact on MVP:** Timeline.jsx computes acceptedClipsWithNoHighlights; modal with Delete/Review per clip; proceed only when all accepted have at least one highlight.
+- **Follow-ups:** None.
+
+---
+
+## Decision: Highlights persisted in DB
+- **Date:** 2026-02-13
+- **Context:** Highlight ranges (in/out per clip) were only in React state; refreshing or leaving the Interview Selects page would lose edits.
+- **Options considered:**
+  - A) Keep highlights in memory only
+  - B) Store highlights per media in the database (e.g. JSON column)
+- **Decision:** **Option B** — Add `media.highlights` (TEXT/JSON) column; load in getMediaByProject; save on highlight change (debounced) and on accept.
+- **Why (tradeoffs):**
+  - Pros: trims survive refresh; correct data when proceeding to review timeline.
+  - Cons: schema migration and IPC for updateHighlights.
+- **Impact on MVP:** media.highlights column and migration; mediaService.updateMediaHighlights; Timeline.jsx calls updateHighlights on change (debounced) and on accept.
+- **Follow-ups:** None.
+
+---
+
+## Decision: Highlights-only on master timeline (no full-clip fallback)
+- **Date:** 2026-02-13
+- **Context:** When building the master timeline from accepted clips, we had to decide what to do with accepted clips that had no highlights.
+- **Options considered:**
+  - A) Use the full clip (0 to duration) when a clip has no highlights
+  - B) Omit clips with no highlights from the timeline entirely
+- **Decision:** **Option B** — If it's not highlighted, it's not important; only highlighted portions appear on the master timeline. Clips with zero highlights are skipped in buildTimelineFromAccepted.
+- **Why (tradeoffs):**
+  - Pros: clear rule; avoids accidentally including unselected content.
+  - Cons: user must add at least one highlight per accepted clip (handled by no-highlights warning).
+- **Impact on MVP:** buildTimelineFromAccepted only iterates over highlights; no full-clip branch.
+- **Follow-ups:** None.
+
+---
+
 ## Decision: Per-clip highlight ranges (many per clip) with transcript and timeline in sync
 - **Date:** 2026-02-12
 - **Context:** Users need to mark “the best bits” inside each clip for the story. Those ranges should be visible in the transcript and on the timeline, editable (e.g. drag handles), and passed to the review timeline.

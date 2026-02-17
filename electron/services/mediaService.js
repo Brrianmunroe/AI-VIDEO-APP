@@ -176,7 +176,7 @@ export function getMediaByProject(projectId) {
   const stmt = db.prepare(`
     SELECT id, project_id, file_path, storage_type, storage_provider,
            proxy_path, camera_audio_path, master_audio_path, audio_sync_offset,
-           duration, width, height, clip_name, thumbnail_path, created_at
+           duration, width, height, clip_name, thumbnail_path, highlights, created_at
     FROM media
     WHERE project_id = ?
     ORDER BY created_at DESC
@@ -193,6 +193,15 @@ export function getMediaByProject(projectId) {
     const thumbnail = (thumbPath && existsSync(thumbPath))
       ? `thumbnail://local/${media.id}`
       : null;
+    let highlights = null;
+    if (media.highlights != null && typeof media.highlights === 'string' && media.highlights.trim()) {
+      try {
+        highlights = JSON.parse(media.highlights);
+        if (!Array.isArray(highlights)) highlights = null;
+      } catch {
+        highlights = null;
+      }
+    }
 
     return {
       id: media.id,
@@ -213,9 +222,20 @@ export function getMediaByProject(projectId) {
       type: media.file_path.match(/\.(mp4|mov|avi|mkv|m4v)$/i) ? 'video' : 
             media.file_path.match(/\.(mp3|wav|aac|m4a|flac)$/i) ? 'audio' : 'unknown',
       isMasterAudio,
-      thumbnail
+      thumbnail,
+      highlights
     };
   });
+}
+
+/**
+ * Update highlights for a media item (JSON array of { id, in, out }).
+ */
+export function updateMediaHighlights(mediaId, highlights) {
+  const db = getDatabase();
+  const json = Array.isArray(highlights) ? JSON.stringify(highlights) : null;
+  const stmt = db.prepare('UPDATE media SET highlights = ? WHERE id = ?');
+  stmt.run(json, mediaId);
 }
 
 /**
