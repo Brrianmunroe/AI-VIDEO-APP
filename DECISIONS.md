@@ -4,6 +4,22 @@ This file captures **case-study-worthy** decisions: major scope cuts, platform b
 
 ---
 
+## Decision: Premiere export via FCP XML + media package (no relinking)
+- **Date:** 2026-02-17
+- **Context:** Users want to export the timeline for Adobe Premiere Pro and open it with no relinking—a single package they can move or share.
+- **Options considered:**
+  - A) EDL (CMX3600): one file; user imports in Premiere then links each reel to source files.
+  - B) Generate .prproj ourselves: double-click to open; format undocumented and fragile.
+  - C) FCP 7 XML + media package: user chooses folder; app copies used media into Media/ and writes Timeline.xml; user does File → Import in Premiere on the XML; media paths point to the package so no relinking.
+- **Decision:** **Option C** — FCP XML + media package.
+- **Why (tradeoffs):**
+  - Pros: minimal user step (import one XML); no script to run; documented format; media in one folder so package is portable.
+  - Cons: Premiere’s FCP XML import behavior may vary; we use absolute paths in pathurl so moving the folder may require one relink to the new Media folder.
+- **Impact on MVP:** exportService.exportFCPXMLPackage (folder picker, copy media, build FCP 7–style xmeml, write README); IPC export:exportFCPXMLPackage and export:openFolder; TimelineReview calls it for Premiere and shows success banner with “Open folder.”
+- **Follow-ups:** Validate Premiere import with real projects; consider relative pathurl if Premiere resolves relative to XML location.
+
+---
+
 ## Decision: Editable review timeline (trim, extend, split, delete, ripple)
 - **Date:** 2026-02-13
 - **Context:** Users want to fine-tune the master timeline before export (e.g. add a sentence to the end of a clip, split a segment, remove a segment) like in Premiere or Final Cut.

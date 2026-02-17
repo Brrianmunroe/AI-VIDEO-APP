@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, protocol } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, protocol, shell } from 'electron';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { existsSync, readFileSync, createReadStream, statSync } from 'fs';
@@ -8,6 +8,7 @@ import * as projectService from './services/projectService.js';
 import * as mediaService from './services/mediaService.js';
 import * as transcriptionService from './services/transcriptionService.js';
 import * as waveformService from './services/waveformService.js';
+import * as exportService from './services/exportService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -448,6 +449,26 @@ ipcMain.handle('waveform:getPeaks', async (event, mediaId) => {
   try {
     const result = await waveformService.getPeaks(mediaId);
     return { success: true, peaks: result.peaks, durationSec: result.durationSec };
+  } catch (err) {
+    return { success: false, error: err?.message || String(err) };
+  }
+});
+
+// Export (FCP XML package for Premiere)
+ipcMain.handle('export:exportFCPXMLPackage', async (event, projectId, payload, projectName) => {
+  try {
+    return await exportService.exportFCPXMLPackage(mainWindow, projectId, payload, projectName);
+  } catch (err) {
+    return { success: false, error: err?.message || String(err) };
+  }
+});
+
+ipcMain.handle('export:openFolder', async (event, folderPath) => {
+  try {
+    if (folderPath && typeof folderPath === 'string') {
+      await shell.openPath(folderPath);
+    }
+    return { success: true };
   } catch (err) {
     return { success: false, error: err?.message || String(err) };
   }

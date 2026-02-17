@@ -48,6 +48,13 @@ try {
   waveform: {
     getPeaks: (mediaId) => ipcRenderer.invoke('waveform:getPeaks', mediaId),
   },
+
+  // Export (FCP XML package for Premiere Pro)
+  export: {
+    exportFCPXMLPackage: (projectId, payload, projectName) =>
+      ipcRenderer.invoke('export:exportFCPXMLPackage', projectId, payload, projectName),
+    openFolder: (folderPath) => ipcRenderer.invoke('export:openFolder', folderPath),
+  },
   });
   console.log('[Preload] electronAPI exposed successfully');
 } catch (error) {

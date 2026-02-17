@@ -79,6 +79,7 @@ function TimelineReview({ project, onBack, acceptedClips = [] }) {
   const [waveformByMediaId, setWaveformByMediaId] = useState({});
   const [selectedSegmentId, setSelectedSegmentId] = useState(null);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [exportMessage, setExportMessage] = useState(null);
 
   const uniqueMediaIds = useMemo(
     () => Array.from(new Set((acceptedClips || []).map((c) => c.id).filter(Boolean))),
@@ -156,10 +157,32 @@ function TimelineReview({ project, onBack, acceptedClips = [] }) {
     setExportModalOpen(true);
   }, []);
 
-  const handleExportConfirm = useCallback((platform, payload) => {
-    // Placeholder: wire to actual export (e.g. EDL for Premiere) when implemented
-    console.log('Export timeline', { platform, ...payload });
-  }, []);
+  const handleExportConfirm = useCallback(async (platform, payload) => {
+    setExportMessage(null);
+    if (platform !== 'premiere') return;
+    const api = window.electronAPI?.export;
+    if (!api?.exportFCPXMLPackage) {
+      setExportMessage({ type: 'error', error: 'Export not available' });
+      return;
+    }
+    try {
+      const result = await api.exportFCPXMLPackage(project?.id, payload, project?.name);
+      if (result?.canceled) return;
+      if (result?.success && result?.path) {
+        setExportMessage({ type: 'success', path: result.path });
+      } else {
+        setExportMessage({ type: 'error', error: result?.error || 'Export failed' });
+      }
+    } catch (err) {
+      setExportMessage({ type: 'error', error: err?.message || String(err) });
+    }
+  }, [project?.id, project?.name]);
+
+  const handleOpenExportFolder = useCallback(() => {
+    if (exportMessage?.type === 'success' && exportMessage?.path && window.electronAPI?.export?.openFolder) {
+      window.electronAPI.export.openFolder(exportMessage.path);
+    }
+  }, [exportMessage]);
 
   return (
     <div className="timeline-review">
@@ -168,6 +191,37 @@ function TimelineReview({ project, onBack, acceptedClips = [] }) {
         onBack={onBack}
         breadcrumbCurrent="Timeline Review"
       />
+      {exportMessage && (
+        <div
+          className={`timeline-review__export-banner timeline-review__export-banner--${exportMessage.type}`}
+          role="status"
+        >
+          {exportMessage.type === 'success' ? (
+            <>
+              <span className="timeline-review__export-banner-text">
+                Package saved. In Premiere: File → Import… and select Timeline.xml in that folder.
+              </span>
+              <Button variant="secondary" onClick={handleOpenExportFolder}>
+                Open folder
+              </Button>
+            </>
+          ) : (
+            <>
+              <span className="timeline-review__export-banner-text">
+                {exportMessage.error}
+              </span>
+            </>
+          )}
+          <button
+            type="button"
+            className="timeline-review__export-banner-dismiss"
+            onClick={() => setExportMessage(null)}
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
       <div className="timeline-review__main">
         <PlaybackModule
           className="timeline-review__playback"

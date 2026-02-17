@@ -4,19 +4,27 @@ import Icon from './Icon';
 import './styles/ExportTimelineModal.css';
 
 const PLATFORMS = [
-  { id: 'premiere', label: 'Adobe Premiere Pro', description: 'EDL (CMX3600) — import as sequence' },
+  { id: 'premiere', label: 'Adobe Premiere Pro', description: 'FCP XML + Media package — File → Import in Premiere' },
   { id: 'resolve', label: 'DaVinci Resolve', description: 'Coming soon' },
   { id: 'finalcut', label: 'Final Cut Pro', description: 'Coming soon' },
 ];
 
 function ExportTimelineModal({ isOpen, onClose, onExport, videoClips = [], durationFrames = 0 }) {
   const [selectedPlatform, setSelectedPlatform] = useState('premiere');
+  const [isExporting, setIsExporting] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleExport = () => {
-    onExport?.(selectedPlatform, { videoClips, durationFrames });
-    onClose();
+  const handleExport = async () => {
+    const result = onExport?.(selectedPlatform, { videoClips, durationFrames });
+    const promise = result != null && typeof result.then === 'function' ? result : Promise.resolve();
+    setIsExporting(true);
+    try {
+      await promise;
+    } finally {
+      setIsExporting(false);
+      onClose();
+    }
   };
 
   const handleCancel = () => {
@@ -87,9 +95,9 @@ function ExportTimelineModal({ isOpen, onClose, onExport, videoClips = [], durat
           <Button
             variant="primary"
             onClick={handleExport}
-            disabled={selectedPlatform !== 'premiere'}
+            disabled={selectedPlatform !== 'premiere' || isExporting}
           >
-            Export
+            {isExporting ? 'Exporting…' : 'Export'}
           </Button>
         </div>
       </div>
