@@ -77,8 +77,11 @@ function buildFCPXML(sequenceName, masterClips, clipItems, timebase = FPS) {
   });
 
   const clipItemBlocks = [];
+  const audioClipItemBlocks = [];
   for (let i = 0; i < clipItems.length; i++) {
     const c = clipItems[i];
+    const videoClipId = 'clipitem-' + (i + 1);
+    const audioClipId = 'clipitem-' + (i + 1) + '-audio';
     const masterclipid = fileIdToMasterclipId.get(c.fileId) || '';
     const isFirstForFile = firstClipitemIndexForFileId.get(c.fileId) === i;
     const master = fileIdToMaster.get(c.fileId);
@@ -99,7 +102,7 @@ function buildFCPXML(sequenceName, masterClips, clipItems, timebase = FPS) {
     }
 
     clipItemBlocks.push(
-      '            <clipitem id="clipitem-' + (i + 1) + '">\n' +
+      '            <clipitem id="' + escape(videoClipId) + '">\n' +
       '              <masterclipid>' + escape(masterclipid) + '</masterclipid>\n' +
       '              <name>' + escape(c.name) + '</name>\n' +
       '              <enabled>TRUE</enabled>\n' +
@@ -110,7 +113,25 @@ function buildFCPXML(sequenceName, masterClips, clipItems, timebase = FPS) {
       '              <in>' + c.inFrames + '</in>\n' +
       '              <out>' + c.outFrames + '</out>\n' +
       fileBlock + '\n' +
+      '              <link>\n                <linkclipref>' + escape(audioClipId) + '</linkclipref>\n              </link>\n' +
       '              <sourcetrack>\n                <mediatype>video</mediatype>\n                <trackindex>1</trackindex>\n              </sourcetrack>\n' +
+      '            </clipitem>'
+    );
+
+    audioClipItemBlocks.push(
+      '            <clipitem id="' + escape(audioClipId) + '">\n' +
+      '              <masterclipid>' + escape(masterclipid) + '</masterclipid>\n' +
+      '              <name>' + escape(c.name) + '</name>\n' +
+      '              <enabled>TRUE</enabled>\n' +
+      '              <duration>' + c.durationFrames + '</duration>\n' +
+      '              <rate>\n                <timebase>' + timebase + '</timebase>\n                <ntsc>FALSE</ntsc>\n              </rate>\n' +
+      '              <start>' + c.startFrame + '</start>\n' +
+      '              <end>' + c.endFrame + '</end>\n' +
+      '              <in>' + c.inFrames + '</in>\n' +
+      '              <out>' + c.outFrames + '</out>\n' +
+      '              <file id="' + escape(c.fileId) + '"/>\n' +
+      '              <link>\n                <linkclipref>' + escape(videoClipId) + '</linkclipref>\n              </link>\n' +
+      '              <sourcetrack>\n                <mediatype>audio</mediatype>\n                <trackindex>1</trackindex>\n              </sourcetrack>\n' +
       '            </clipitem>'
     );
   }
@@ -131,7 +152,9 @@ function buildFCPXML(sequenceName, masterClips, clipItems, timebase = FPS) {
     '          <enabled>TRUE</enabled>\n          <locked>FALSE</locked>\n' +
     '        </track>\n' +
     '      </video>\n' +
-    '      <audio>\n        <numOutputChannels>2</numOutputChannels>\n        <format><samplecharacteristics><depth>16</depth><samplerate>48000</samplerate></samplecharacteristics></format>\n        <outputs><group><index>1</index><numchannels>1</numchannels><downmix>0</downmix><channel><index>1</index></channel></group><group><index>2</index><numchannels>1</numchannels><downmix>0</downmix><channel><index>2</index></channel></group></outputs>\n        <track><enabled>TRUE</enabled><locked>FALSE</locked></track>\n        <track><enabled>TRUE</enabled><locked>FALSE</locked></track>\n      </audio>\n' +
+    '      <audio>\n        <numOutputChannels>2</numOutputChannels>\n        <format><samplecharacteristics><depth>16</depth><samplerate>48000</samplerate></samplecharacteristics></format>\n        <outputs><group><index>1</index><numchannels>1</numchannels><downmix>0</downmix><channel><index>1</index></channel></group><group><index>2</index><numchannels>1</numchannels><downmix>0</downmix><channel><index>2</index></channel></group></outputs>\n        <track>\n' +
+    audioClipItemBlocks.join('\n') + '\n' +
+    '          <enabled>TRUE</enabled>\n          <locked>FALSE</locked>\n        </track>\n        <track><enabled>TRUE</enabled><locked>FALSE</locked></track>\n      </audio>\n' +
     '    </media>\n' +
     '    <timecode>\n      <rate><timebase>' + timebase + '</timebase><ntsc>FALSE</ntsc></rate>\n      <string>00:00:00:00</string>\n      <frame>0</frame>\n      <displayformat>NDF</displayformat>\n    </timecode>\n' +
     '  </sequence>\n' +
