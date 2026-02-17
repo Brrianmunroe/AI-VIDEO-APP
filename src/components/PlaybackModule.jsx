@@ -53,6 +53,21 @@ const MOCK_AUDIO_CLIPS = [{ id: 'a1', startFrame: 0, durationFrames: 1152, label
 
 const MAX_CONTENT_WIDTH_PX = 50000;
 
+/**
+ * Slice peak array to the segment [segmentInSec, segmentOutSec] of fullDurationSec.
+ * Returns { peaks: number[], durationSec: number }.
+ */
+function slicePeaksForSegment(peaks, fullDurationSec, segmentInSec, segmentOutSec) {
+  if (!Array.isArray(peaks) || peaks.length === 0 || fullDurationSec <= 0) {
+    return { peaks: [], durationSec: 0 };
+  }
+  const startIdx = Math.max(0, Math.floor((segmentInSec / fullDurationSec) * peaks.length));
+  const endIdx = Math.min(peaks.length, Math.ceil((segmentOutSec / fullDurationSec) * peaks.length));
+  const sliced = peaks.slice(startIdx, endIdx);
+  const durationSec = Math.max(0, segmentOutSec - segmentInSec);
+  return { peaks: sliced.length > 0 ? sliced : peaks, durationSec };
+}
+
 /** Catches waveform render errors so the rest of the timeline stays usable. */
 class WaveformErrorBoundary extends React.Component {
   constructor(props) {
@@ -106,6 +121,7 @@ function PlaybackModule({
   onSplitAtPlayhead,
   onDeleteSegment,
   showFullClipTimeline = false,
+  preloadedWaveformByMediaId = {},
 }) {
   const highlightRanges = Array.isArray(highlightRangesProp) ? highlightRangesProp : [];
   const isControlled = videoUrl != null && typeof onSeek === 'function';
@@ -227,6 +243,8 @@ function PlaybackModule({
   const effectivePixelsPerFrame = pixelsPerFrame;
   const stripWidthPx = LABEL_COLUMN_PX + contentWidthPx;
   const waveformWidthPx = Math.min(MAX_CONTENT_WIDTH_PX, contentWidthPx);
+  /** On controlled timeline (Interview Selects), waveform must match the clip width so they stay in sync when zooming. */
+  const singleClipWaveformWidthPx = durationFrames * effectivePixelsPerFrame;
 
   const pxToFrame = useCallback(
     (px) => {
@@ -677,12 +695,12 @@ function PlaybackModule({
       return { peaks: preloadedWaveform?.peaks, durationSec: safeDurationSec };
     }
     if (isControlled && effectiveSegment != null && preloadedWaveform?.peaks?.length && safeDurationSec > 0) {
-      const peaks = preloadedWaveform.peaks;
-      const fullDur = safeDurationSec;
-      const startIdx = Math.max(0, Math.floor((segmentStartSec / fullDur) * peaks.length));
-      const endIdx = Math.min(peaks.length, Math.ceil((segmentEndSec / fullDur) * peaks.length));
-      const sliced = peaks.slice(startIdx, endIdx);
-      return { peaks: sliced.length > 0 ? sliced : peaks, durationSec: segmentDurationSec };
+      return slicePeaksForSegment(
+        preloadedWaveform.peaks,
+        safeDurationSec,
+        segmentStartSec,
+        segmentEndSec
+      );
     }
     if (!isControlled && currentSequenceSegment) {
       const inSec = Number(currentSequenceSegment.sourceInSec) || 0;
@@ -690,7 +708,37 @@ function PlaybackModule({
       return { peaks: preloadedWaveform?.peaks, durationSec: Math.max(0, outSec - inSec) };
     }
     return { peaks: preloadedWaveform?.peaks, durationSec: safeDurationSec };
-  }, [useFullTimeline, isControlled, effectiveSegment, currentSequenceSegment, preloadedWaveform?.peaks, safeDurationSec, segmentStartSec, segmentEndSec, segmentDurationSec]);
+  }, [useFullTimeline, isControlled, effectiveSegment, currentSequenceSegment, preloadedWaveform?.peaks, safeDurationSec, segmentStartSec, segmentEndSec]);
+
+  const usePerSegmentWaveforms =
+    editableTimeline &&
+    videoClips.length > 0 &&
+    preloadedWaveformByMediaId != null &&
+    Object.keys(preloadedWaveformByMediaId).length > 0;
+
+  const waveformSegmentsList = React.useMemo(() => {
+    if (!usePerSegmentWaveforms) return [];
+    return videoClips.map((seg) => {
+      const mediaData = preloadedWaveformByMediaId[seg.sourceMediaId];
+      const inSec = Number(seg.sourceInSec) || 0;
+      const outSec = Number(seg.sourceOutSec) ?? inSec + 1;
+      const segmentDur = Math.max(0, outSec - inSec);
+      const fullDur =
+        mediaData?.durationSec ??
+        ((mediaDurationById[seg.sourceMediaId] != null ? Number(mediaDurationById[seg.sourceMediaId]) : 0) || segmentDur);
+      const { peaks: slicedPeaks } = slicePeaksForSegment(
+        mediaData?.peaks ?? [],
+        fullDur > 0 ? fullDur : segmentDur,
+        inSec,
+        outSec
+      );
+      return {
+        seg,
+        slicedPeaks,
+        widthPx: frameToPx(seg.durationFrames ?? 0),
+      };
+    });
+  }, [usePerSegmentWaveforms, videoClips, preloadedWaveformByMediaId, mediaDurationById, frameToPx]);
 
   const showVideo = displayVideoUrl != null;
   const showPlaceholder = !showVideo;
@@ -875,29 +923,56 @@ function PlaybackModule({
               </div>
               <div className="playback-module__track playback-module__track--audio">
                 <div className="playback-module__track-content">
-                  <WaveformErrorBoundary fallbackStyle={{ width: waveformWidthPx, height: 48 }}>
-                    {showVideo && displayVideoUrl ? (
-                      <AudioWaveform
-                        mediaId={currentSequenceSegment?.sourceMediaId ?? selectedMediaId}
-                        videoUrl={displayVideoUrl}
-                        preloadedPeaks={waveformSegment.peaks}
-                        widthPx={waveformWidthPx}
-                        heightPx={48}
-                        durationSec={waveformSegment.durationSec}
-                      />
-                    ) : (
-                      audioClips.map((clip) => (
-                        <div
-                          key={clip.id}
-                          className="playback-module__clip playback-module__clip--audio"
-                          style={{
-                            left: frameToPx(clip.startFrame),
-                            width: frameToPx(clip.durationFrames),
-                          }}
+                  {usePerSegmentWaveforms && waveformSegmentsList.length > 0 ? (
+                    waveformSegmentsList.map(({ seg, slicedPeaks, widthPx }) => (
+                      <div
+                        key={seg.id}
+                        className="playback-module__clip playback-module__clip--audio playback-module__waveform-clip"
+                        style={{
+                          left: frameToPx(seg.startFrame),
+                          width: widthPx,
+                        }}
+                      >
+                        {slicedPeaks.length > 0 ? (
+                          <WaveformErrorBoundary fallbackStyle={{ width: widthPx, height: 48 }}>
+                            <AudioWaveform
+                              mediaId={seg.sourceMediaId}
+                              preloadedPeaks={slicedPeaks}
+                              widthPx={widthPx}
+                              heightPx={48}
+                              durationSec={Math.max(0, (Number(seg.sourceOutSec) || 0) - (Number(seg.sourceInSec) || 0))}
+                            />
+                          </WaveformErrorBoundary>
+                        ) : (
+                          <div className="playback-module__waveform-placeholder" style={{ width: widthPx, height: 48 }} aria-hidden="true" />
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <WaveformErrorBoundary fallbackStyle={{ width: showVideo && displayVideoUrl ? singleClipWaveformWidthPx : waveformWidthPx, height: 48 }}>
+                      {showVideo && displayVideoUrl ? (
+                        <AudioWaveform
+                          mediaId={currentSequenceSegment?.sourceMediaId ?? selectedMediaId}
+                          videoUrl={displayVideoUrl}
+                          preloadedPeaks={waveformSegment.peaks}
+                          widthPx={singleClipWaveformWidthPx}
+                          heightPx={48}
+                          durationSec={waveformSegment.durationSec}
                         />
-                      ))
-                    )}
-                  </WaveformErrorBoundary>
+                      ) : (
+                        audioClips.map((clip) => (
+                          <div
+                            key={clip.id}
+                            className="playback-module__clip playback-module__clip--audio"
+                            style={{
+                              left: frameToPx(clip.startFrame),
+                              width: frameToPx(clip.durationFrames),
+                            }}
+                          />
+                        ))
+                      )}
+                    </WaveformErrorBoundary>
+                  )}
                 </div>
               </div>
 

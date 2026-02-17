@@ -439,6 +439,19 @@
   border: var(--stroke-width-md) solid var(--color-border-border-default);
 }
 
+.playback-module__waveform-clip {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  background-color: var(--color-surface-page-surface-default);
+}
+
+.playback-module__waveform-placeholder {
+  flex-shrink: 0;
+  background-color: var(--color-surface-secondary-button-surface-default);
+  border-radius: var(--radius-sm);
+}
+
 .playback-module__clip--selected {
   outline: 2px solid var(--color-border-border-focused);
   outline-offset: -2px;

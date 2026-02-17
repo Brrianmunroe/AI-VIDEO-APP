@@ -76,8 +76,33 @@ function TimelineReview({ project, onBack, acceptedClips = [] }) {
     [acceptedClips]
   );
 
+  const [waveformByMediaId, setWaveformByMediaId] = useState({});
   const [selectedSegmentId, setSelectedSegmentId] = useState(null);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+
+  const uniqueMediaIds = useMemo(
+    () => Array.from(new Set((acceptedClips || []).map((c) => c.id).filter(Boolean))),
+    [acceptedClips]
+  );
+
+  useEffect(() => {
+    if (!window.electronAPI?.waveform?.getPeaks || uniqueMediaIds.length === 0) return;
+    setWaveformByMediaId({});
+    let cancelled = false;
+    uniqueMediaIds.forEach((mediaId) => {
+      window.electronAPI.waveform.getPeaks(mediaId).then((result) => {
+        if (cancelled) return;
+        if (result?.success && Array.isArray(result.peaks)) {
+          const durationSec = result.durationSec ?? 0;
+          setWaveformByMediaId((prev) => ({
+            ...prev,
+            [mediaId]: { peaks: result.peaks, durationSec },
+          }));
+        }
+      }).catch(() => { /* ignore per-clip failures */ });
+    });
+    return () => { cancelled = true; };
+  }, [uniqueMediaIds.join(',')]);
 
   const handleSegmentTrim = useCallback((segmentId, { sourceInSec, sourceOutSec }) => {
     setSegments((prev) =>
@@ -151,6 +176,7 @@ function TimelineReview({ project, onBack, acceptedClips = [] }) {
           editableTimeline={true}
           onSegmentTrim={handleSegmentTrim}
           mediaDurationById={mediaDurationById}
+          preloadedWaveformByMediaId={waveformByMediaId}
           selectedSegmentId={selectedSegmentId}
           onSelectSegment={setSelectedSegmentId}
           onSplitAtPlayhead={handleSplitAtPlayhead}
