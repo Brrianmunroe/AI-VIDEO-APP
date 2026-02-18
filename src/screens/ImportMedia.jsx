@@ -11,6 +11,7 @@ function ImportMedia({ project, onBack, onNavigateToTimeline }) {
   const [loading, setLoading] = useState(true);
   const [isGenerateSelectsModalOpen, setIsGenerateSelectsModalOpen] = useState(false);
   const [showGenerateSelectsLoading, setShowGenerateSelectsLoading] = useState(false);
+  const [generateSelectsPromise, setGenerateSelectsPromise] = useState(null);
   const hasRefreshedDurations = useRef(false);
   const fileInputRef = useRef(null);
   const isBrowser = typeof window !== 'undefined' && window.electronAPI?._browserShim === true;
@@ -126,11 +127,20 @@ function ImportMedia({ project, onBack, onNavigateToTimeline }) {
   };
 
   const handleGenerateSelectsSubmit = (context) => {
-    console.log('Generate selects with context:', context);
+    if (!project || !window.electronAPI?.ai?.generateSelects) {
+      console.error('AI generateSelects not available');
+      return;
+    }
     setIsGenerateSelectsModalOpen(false);
+    const promise = window.electronAPI.ai.generateSelects({
+      projectId: project.id,
+      storyContext: context.storyContext ?? '',
+      styleContext: context.styleContext ?? '',
+      userInstructions: context.userInstructions ?? '',
+      desiredDurationSec: context.desiredDurationSec ?? 120,
+    });
+    setGenerateSelectsPromise(promise);
     setShowGenerateSelectsLoading(true);
-    // TODO: Call AI with context (storyContext, styleContext, exampleFiles, exampleLinks)
-    // This will be the "rules" the AI follows when cutting selects
   };
 
   const handleLoadingComplete = () => {
@@ -139,6 +149,7 @@ function ImportMedia({ project, onBack, onNavigateToTimeline }) {
 
   const handleBackFromLoading = () => {
     setShowGenerateSelectsLoading(false);
+    setGenerateSelectsPromise(null);
   };
 
   const handleSkipGenerateSelects = () => {
@@ -164,7 +175,11 @@ function ImportMedia({ project, onBack, onNavigateToTimeline }) {
           breadcrumbCurrent="Interview Selects"
         />
         <div className="import-media-content import-media-content--loading">
-          <GenerateSelectsLoading onComplete={handleLoadingComplete} />
+          <GenerateSelectsLoading
+            workPromise={generateSelectsPromise}
+            onComplete={handleLoadingComplete}
+            onBack={handleBackFromLoading}
+          />
         </div>
       </div>
     );

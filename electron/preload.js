@@ -55,6 +55,11 @@ try {
       ipcRenderer.invoke('export:exportFCPXMLPackage', projectId, payload, projectName),
     openFolder: (folderPath) => ipcRenderer.invoke('export:openFolder', folderPath),
   },
+
+  // AI (LLM-generated selects)
+  ai: {
+    generateSelects: (payload) => ipcRenderer.invoke('ai:generateSelects', payload),
+  },
   });
   console.log('[Preload] electronAPI exposed successfully');
 } catch (error) {

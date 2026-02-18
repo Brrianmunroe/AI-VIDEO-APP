@@ -4,6 +4,22 @@ This file captures **case-study-worthy** decisions: major scope cuts, platform b
 
 ---
 
+## Decision: OpenAI mini for LLM-generated selects (cloud API, extensible)
+- **Date:** 2026-02-18
+- **Context:** Users want the AI to analyze transcripts and propose per-clip highlights (selects) based on a context brief, then review and export to Premiere.
+- **Options considered:**
+  - A) Local model (Llama/Ollama): no API cost, no data leaves machine; weaker JSON adherence and setup complexity.
+  - B) OpenAI mini (cloud): strong instruction-following, cheap per token; transcripts sent to API.
+  - C) Anthropic Claude: similar to B; add later as second provider.
+- **Decision:** **Option B** — Start with OpenAI mini (`gpt-4o-mini` or `OPENAI_MODEL_ID` from `.env.local`); design `llmClient` and `aiService` as provider-agnostic so Anthropic/local can be added later.
+- **Why (tradeoffs):**
+  - Pros: best quality/cost for structured JSON output; simple setup (API key in `.env.local`); paid API data not used for training.
+  - Cons: transcripts sent to cloud; requires API key and budget limit in OpenAI dashboard.
+- **Impact on MVP:** llmClient loads `.env.local`, calls OpenAI chat completions; aiService orchestrates transcription → build payload → parse highlights → update `media.highlights`; IPC `ai:generateSelects`; GenerateSelectsModal adds story/style/userInstructions/desiredDuration; loading screen driven by real IPC promise.
+- **Follow-ups:** Add provider selector and Anthropic/local support when needed; optional token-usage display in UI.
+
+---
+
 ## Decision: Premiere export via FCP XML + media package (no relinking)
 - **Date:** 2026-02-17
 - **Context:** Users want to export the timeline for Adobe Premiere Pro and open it with no relinking—a single package they can move or share.

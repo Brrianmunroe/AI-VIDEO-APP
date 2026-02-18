@@ -3,9 +3,20 @@ import Button from './Button';
 import Icon from './Icon';
 import './styles/GenerateSelectsModal.css';
 
+const DURATION_OPTIONS = [
+  { value: 15, label: '15 sec' },
+  { value: 30, label: '30 sec' },
+  { value: 60, label: '1 min' },
+  { value: 120, label: '2 min' },
+  { value: 180, label: '3 min' },
+  { value: 300, label: '5 min' },
+];
+
 function GenerateSelectsModal({ isOpen, onClose, onCreate, onSkip }) {
   const [storyContext, setStoryContext] = useState('');
   const [styleContext, setStyleContext] = useState('');
+  const [userInstructions, setUserInstructions] = useState('');
+  const [desiredDurationSec, setDesiredDurationSec] = useState(120);
   const [videoLink, setVideoLink] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -18,6 +29,8 @@ function GenerateSelectsModal({ isOpen, onClose, onCreate, onSkip }) {
     if (!isOpen) {
       setStoryContext('');
       setStyleContext('');
+      setUserInstructions('');
+      setDesiredDurationSec(120);
       setVideoLink('');
       setUploadedFiles([]);
       setIsDragging(false);
@@ -199,6 +212,8 @@ function GenerateSelectsModal({ isOpen, onClose, onCreate, onSkip }) {
     onCreate({
       storyContext: storyContext.trim(),
       styleContext: styleContext.trim(),
+      userInstructions: userInstructions.trim(),
+      desiredDurationSec,
       exampleFiles: uploadedFiles
         .filter((f) => f.type === 'file')
         .map((f) => ({
@@ -248,7 +263,7 @@ function GenerateSelectsModal({ isOpen, onClose, onCreate, onSkip }) {
             <label className="form-field__label">Story Context</label>
             <textarea
               className="form-field__textarea"
-              placeholder="Project"
+              placeholder="What this piece is about, key messages, audience..."
               value={storyContext}
               onChange={(e) => setStoryContext(e.target.value)}
               rows={4}
@@ -259,11 +274,37 @@ function GenerateSelectsModal({ isOpen, onClose, onCreate, onSkip }) {
             <label className="form-field__label">Style Context</label>
             <textarea
               className="form-field__textarea"
-              placeholder="Project"
+              placeholder="Pace, tone, reference examples..."
               value={styleContext}
               onChange={(e) => setStyleContext(e.target.value)}
               rows={4}
             />
+          </div>
+
+          <div className="form-field" onClick={(e) => e.stopPropagation()}>
+            <label className="form-field__label">Additional Instructions</label>
+            <textarea
+              className="form-field__textarea"
+              placeholder="Extra rules for the AI (e.g. only use moments about pricing)"
+              value={userInstructions}
+              onChange={(e) => setUserInstructions(e.target.value)}
+              rows={2}
+            />
+          </div>
+
+          <div className="form-field" onClick={(e) => e.stopPropagation()}>
+            <label className="form-field__label">Desired Video Length</label>
+            <select
+              className="form-field__input"
+              value={desiredDurationSec}
+              onChange={(e) => setDesiredDurationSec(Number(e.target.value))}
+            >
+              {DURATION_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="form-field" onClick={(e) => e.stopPropagation()}>

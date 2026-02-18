@@ -14,13 +14,35 @@ const STEPS = [
 const STEP_DURATION_MS = 1200;
 const TOTAL_DURATION_MS = STEPS.length * STEP_DURATION_MS;
 
-function GenerateSelectsLoading({ onComplete }) {
+function GenerateSelectsLoading({ workPromise, onComplete, onError, onBack }) {
   const [progress, setProgress] = useState(0);
   const [stepStatuses, setStepStatuses] = useState(STEPS.map(() => 'pending'));
+  const [error, setError] = useState(null);
   const startTimeRef = useRef(null);
   const rafRef = useRef(null);
 
+  // When workPromise is provided, wait for it; otherwise use timer-based simulation
   useEffect(() => {
+    if (workPromise) {
+      workPromise
+        .then((result) => {
+          if (result?.success) {
+            setProgress(100);
+            setStepStatuses(STEPS.map(() => 'completed'));
+            onComplete?.();
+          } else {
+            setError(result?.error || 'Generation failed');
+            onError?.(result?.error);
+          }
+        })
+        .catch((err) => {
+          const msg = err?.message || String(err);
+          setError(msg);
+          onError?.(msg);
+        });
+      return;
+    }
+
     startTimeRef.current = Date.now();
 
     const tick = () => {
@@ -49,7 +71,56 @@ function GenerateSelectsLoading({ onComplete }) {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [onComplete]);
+  }, [workPromise, onComplete, onError]);
+
+  // Progress animation while workPromise is pending
+  useEffect(() => {
+    if (!workPromise || error) return;
+    startTimeRef.current = Date.now();
+
+    const tick = () => {
+      const elapsed = Date.now() - startTimeRef.current;
+      const rawProgress = Math.min(95, (elapsed / 2000) * 95);
+      setProgress(Math.round(rawProgress));
+
+      const completedCount = Math.min(
+        STEPS.length - 1,
+        Math.floor(elapsed / STEP_DURATION_MS)
+      );
+      const next = STEPS.map((_, i) => {
+        if (i < completedCount) return 'completed';
+        if (i === completedCount) return 'active';
+        return 'pending';
+      });
+      setStepStatuses(next);
+
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [workPromise, error]);
+
+  if (error) {
+    return (
+      <div className="generate-selects-loading" role="region" aria-label="Generate selects error">
+        <p className="generate-selects-loading-error" role="alert">
+          {error}
+        </p>
+        {onBack && (
+          <button
+            type="button"
+            className="generate-selects-loading-back"
+            onClick={onBack}
+          >
+            Back
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="generate-selects-loading" role="region" aria-label="Generating selects">

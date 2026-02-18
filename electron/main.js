@@ -9,6 +9,7 @@ import * as mediaService from './services/mediaService.js';
 import * as transcriptionService from './services/transcriptionService.js';
 import * as waveformService from './services/waveformService.js';
 import * as exportService from './services/exportService.js';
+import * as aiService from './services/aiService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -469,6 +470,26 @@ ipcMain.handle('export:openFolder', async (event, folderPath) => {
       await shell.openPath(folderPath);
     }
     return { success: true };
+  } catch (err) {
+    return { success: false, error: err?.message || String(err) };
+  }
+});
+
+// AI (LLM-generated selects)
+ipcMain.handle('ai:generateSelects', async (event, payload) => {
+  try {
+    const projectId = payload?.projectId;
+    if (!projectId) {
+      return { success: false, error: 'Missing projectId' };
+    }
+    const result = await aiService.generateSelectsForProject({
+      projectId,
+      storyContext: payload?.storyContext ?? '',
+      styleContext: payload?.styleContext ?? '',
+      userInstructions: payload?.userInstructions ?? '',
+      desiredDurationSec: payload?.desiredDurationSec ?? 120,
+    });
+    return result;
   } catch (err) {
     return { success: false, error: err?.message || String(err) };
   }
