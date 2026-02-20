@@ -229,10 +229,39 @@
   overflow-y: hidden;
 }
 
+/* Scroll content: ruler row (sticky) + strip; both scroll horizontally together */
+.playback-module__timeline-scroll-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.playback-module__ruler-row {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: row;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: var(--color-primary-950);
+}
+
+.playback-module__ruler-row-spacer {
+  flex-shrink: 0;
+  width: 64px;
+  min-width: 64px;
+  border: none;
+  background-color: var(--color-primary-950);
+  position: sticky;
+  left: 0;
+  z-index: 3;
+}
+
 .playback-module__timeline-strip {
   display: flex;
   flex-direction: row;
-  min-height: 100%;
+  flex: 1;
+  min-height: 0;
   align-items: stretch;
 }
 
@@ -247,17 +276,6 @@
   min-height: 0;
   border-right: var(--stroke-width-md) solid var(--color-border-border-default);
   background-color: var(--color-surface-card-surface-default);
-}
-
-/* Match height of .playback-module__timeline-ruler (padding + labels + spacer + notches) */
-.playback-module__ruler-label-spacer {
-  flex-shrink: 0;
-  width: 100%;
-  height: var(--timeline-ruler-row-height);
-  box-sizing: border-box;
-  background-color: var(--color-primary-950);
-  border-bottom: var(--stroke-width-md) solid var(--color-border-border-default);
-  border-right: none;
 }
 
 .playback-module__track-label {
@@ -313,12 +331,29 @@
   height: var(--spacing-sm);
 }
 
-/* Ruler notches (Premiere-style): tiered tick marks in bottom band */
+/* Ruler notches (Premiere-style): tiered tick marks revealed progressively on zoom.
+   Base = major only. --medium-notches adds medium. --frame-notches adds minor. */
 .playback-module__ruler-notches {
   flex: 0 0 auto;
   height: var(--ruler-notch-major-height, var(--spacing-md));
   width: 100%;
-  /* Stack: major (tallest), then medium, then minor (shortest) so major is on top */
+  image-rendering: crisp-edges;
+  transform: translateZ(0);
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent calc(var(--ruler-notch-major-step-px, 48px) - 1px),
+      var(--color-grey-600) calc(var(--ruler-notch-major-step-px, 48px) - 1px),
+      var(--color-grey-600) var(--ruler-notch-major-step-px, 48px)
+    );
+  background-size: 100% var(--ruler-notch-major-height, var(--spacing-md));
+  background-position: 0 100%;
+  background-repeat: repeat-x;
+}
+
+/* Medium zoom: add medium notches (6-frame ticks) */
+.playback-module__timeline-ruler--medium-notches .playback-module__ruler-notches {
   background-image:
     repeating-linear-gradient(
       90deg,
@@ -334,12 +369,14 @@
       var(--color-grey-600) calc(var(--ruler-notch-medium-step-px, 12px) - 1px),
       var(--color-grey-600) var(--ruler-notch-medium-step-px, 12px)
     );
-  background-size: 100% var(--ruler-notch-major-height, var(--spacing-md)), 100% var(--ruler-notch-medium-height, var(--spacing-sm));
+  background-size:
+    100% var(--ruler-notch-major-height, var(--spacing-md)),
+    100% var(--ruler-notch-medium-height, var(--spacing-sm));
   background-position: 0 100%, 0 100%;
   background-repeat: repeat-x;
 }
 
-/* When zoomed in enough, add frame-level notches (shortest) */
+/* High zoom: add frame-level notches (per-frame ticks) */
 .playback-module__timeline-ruler--frame-notches .playback-module__ruler-notches {
   background-image:
     repeating-linear-gradient(

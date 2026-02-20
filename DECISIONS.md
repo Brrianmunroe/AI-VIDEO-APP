@@ -4,6 +4,68 @@ This file captures **case-study-worthy** decisions: major scope cuts, platform b
 
 ---
 
+## Decision: Viewport-based multi-resolution waveform architecture
+- **Date:** 2026-02-20
+- **Context:** The waveform rendering was blurry when zoomed out and blob-like when zoomed in because the backend sent a fixed-count flat array (20K peaks), the frontend drew all of them onto an oversized canvas that got CSS-scaled, and there was no concept of rendering only what's visible.
+- **Options considered:**
+  - A) Increase peak count further and keep the existing canvas-scaling approach
+  - B) Switch to Web Audio decoding in the renderer for higher fidelity
+  - C) Multi-resolution peak pyramid on the backend with viewport-aware windowed rendering on the frontend
+- **Decision:** **Option C** — multi-resolution min/max peak pyramid with viewport-based canvas rendering.
+- **Why (tradeoffs):**
+  - Pros: 1:1 pixel canvas (no blur at any zoom), crisp min/max bars showing true peaks and valleys, O(viewport) IPC calls instead of sending entire waveform, scales to any clip length, cached pyramid avoids repeat FFmpeg work.
+  - Cons: More complex data pipeline (pyramid levels, window IPC, scroll tracking). Requires IPC call on scroll/zoom (mitigated by rAF throttle and pyramid level selection).
+- **Impact on MVP:** Waveforms now look professional at every zoom level. Both Interview Selects and Review timelines get the improvement automatically since they share PlaybackModule.
+- **Follow-ups:** Monitor IPC performance on long clips (>30 min). Consider debouncing the IPC calls further if scroll jank appears.
+
+---
+
+## Decision: Timeline zoom, ruler scaling, and waveform sync
+- **Date:** 2026-02-18
+- **Context:** Timeline needs to match design, support scalable zoom, and keep waveform in sync with video. Figma MCP returned no resources; implementation based on design-system tokens and code review.
+- **Options considered:**
+  - A) Figma MCP inspect (unavailable: no resources returned)
+  - B) Improve existing PlaybackModule: ruler/notch zoom scaling already in place; add scroll-wheel zoom; fix waveform media:// handling
+- **Decision:** **Option B** — Enhance existing timeline; defer pixel-perfect Figma match until design specs or link are provided.
+- **Why (tradeoffs):**
+  - Pros: ruler notches and time labels scale with pixelsPerFrame; waveform width = durationFrames × ppf for 1:1 sync; Ctrl/Cmd+scroll zoom; never fetch media:// in AudioWaveform.
+  - Cons: cannot match Figma pixel-for-pixel without design inspection.
+- **Impact on MVP:** PlaybackModule: handleTimelineWheel + passive:false; AudioWaveform receives undefined videoUrl for media://; zoom tooltip added.
+- **Follow-ups:** Share Figma timeline link or export design specs for pixel-accurate match when MCP is configured.
+
+---
+
+## Decision: Remove Examples and hone AI highlight prompt
+- **Date:** 2026-02-18
+- **Context:** User feedback: highlights felt too long, vague, and not aligned with the brief; asked for 2 min and got ~7 min. Need to improve highlight quality.
+- **Options considered:**
+  - A) Keep Examples (transcribe and pass to AI): would require transcribing example files/links; AI can't watch video so style/pacing wouldn't transfer.
+  - B) Remove Examples; rely on text brief (story, style, instructions).
+  - C) Hone system prompt: content-driven cutting, one unit of meaning per highlight, prompt fidelity, no mid-word cuts, quality over quantity.
+- **Decision:** **B + C** — Remove Examples from Context Brief modal; hone aiService system prompt with refined guidance.
+- **Why (tradeoffs):**
+  - Pros: Examples without transcription were placebo; prompt refinements emphasize story fit, content-driven boundaries, and selective output; duration as guide not hard cap.
+  - Cons: no reference clips for now; future video-understanding models could restore examples.
+- **Impact on MVP:** GenerateSelectsModal: removed Examples section, state, handlers; aiService: new SYSTEM_PROMPT (prompt fidelity, one-unit-per-highlight, no mid-word cuts, quality over quantity); loosened payload constraints (1–60 sec per highlight, 10 per clip).
+- **Follow-ups:** Optional upgrade to gpt-4o for better editorial judgment.
+
+---
+
+## Decision: Snap highlights to transcript segment boundaries
+- **Date:** 2026-02-18
+- **Context:** AI returns fractional-second in/out times that can land mid-word or mid-phrase; prompt says "do not cut mid-word or mid-thought" but the model may still return imperfect boundaries.
+- **Options considered:**
+  - A) Rely on prompt only; no post-processing
+  - B) Snap in/out to transcript segment boundaries after parsing AI response
+- **Decision:** **Option B** — Add `snapToSegmentBoundaries()` in aiService; after parsing each range, snap `in` to segment start and `out` to segment end; skip range if invalid (e.g., entirely before/after transcript).
+- **Why (tradeoffs):**
+  - Pros: guarantees phrase-aligned cuts; works even when model returns noisy times.
+  - Cons: may slightly expand highlights to include full segments; edge cases (gaps, no transcript) handled with fallbacks.
+- **Impact on MVP:** aiService builds segmentsByMediaId; each range is snapped before validation; 1 sec min still enforced.
+- **Follow-ups:** None.
+
+---
+
 ## Decision: OpenAI mini for LLM-generated selects (cloud API, extensible)
 - **Date:** 2026-02-18
 - **Context:** Users want the AI to analyze transcripts and propose per-clip highlights (selects) based on a context brief, then review and export to Premiere.

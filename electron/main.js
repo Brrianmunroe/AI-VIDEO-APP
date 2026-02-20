@@ -445,11 +445,21 @@ ipcMain.handle('transcription:runForProject', async (event, projectId) => {
   }
 });
 
-// Waveform IPC
+// Waveform IPC (legacy flat peaks — kept for backward compat)
 ipcMain.handle('waveform:getPeaks', async (event, mediaId) => {
   try {
     const result = await waveformService.getPeaks(mediaId);
     return { success: true, peaks: result.peaks, durationSec: result.durationSec };
+  } catch (err) {
+    return { success: false, error: err?.message || String(err) };
+  }
+});
+
+// Waveform IPC (viewport-aware windowed min/max)
+ipcMain.handle('waveform:getWindow', async (event, mediaId, startSec, endSec, pixelWidth) => {
+  try {
+    const result = await waveformService.getWindow(mediaId, startSec, endSec, pixelWidth);
+    return { success: true, ...result };
   } catch (err) {
     return { success: false, error: err?.message || String(err) };
   }

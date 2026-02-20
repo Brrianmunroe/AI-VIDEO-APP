@@ -7,13 +7,16 @@
   display: block;
   flex-shrink: 0;
   background-color: var(--color-surface-page-surface-default);
+  overflow: hidden;
 }
 
 .audio-waveform__canvas {
   display: block;
-  width: 100%;
-  height: 100%;
   vertical-align: middle;
+  position: sticky;
+  left: 0;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
 }
 
 .audio-waveform--loading,

@@ -75,10 +75,61 @@ function generateHighlightId() {
   return `highlight_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 }
 
-const SYSTEM_PROMPT = `You are an assistant video editor. Your job is to read interview transcripts and propose story "selects": short highlight ranges (in seconds) for each clip. You MUST:
-- Follow the project brief and user instructions.
-- Prioritize storytelling clarity, emotional impact, and on-topic answers.
-- Avoid repetition; prefer fewer, stronger moments over many weak ones.
+/**
+ * Snap in/out to transcript segment boundaries so we never cut mid-word or mid-phrase.
+ * @param {number} inSec
+ * @param {number} outSec
+ * @param {Array<{ start: number, end: number }>} segments
+ * @param {number} durationSec
+ * @returns {{ in: number, out: number } | null} Snapped values, or null if invalid
+ */
+function snapToSegmentBoundaries(inSec, outSec, segments, durationSec) {
+  if (!Array.isArray(segments) || segments.length === 0) {
+    return { in: inSec, out: outSec };
+  }
+
+  const first = segments[0];
+  const last = segments[segments.length - 1];
+
+  // Range entirely before or after transcript -> skip
+  if (outSec <= first.start || inSec >= last.end) return null;
+
+  let snappedIn = inSec;
+  let snappedOut = outSec;
+
+  // Snap in: find segment containing inSec, or start of next segment if in a gap
+  for (const seg of segments) {
+    if (inSec <= seg.end) {
+      snappedIn = seg.start;
+      break;
+    }
+  }
+  if (inSec < first.start) snappedIn = first.start;
+
+  // Snap out: find segment containing outSec, or end of previous segment if in a gap
+  for (let i = segments.length - 1; i >= 0; i--) {
+    const seg = segments[i];
+    if (outSec >= seg.start) {
+      snappedOut = seg.end;
+      break;
+    }
+  }
+  if (outSec > last.end) snappedOut = Math.min(durationSec, last.end);
+
+  if (snappedIn >= snappedOut) return null;
+  return { in: snappedIn, out: snappedOut };
+}
+
+const SYSTEM_PROMPT = `You are an assistant video editor. Your job is to read interview transcripts and propose story "selects": highlight ranges (in seconds) for each clip. You MUST:
+
+- Prioritize moments that directly address the story context, style context, and user instructions. Avoid selecting content that is only loosely related. If the user specifies a focus (e.g., pricing, origin story, key message), prioritize those that stick to that focus, but you may also include other moments you judge to be valuable for the story.
+
+- Each highlight should be one unit of meaning: one complete thought, story, anecdote, or point. If a stretch of transcript has multiple distinct points bundled together, split them into separate highlights. If it is one coherent narrative (e.g., a full anecdote that runs 45 seconds), keep it as one highlight. Use content and context to decide—no rigid duration rules.
+
+- Do not cut mid-word or mid-thought.
+
+- Prioritize key moments that fit the story. Use the specified video length as a guide, but it is acceptable to select more content than the target if the best material warrants it—the user can pare down. The main goal is to surface the strongest, story-relevant moments. Avoid including weak or tangential content that adds length without adding value.
+
 - When multiple speakers/clips exist, prefer diversity of voices unless one clip is clearly stronger for the story.
 - Output ONLY valid JSON matching the schema provided. No explanations or commentary outside JSON.
 - Use continuous ranges only (no internal gaps); the editor will fine-cut filler later.`;
@@ -136,9 +187,9 @@ export async function generateSelectsForProject({
       style_context: (styleContext || '').trim() || 'Standard pace; clear and concise.',
       user_instructions: (userInstructions || '').trim() || '',
       desired_video_duration_sec: Math.max(15, Math.min(600, Number(desiredDurationSec) || 120)),
-      max_highlights_per_clip: 5,
-      min_highlight_duration_sec: 3,
-      max_highlight_duration_sec: 40,
+      max_highlights_per_clip: 10,
+      min_highlight_duration_sec: 1,
+      max_highlight_duration_sec: 60,
     },
     clips,
     output_schema: {
@@ -172,7 +223,7 @@ export async function generateSelectsForProject({
   };
 
   const instructions =
-    'Using the information above, produce selects. Respect desired_video_duration_sec (aim within ~20%). Prefer fewer, stronger ranges. in/out must be in seconds from clip start, within each clip durationSec. Return ONLY a JSON object with a "highlights" array. No Markdown, no comments.';
+    'Using the information above, produce selects. Use desired_video_duration_sec as a guide for total content—prioritize the strongest story-relevant moments. in/out must be in seconds from clip start, within each clip durationSec. Return ONLY a JSON object with a "highlights" array. No Markdown, no comments.';
 
   const userContent = JSON.stringify(userPayload, null, 0) + '\n\n' + instructions;
 
@@ -201,6 +252,7 @@ export async function generateSelectsForProject({
 
   const highlightsArr = Array.isArray(parsed?.highlights) ? parsed.highlights : [];
   const mediaById = new Map(mediaList.map((m) => [m.id, m]));
+  const segmentsByMediaId = new Map(clips.map((c) => [c.mediaId, c.transcript]));
 
   let clipsWithHighlights = 0;
   let totalRanges = 0;
@@ -212,11 +264,18 @@ export async function generateSelectsForProject({
 
     const durationSec = Number(media.duration) || 0;
     const ranges = Array.isArray(item.ranges) ? item.ranges : [];
+    const segments = segmentsByMediaId.get(mediaId) ?? [];
 
     const validHighlights = [];
     for (const r of ranges) {
-      const inSec = Math.max(0, Math.min(durationSec, Number(r.in) || 0));
-      const outSec = Math.max(inSec, Math.min(durationSec, Number(r.out) || inSec));
+      let inSec = Math.max(0, Math.min(durationSec, Number(r.in) || 0));
+      let outSec = Math.max(inSec, Math.min(durationSec, Number(r.out) || inSec));
+
+      const snapped = snapToSegmentBoundaries(inSec, outSec, segments, durationSec);
+      if (snapped === null) continue;
+      inSec = snapped.in;
+      outSec = snapped.out;
+
       if (outSec - inSec < 1) continue;
       validHighlights.push({
         id: generateHighlightId(),

@@ -1,248 +1,121 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './styles/AudioWaveform.css';
 
-const MAX_PEAKS = 2000;
-/** Browser/GPU canvas limits; exceeding can crash the renderer. Use capped size and CSS scale. */
-const MAX_CANVAS_WIDTH = 8192;
-const MAX_CANVAS_HEIGHT = 4096;
-
-/** Flat peaks for no-audio / error: same bar count as normal waveform, all zero → draws a flat line. */
-const FLAT_PEAKS = Object.freeze(Array.from({ length: 1500 }, () => 0));
+const FLAT_RESULT = Object.freeze({ mins: [], maxs: [] });
 
 /**
- * Compute peak values from decoded AudioBuffer (time-based, capped at MAX_PEAKS).
- * Returns array of values in [0, 1].
+ * AudioWaveform — viewport-aware, min/max bar renderer with 1:1 pixel canvas.
+ *
+ * Layout: outer div is full clip width (keeps scroll area); canvas is sticky-left
+ * at viewport width and only renders the visible time window via IPC.
+ *
+ * Props:
+ *   mediaId         — media ID for IPC waveform fetch
+ *   startSec        — visible window start (seconds into clip)
+ *   endSec          — visible window end (seconds into clip)
+ *   totalWidthPx    — full clip width in the timeline (outer container width)
+ *   viewportWidthPx — visible viewport width (canvas width, 1:1 pixel)
+ *   heightPx        — pixel height
+ *   durationSec     — total clip duration
  */
-function computePeaks(buffer) {
-  const channel = 0;
-  const channelData = buffer.getChannelData(channel);
-  const length = channelData.length;
-  if (length === 0) return [];
-
-  const numBars = Math.min(MAX_PEAKS, length);
-  const step = length / numBars;
-  const peaks = [];
-
-  for (let i = 0; i < numBars; i++) {
-    const start = Math.floor(i * step);
-    const end = Math.min(length, Math.floor((i + 1) * step));
-    let max = 0;
-    for (let j = start; j < end; j++) {
-      const abs = Math.abs(channelData[j]);
-      if (abs > max) max = abs;
-    }
-    peaks.push(max);
-  }
-
-  return peaks;
-}
-
-function isSilent(peaks) {
-  return peaks.length === 0 || peaks.every((p) => p < 1e-6);
-}
-
-function AudioWaveform({ mediaId, videoUrl, preloadedPeaks, widthPx, heightPx, durationSec }) {
-  const hasPreloaded = Array.isArray(preloadedPeaks) && preloadedPeaks.length > 0;
-  const [peaks, setPeaks] = useState(() => (hasPreloaded ? preloadedPeaks : null));
-  const [loading, setLoading] = useState(!hasPreloaded && (mediaId != null && mediaId !== ''));
-  const [error, setError] = useState(false);
-  const [empty, setEmpty] = useState(hasPreloaded && preloadedPeaks.every((p) => p < 1e-6));
+function AudioWaveform({ mediaId, startSec = 0, endSec, totalWidthPx, viewportWidthPx, heightPx, durationSec }) {
   const canvasRef = useRef(null);
-  const mediaIdRef = useRef(mediaId);
-  const videoUrlRef = useRef(videoUrl);
-  const abortRef = useRef(null);
+  const [waveData, setWaveData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const fetchIdRef = useRef(0);
 
-  const width = Math.max(0, Math.round(Number(widthPx) || 0));
+  const outerWidth = Math.max(0, Math.round(Number(totalWidthPx) || 0));
+  const canvasWidth = Math.max(0, Math.round(Number(viewportWidthPx) || outerWidth));
   const height = Math.max(0, Math.round(Number(heightPx) || 48));
   const hasMediaId = mediaId != null && mediaId !== '';
-  const hasUrl = Boolean(videoUrl);
-  const hasInput = hasMediaId || hasUrl;
 
-  // When preloadedPeaks is provided for this clip, use them immediately (no loading, no IPC)
+  const windowStart = Number(startSec) || 0;
+  const windowEnd = Number(endSec) || Number(durationSec) || 0;
+
   useEffect(() => {
-    if (!hasMediaId) return;
-    if (Array.isArray(preloadedPeaks) && preloadedPeaks.length > 0) {
-      const isSilent = preloadedPeaks.every((p) => p < 1e-6);
-      setPeaks(isSilent ? FLAT_PEAKS : preloadedPeaks);
-      setLoading(false);
-      setError(false);
-      setEmpty(false);
+    if (!hasMediaId || canvasWidth <= 0 || windowEnd <= windowStart) {
+      setWaveData(null);
       return;
     }
-    if (Array.isArray(preloadedPeaks) && preloadedPeaks.length === 0) {
-      setPeaks(FLAT_PEAKS);
-      setLoading(false);
-      setError(false);
-      setEmpty(false);
-      return;
-    }
-  }, [mediaId, hasMediaId, preloadedPeaks]);
-
-  // When mediaId is present and no preloaded peaks: load peaks via IPC (main process FFmpeg)
-  useEffect(() => {
-    if (!hasMediaId) return;
-    if (Array.isArray(preloadedPeaks)) return;
-
-    const currentMediaId = mediaId;
-    mediaIdRef.current = currentMediaId;
-    setPeaks(null);
-    setError(false);
-    setEmpty(false);
-    setLoading(true);
 
     const api = window.electronAPI?.waveform;
-    if (!api?.getPeaks) {
-      setPeaks(FLAT_PEAKS);
-      setLoading(false);
+    if (!api?.getWindow) {
+      setWaveData(FLAT_RESULT);
       return;
     }
 
-    let cancelled = false;
-    api.getPeaks(currentMediaId).then((result) => {
-      if (cancelled || mediaIdRef.current !== currentMediaId) return;
-      if (result?.success && Array.isArray(result.peaks)) {
-        if (result.peaks.length === 0 || result.peaks.every((p) => p < 1e-6)) {
-          setPeaks(FLAT_PEAKS);
-        } else {
-          setPeaks(result.peaks);
-        }
-      } else {
-        setPeaks(FLAT_PEAKS);
-      }
-      setLoading(false);
-      setError(false);
-      setEmpty(false);
-    }).catch((err) => {
-      if (cancelled || mediaIdRef.current !== currentMediaId) return;
-      console.warn('[AudioWaveform] getPeaks failed:', err?.message || err);
-      setPeaks(FLAT_PEAKS);
-      setLoading(false);
-      setError(false);
-      setEmpty(false);
-    });
-
-    return () => {
-      cancelled = true;
-      mediaIdRef.current = currentMediaId;
-    };
-  }, [mediaId, hasMediaId, preloadedPeaks]);
-
-  // When only videoUrl (no mediaId): legacy fetch + decode path
-  useEffect(() => {
-    if (hasMediaId || !hasUrl) {
-      if (!hasMediaId) {
-        setPeaks(null);
-        setLoading(false);
-        setError(false);
-        setEmpty(false);
-        videoUrlRef.current = null;
-      }
-      return;
-    }
-
-    videoUrlRef.current = videoUrl;
-    setPeaks(null);
-    setError(false);
-    setEmpty(false);
+    const id = ++fetchIdRef.current;
     setLoading(true);
 
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    (async () => {
-      try {
-        const response = await fetch(videoUrl, { signal: controller.signal });
-        if (!response.ok) throw new Error('Fetch failed');
-        const arrayBuffer = await response.arrayBuffer();
-        if (videoUrlRef.current !== videoUrl) return;
-
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const decoded = await audioContext.decodeAudioData(arrayBuffer);
-        if (videoUrlRef.current !== videoUrl) return;
-
-        const computedPeaks = computePeaks(decoded);
-        if (videoUrlRef.current !== videoUrl) return;
-
-        if (isSilent(computedPeaks)) {
-          setPeaks(FLAT_PEAKS);
-        } else {
-          setPeaks(computedPeaks);
-        }
-      } catch (e) {
-        if (e.name === 'AbortError') return;
-        if (videoUrlRef.current !== videoUrl) return;
-        console.warn('[AudioWaveform] load/decode failed:', e.message || e);
-        setPeaks(FLAT_PEAKS);
-      } finally {
-        if (videoUrlRef.current === videoUrl) {
-          setLoading(false);
-        }
+    api.getWindow(mediaId, windowStart, windowEnd, canvasWidth).then((result) => {
+      if (fetchIdRef.current !== id) return;
+      if (result?.success && Array.isArray(result.mins) && Array.isArray(result.maxs)) {
+        setWaveData({ mins: result.mins, maxs: result.maxs });
+      } else {
+        setWaveData(FLAT_RESULT);
       }
-    })();
-
-    return () => {
-      controller.abort();
-      abortRef.current = null;
-    };
-  }, [videoUrl, hasUrl, hasMediaId]);
+      setLoading(false);
+    }).catch(() => {
+      if (fetchIdRef.current !== id) return;
+      setWaveData(FLAT_RESULT);
+      setLoading(false);
+    });
+  }, [hasMediaId, mediaId, windowStart, windowEnd, canvasWidth]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !peaks || peaks.length === 0) return;
+    if (!canvas || !waveData) return;
 
-    try {
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
-      const displayW = Math.max(0, Math.round(width));
-      const displayH = Math.max(0, Math.round(height));
-      if (displayW === 0 || displayH === 0) return;
+    const { mins, maxs } = waveData;
+    const colCount = Math.min(mins.length, maxs.length);
+    if (colCount === 0) return;
 
-      const drawW = Math.min(displayW, MAX_CANVAS_WIDTH);
-      const drawH = Math.min(displayH, MAX_CANVAS_HEIGHT);
+    const w = Math.max(1, canvasWidth);
+    const h = Math.max(1, height);
 
-      canvas.width = Math.floor(drawW * dpr);
-      canvas.height = Math.floor(drawH * dpr);
-      canvas.style.width = `${displayW}px`;
-      canvas.style.height = `${displayH}px`;
+    canvas.width = w;
+    canvas.height = h;
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
 
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-      ctx.scale(dpr, dpr);
+    const root = document.documentElement;
+    const getToken = (name) => getComputedStyle(root).getPropertyValue(name).trim();
+    const bgColor = getToken('--color-surface-page-surface-default') || getToken('--color-primary-950');
+    const waveColor = getToken('--color-blue-400') || getToken('--color-surface-primary-button-surface-default');
 
-      const fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-primary-700').trim() || '#0A6084';
-      ctx.fillStyle = fillStyle;
+    ctx.imageSmoothingEnabled = false;
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, w, h);
 
-      const centerY = drawH / 2;
-      const halfHeight = Math.max(1, (drawH / 2) - 2);
-      const barCount = peaks.length;
-      const maxPeak = Math.max(...peaks, 1e-6);
+    ctx.fillStyle = waveColor;
+    const centerY = h / 2;
 
-      for (let i = 0; i < barCount; i++) {
-        const x = (i / barCount) * drawW;
-        const barWidth = Math.max(0.5, (drawW / barCount) - 0.5);
-        const norm = peaks[i] / maxPeak;
-        const barHeight = Math.max(1, norm * halfHeight);
-        ctx.fillRect(x, centerY - barHeight, barWidth, barHeight * 2);
-      }
-    } catch (err) {
-      console.error('[AudioWaveform] draw error:', err);
+    for (let x = 0; x < colCount && x < w; x++) {
+      const minVal = mins[x];
+      const maxVal = maxs[x];
+
+      const topY = Math.round(centerY - maxVal * centerY);
+      const botY = Math.round(centerY - minVal * centerY);
+      const barH = Math.max(1, botY - topY);
+
+      ctx.fillRect(x, topY, 1, barH);
     }
-  }, [peaks, width, height]);
+  }, [waveData, canvasWidth, height]);
 
   useEffect(() => {
-    if (!peaks || peaks.length === 0) return;
-    draw();
-  }, [peaks, width, height, draw]);
+    if (waveData) draw();
+  }, [waveData, draw]);
 
-  if (!hasInput) {
-    return null;
-  }
+  if (!hasMediaId) return null;
 
-  if (loading) {
+  if (loading && !waveData) {
     return (
       <div
         className="audio-waveform audio-waveform--loading"
-        style={{ width: `${width}px`, height: `${height}px` }}
+        style={{ width: `${outerWidth}px`, height: `${height}px` }}
         aria-hidden="true"
       >
         <span className="audio-waveform__label">Loading…</span>
@@ -253,10 +126,10 @@ function AudioWaveform({ mediaId, videoUrl, preloadedPeaks, widthPx, heightPx, d
   return (
     <div
       className="audio-waveform"
-      style={{ width: `${width}px`, height: `${height}px` }}
+      style={{ width: `${outerWidth}px`, height: `${height}px` }}
       aria-hidden="true"
     >
-      <canvas ref={canvasRef} className="audio-waveform__canvas" width={width} height={height} />
+      <canvas ref={canvasRef} className="audio-waveform__canvas" />
     </div>
   );
 }

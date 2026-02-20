@@ -47,6 +47,8 @@ try {
   // Waveform (peaks from main process via FFmpeg)
   waveform: {
     getPeaks: (mediaId) => ipcRenderer.invoke('waveform:getPeaks', mediaId),
+    getWindow: (mediaId, startSec, endSec, pixelWidth) =>
+      ipcRenderer.invoke('waveform:getWindow', mediaId, startSec, endSec, pixelWidth),
   },
 
   // Export (FCP XML package for Premiere Pro)
