@@ -50,7 +50,7 @@
 .timeline-review__main .playback-module__timeline {
   flex: 0 0 40%;
   min-height: 120px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 /* Export success/error banner */

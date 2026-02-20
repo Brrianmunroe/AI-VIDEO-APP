@@ -128,14 +128,11 @@ function PlaybackModule({
   const [draggingSegmentHandle, setDraggingSegmentHandle] = useState(null);
   const [viewportContentWidthPx, setViewportContentWidthPx] = useState(0);
 
-  const [waveViewport, setWaveViewport] = useState({ scrollLeft: 0, clientWidth: 0 });
-
   const videoRef = useRef(null);
   const viewportRef = useRef(null);
   const contentRef = useRef(null);
   const isDraggingRef = useRef(false);
   const playheadFrameRef = useRef(0);
-  const waveRafRef = useRef(null);
 
   const LABEL_COLUMN_PX = 64;
 
@@ -569,28 +566,6 @@ function PlaybackModule({
     return () => el.removeEventListener('wheel', handleTimelineWheel);
   }, [handleTimelineWheel]);
 
-  // Track viewport scroll position for waveform windowing (rAF-throttled)
-  useEffect(() => {
-    const el = viewportRef.current;
-    if (!el) return;
-    const sync = () => {
-      setWaveViewport({ scrollLeft: el.scrollLeft, clientWidth: el.clientWidth });
-    };
-    sync();
-    const onScroll = () => {
-      if (waveRafRef.current) cancelAnimationFrame(waveRafRef.current);
-      waveRafRef.current = requestAnimationFrame(sync);
-    };
-    el.addEventListener('scroll', onScroll, { passive: true });
-    const ro = new ResizeObserver(sync);
-    ro.observe(el);
-    return () => {
-      el.removeEventListener('scroll', onScroll);
-      ro.disconnect();
-      if (waveRafRef.current) cancelAnimationFrame(waveRafRef.current);
-    };
-  }, []);
-
   const handleTogglePlay = useCallback(() => {
     if (isControlled && onPlayStateChange) {
       if (!isPlayingState && playbackRangeSec) {
@@ -728,24 +703,23 @@ function PlaybackModule({
 
   const waveformSegment = React.useMemo(() => {
     if (useFullTimeline) {
-      return { durationSec: safeDurationSec };
+      return { startSec: 0, endSec: safeDurationSec, durationSec: safeDurationSec };
     }
     if (isControlled && effectiveSegment != null) {
-      return { durationSec: Math.max(0, segmentEndSec - segmentStartSec) };
+      return { startSec: segmentStartSec, endSec: segmentEndSec, durationSec: Math.max(0, segmentEndSec - segmentStartSec) };
     }
     if (!isControlled && currentSequenceSegment) {
       const inSec = Number(currentSequenceSegment.sourceInSec) || 0;
       const outSec = Number(currentSequenceSegment.sourceOutSec) ?? inSec + 1;
-      return { durationSec: Math.max(0, outSec - inSec) };
+      return { startSec: inSec, endSec: outSec, durationSec: Math.max(0, outSec - inSec) };
     }
-    return { durationSec: safeDurationSec };
+    return { startSec: 0, endSec: safeDurationSec, durationSec: safeDurationSec };
   }, [useFullTimeline, isControlled, effectiveSegment, currentSequenceSegment, safeDurationSec, segmentStartSec, segmentEndSec]);
 
+  /** Per-segment waveforms: one AudioWaveform per clip, each fetches via getWindow (no preload required) */
   const usePerSegmentWaveforms =
     editableTimeline &&
-    videoClips.length > 0 &&
-    preloadedWaveformByMediaId != null &&
-    Object.keys(preloadedWaveformByMediaId).length > 0;
+    videoClips.length > 0;
 
   const waveformSegmentsList = React.useMemo(() => {
     if (!usePerSegmentWaveforms) return [];
@@ -754,27 +728,6 @@ function PlaybackModule({
       widthPx: frameToPx(seg.durationFrames ?? 0),
     }));
   }, [usePerSegmentWaveforms, videoClips, frameToPx]);
-
-  // Compute the visible time window for viewport-based waveform rendering.
-  // scrollLeft is relative to the scroll container which includes the label column,
-  // so content scroll = scrollLeft - LABEL_COLUMN_PX (labels are sticky, don't scroll).
-  const waveWindow = React.useMemo(() => {
-    const pxPerFrame = effectivePixelsPerFrame || 1;
-    const pxPerSec = pxPerFrame * FPS;
-    const contentScroll = Math.max(0, waveViewport.scrollLeft - LABEL_COLUMN_PX);
-    const visibleWidthPx = Math.max(0, waveViewport.clientWidth - LABEL_COLUMN_PX);
-
-    // For the controlled (single-clip) timeline, times are relative to the segment
-    const offsetSec = useFullTimeline ? 0 : segmentStartSec;
-    const wStart = offsetSec + contentScroll / pxPerSec;
-    const wEnd = offsetSec + (contentScroll + visibleWidthPx) / pxPerSec;
-
-    return {
-      startSec: wStart,
-      endSec: wEnd,
-      visibleWidthPx: Math.round(visibleWidthPx),
-    };
-  }, [waveViewport.scrollLeft, waveViewport.clientWidth, effectivePixelsPerFrame, useFullTimeline, segmentStartSec]);
 
   const showVideo = displayVideoUrl != null;
   const showPlaceholder = !showVideo;
@@ -864,7 +817,7 @@ function PlaybackModule({
         >
           <div
             className="playback-module__timeline-scroll-content"
-            style={{ width: stripWidthPx, minWidth: '100%' }}
+            style={{ width: stripWidthPx, minWidth: stripWidthPx }}
           >
             <div className="playback-module__ruler-row">
               <div className="playback-module__ruler-row-spacer" aria-hidden="true" />
@@ -903,7 +856,7 @@ function PlaybackModule({
             </div>
             <div
               className="playback-module__timeline-strip"
-              style={{ width: stripWidthPx, minWidth: '100%' }}
+              style={{ width: stripWidthPx, minWidth: stripWidthPx }}
             >
               <div className="playback-module__timeline-labels">
                 <div className="playback-module__track-label">Video</div>
@@ -912,7 +865,7 @@ function PlaybackModule({
               <div
                 className="playback-module__timeline-content"
                 ref={contentRef}
-                style={{ width: contentWidthPx }}
+                style={{ width: contentWidthPx, minWidth: contentWidthPx }}
                 onClick={handleTimelineClick}
                 role="presentation"
               >
@@ -989,7 +942,6 @@ function PlaybackModule({
                               startSec={segInSec}
                               endSec={segOutSec}
                               totalWidthPx={widthPx}
-                              viewportWidthPx={waveWindow.visibleWidthPx}
                               heightPx={48}
                               durationSec={Math.max(0, segOutSec - segInSec)}
                             />
@@ -1000,15 +952,19 @@ function PlaybackModule({
                   ) : (
                     <WaveformErrorBoundary fallbackStyle={{ width: showVideo && displayVideoUrl ? singleClipWaveformWidthPx : waveformWidthPx, height: 48 }}>
                       {showVideo && displayVideoUrl ? (
-                        <AudioWaveform
-                          mediaId={currentSequenceSegment?.sourceMediaId ?? selectedMediaId}
-                          startSec={waveWindow.startSec}
-                          endSec={waveWindow.endSec}
-                          totalWidthPx={singleClipWaveformWidthPx}
-                          viewportWidthPx={waveWindow.visibleWidthPx}
-                          heightPx={48}
-                          durationSec={waveformSegment.durationSec}
-                        />
+                        <div
+                          className="playback-module__clip playback-module__clip--audio playback-module__waveform-clip"
+                          style={{ left: 0, width: singleClipWaveformWidthPx }}
+                        >
+                          <AudioWaveform
+                            mediaId={currentSequenceSegment?.sourceMediaId ?? selectedMediaId}
+                            startSec={waveformSegment.startSec}
+                            endSec={waveformSegment.endSec}
+                            totalWidthPx={singleClipWaveformWidthPx}
+                            heightPx={48}
+                            durationSec={waveformSegment.durationSec}
+                          />
+                        </div>
                       ) : (
                         audioClips.map((clip) => (
                           <div
