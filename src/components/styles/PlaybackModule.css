@@ -185,6 +185,8 @@
 
 /* === Timeline === */
 /* Ruler row height: shared so left spacer and ruler align (padding + labels + spacer + notches) */
+/* overflow: visible so scroll content extending beyond the viewport is not clipped;
+   waveform/video tracks can span full clip width and scroll into view */
 .playback-module__timeline {
   --timeline-ruler-row-height: calc(
     var(--spacing-xs) + var(--font-size-number-sm) + var(--spacing-sm) + var(--spacing-md)
@@ -198,7 +200,7 @@
   border: var(--stroke-width-md) solid var(--color-border-border-default);
   border-radius: var(--radius-sm);
   background-color: var(--color-primary-950);
-  overflow: hidden;
+  overflow: visible;
 }
 
 /* Time display: playhead position / total duration (centered) */
@@ -263,6 +265,7 @@
   flex: 1;
   min-height: 0;
   align-items: stretch;
+  overflow: visible;
 }
 
 .playback-module__timeline-labels {
@@ -306,6 +309,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: visible;
   cursor: pointer;
 }
 
@@ -331,80 +335,50 @@
   height: var(--spacing-sm);
 }
 
-/* Ruler notches (Premiere-style): tiered tick marks revealed progressively on zoom.
-   Base = major only. --medium-notches adds medium. --frame-notches adds minor. */
+/* Ruler notches: tall at timestamps, small between. Two tiers only.
+   Tall = full height at label positions. Small = short, adaptive step (never chunky). */
 .playback-module__ruler-notches {
   flex: 0 0 auto;
   height: var(--ruler-notch-major-height, var(--spacing-md));
   width: 100%;
+  image-rendering: pixelated;
   image-rendering: crisp-edges;
   transform: translateZ(0);
-  background-image:
-    repeating-linear-gradient(
-      90deg,
-      transparent 0,
-      transparent calc(var(--ruler-notch-major-step-px, 48px) - 1px),
-      var(--color-grey-600) calc(var(--ruler-notch-major-step-px, 48px) - 1px),
-      var(--color-grey-600) var(--ruler-notch-major-step-px, 48px)
-    );
-  background-size: 100% var(--ruler-notch-major-height, var(--spacing-md));
+  /* Tall: one 1px line per timestamp step, full height */
+  background-image: linear-gradient(
+    90deg,
+    transparent 0,
+    transparent calc(var(--ruler-notch-major-step-px, 48px) - 1px),
+    var(--color-grey-600) calc(var(--ruler-notch-major-step-px, 48px) - 1px),
+    var(--color-grey-600) var(--ruler-notch-major-step-px, 48px)
+  );
+  background-size: var(--ruler-notch-major-step-px, 48px) var(--ruler-notch-major-height, var(--spacing-md));
   background-position: 0 100%;
   background-repeat: repeat-x;
 }
 
-/* Medium zoom: add medium notches (6-frame ticks) */
-.playback-module__timeline-ruler--medium-notches .playback-module__ruler-notches {
+/* Small notches between timestamps (short, same color—always shown when spacing allows) */
+.playback-module__timeline-ruler--small-notches .playback-module__ruler-notches {
   background-image:
-    repeating-linear-gradient(
+    linear-gradient(
       90deg,
       transparent 0,
       transparent calc(var(--ruler-notch-major-step-px, 48px) - 1px),
       var(--color-grey-600) calc(var(--ruler-notch-major-step-px, 48px) - 1px),
       var(--color-grey-600) var(--ruler-notch-major-step-px, 48px)
     ),
-    repeating-linear-gradient(
+    linear-gradient(
       90deg,
       transparent 0,
-      transparent calc(var(--ruler-notch-medium-step-px, 12px) - 1px),
-      var(--color-grey-600) calc(var(--ruler-notch-medium-step-px, 12px) - 1px),
-      var(--color-grey-600) var(--ruler-notch-medium-step-px, 12px)
+      transparent calc(var(--ruler-notch-small-step-px, 6px) - 1px),
+      var(--color-grey-600) calc(var(--ruler-notch-small-step-px, 6px) - 1px),
+      var(--color-grey-600) var(--ruler-notch-small-step-px, 6px)
     );
   background-size:
-    100% var(--ruler-notch-major-height, var(--spacing-md)),
-    100% var(--ruler-notch-medium-height, var(--spacing-sm));
+    var(--ruler-notch-major-step-px, 48px) var(--ruler-notch-major-height, var(--spacing-md)),
+    var(--ruler-notch-small-step-px, 6px) var(--ruler-notch-small-height, var(--spacing-xs));
   background-position: 0 100%, 0 100%;
   background-repeat: repeat-x;
-}
-
-/* High zoom: add frame-level notches (per-frame ticks) */
-.playback-module__timeline-ruler--frame-notches .playback-module__ruler-notches {
-  background-image:
-    repeating-linear-gradient(
-      90deg,
-      transparent 0,
-      transparent calc(var(--ruler-notch-major-step-px, 48px) - 1px),
-      var(--color-grey-600) calc(var(--ruler-notch-major-step-px, 48px) - 1px),
-      var(--color-grey-600) var(--ruler-notch-major-step-px, 48px)
-    ),
-    repeating-linear-gradient(
-      90deg,
-      transparent 0,
-      transparent calc(var(--ruler-notch-medium-step-px, 12px) - 1px),
-      var(--color-grey-600) calc(var(--ruler-notch-medium-step-px, 12px) - 1px),
-      var(--color-grey-600) var(--ruler-notch-medium-step-px, 12px)
-    ),
-    repeating-linear-gradient(
-      90deg,
-      transparent 0,
-      transparent calc(var(--ruler-notch-minor-step-px, 2px) - 1px),
-      var(--color-grey-600) calc(var(--ruler-notch-minor-step-px, 2px) - 1px),
-      var(--color-grey-600) var(--ruler-notch-minor-step-px, 2px)
-    );
-  background-size:
-    100% var(--ruler-notch-major-height, var(--spacing-md)),
-    100% var(--ruler-notch-medium-height, var(--spacing-sm)),
-    100% var(--ruler-notch-minor-height, var(--spacing-xs));
-  background-position: 0 100%, 0 100%, 0 100%;
 }
 
 .playback-module__ruler-labels {
@@ -433,6 +407,7 @@
   flex: 1 1 0;
   min-height: 48px;
   display: flex;
+  overflow: visible;
   border-bottom: var(--stroke-width-sm) solid var(--color-border-border-default);
 }
 
@@ -449,13 +424,21 @@
   position: relative;
   min-width: 0;
   min-height: 48px;
+  overflow: visible;
   background-color: var(--color-surface-page-surface-default);
   pointer-events: none; /* allow timeline clicks to hit parent for seek */
+}
+
+.playback-module__track--audio {
+  overflow: visible;
 }
 
 .playback-module__track--audio .playback-module__track-content {
   display: flex;
   align-items: center;
+  width: 100%;
+  min-width: 100%;
+  overflow: visible;
 }
 
 .playback-module__clip {
@@ -479,7 +462,7 @@
 .playback-module__waveform-clip {
   display: flex;
   align-items: center;
-  overflow: hidden;
+  overflow: visible;
   background-color: var(--color-surface-page-surface-default);
 }
 

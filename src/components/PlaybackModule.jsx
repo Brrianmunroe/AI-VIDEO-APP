@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Icon from './Icon';
 import AudioWaveform from './AudioWaveform';
+import TimelineRuler from './TimelineRuler';
 import './styles/PlaybackModule.css';
 
 const FPS = 24;
@@ -11,10 +12,6 @@ const DEFAULT_PX_PER_FRAME = 2;
 const MIN_LABEL_SPACING_PX = 80;
 /** Premiere-style intervals: 0.5s, 1s, 5s, 10s, 30s, 1min at 24fps */
 const NICE_INTERVALS_FRAMES = [12, 24, 120, 240, 720, 1440];
-/** Show medium ruler notches when medium step is at least this many px */
-const MEDIUM_NOTCHES_MIN_STEP_PX = 6;
-/** Show frame-level ruler notches when at least this many px per frame (zoom in) */
-const FRAME_NOTCHES_MIN_PX_PER_FRAME = 2;
 
 const TOOLBAR_BUTTONS = [
   { id: 'back', icon: 'back', label: 'Back', tooltip: 'Previous clip' },
@@ -821,38 +818,13 @@ function PlaybackModule({
           >
             <div className="playback-module__ruler-row">
               <div className="playback-module__ruler-row-spacer" aria-hidden="true" />
-              <div
-                className={[
-                  'playback-module__timeline-ruler',
-                  Math.max(1, effectivePixelsPerFrame) * 6 >= MEDIUM_NOTCHES_MIN_STEP_PX ? 'playback-module__timeline-ruler--medium-notches' : '',
-                  effectivePixelsPerFrame >= FRAME_NOTCHES_MIN_PX_PER_FRAME ? 'playback-module__timeline-ruler--frame-notches' : '',
-                ].filter(Boolean).join(' ')}
-                style={{
-                  width: contentWidthPx,
-                  '--ruler-notch-minor-step-px': `${Math.max(1, effectivePixelsPerFrame)}px`,
-                  '--ruler-notch-medium-step-px': `${Math.max(1, effectivePixelsPerFrame) * 6}px`,
-                  '--ruler-notch-major-step-px': `${Math.max(1, effectivePixelsPerFrame) * 24}px`,
-                  '--ruler-notch-major-height': 'var(--spacing-md)',
-                  '--ruler-notch-medium-height': 'var(--spacing-sm)',
-                  '--ruler-notch-minor-height': 'var(--spacing-xs)',
-                }}
-              >
-                <div className="playback-module__ruler-labels">
-                  {rulerTicks.map(({ frame }) => (
-                    <div
-                      key={frame}
-                      className="playback-module__ruler-tick"
-                      style={{ left: frameToPx(frame) }}
-                    >
-                      <span className="playback-module__ruler-tick-label">
-                        {framesToTimecode(frame)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <div className="playback-module__ruler-spacer" aria-hidden="true" />
-                <div className="playback-module__ruler-notches" aria-hidden="true" />
-              </div>
+              <TimelineRuler
+                contentWidthPx={contentWidthPx}
+                pixelsPerFrame={effectivePixelsPerFrame}
+                frameToPx={frameToPx}
+                rulerTicks={rulerTicks}
+                framesToTimecode={framesToTimecode}
+              />
             </div>
             <div
               className="playback-module__timeline-strip"

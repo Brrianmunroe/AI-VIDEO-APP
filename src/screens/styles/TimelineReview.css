@@ -20,13 +20,14 @@
   overflow: hidden;
 }
 
-/* Playback module fills remaining space; player + timeline share it so both stay visible */
+/* Playback module fills remaining space; player + timeline share it so both stay visible.
+   overflow: visible so zoomed timeline ruler/content can extend and scroll inside viewport */
 .timeline-review__main .playback-module {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
 }
 
 /* Video playback (player + toolbar) takes the rest (~60%); timeline gets 40% */
