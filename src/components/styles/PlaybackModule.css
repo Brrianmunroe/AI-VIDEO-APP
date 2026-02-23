@@ -335,50 +335,32 @@
   height: var(--spacing-sm);
 }
 
-/* Ruler notches: tall at timestamps, small between. Two tiers only.
-   Tall = full height at label positions. Small = short, adaptive step (never chunky). */
-.playback-module__ruler-notches {
+/* Ruler notch band: contains major and small notches (all DOM elements, same positioning) */
+.playback-module__ruler-notch-band {
   flex: 0 0 auto;
-  height: var(--ruler-notch-major-height, var(--spacing-md));
+  position: relative;
+  height: var(--spacing-md);
   width: 100%;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
-  transform: translateZ(0);
-  /* Tall: one 1px line per timestamp step, full height */
-  background-image: linear-gradient(
-    90deg,
-    transparent 0,
-    transparent calc(var(--ruler-notch-major-step-px, 48px) - 1px),
-    var(--color-grey-600) calc(var(--ruler-notch-major-step-px, 48px) - 1px),
-    var(--color-grey-600) var(--ruler-notch-major-step-px, 48px)
-  );
-  background-size: var(--ruler-notch-major-step-px, 48px) var(--ruler-notch-major-height, var(--spacing-md));
-  background-position: 0 100%;
-  background-repeat: repeat-x;
 }
 
-/* Small notches between timestamps (short, same color—always shown when spacing allows) */
-.playback-module__timeline-ruler--small-notches .playback-module__ruler-notches {
-  background-image:
-    linear-gradient(
-      90deg,
-      transparent 0,
-      transparent calc(var(--ruler-notch-major-step-px, 48px) - 1px),
-      var(--color-grey-600) calc(var(--ruler-notch-major-step-px, 48px) - 1px),
-      var(--color-grey-600) var(--ruler-notch-major-step-px, 48px)
-    ),
-    linear-gradient(
-      90deg,
-      transparent 0,
-      transparent calc(var(--ruler-notch-small-step-px, 6px) - 1px),
-      var(--color-grey-600) calc(var(--ruler-notch-small-step-px, 6px) - 1px),
-      var(--color-grey-600) var(--ruler-notch-small-step-px, 6px)
-    );
-  background-size:
-    var(--ruler-notch-major-step-px, 48px) var(--ruler-notch-major-height, var(--spacing-md)),
-    var(--ruler-notch-small-step-px, 6px) var(--ruler-notch-small-height, var(--spacing-xs));
-  background-position: 0 100%, 0 100%;
-  background-repeat: repeat-x;
+/* Major notch: tall at timestamps, positioned with frameToPx */
+.playback-module__ruler-notch--major {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  margin-left: -0.5px;
+  background-color: var(--color-grey-600);
+}
+
+/* Small notch: short between majors, same positioning for pixel-perfect alignment */
+.playback-module__ruler-notch--small {
+  position: absolute;
+  bottom: 0;
+  width: 1px;
+  margin-left: -0.5px;
+  height: var(--spacing-xs);
+  background-color: var(--color-grey-600);
 }
 
 .playback-module__ruler-labels {
@@ -394,7 +376,9 @@
   bottom: 0;
   display: flex;
   align-items: center;
-  padding-left: var(--spacing-xxs);
+  justify-content: center;
+  transform: translateX(-50%);
+  width: max-content;
 }
 
 .playback-module__ruler-tick-label {
@@ -516,10 +500,11 @@
   color: var(--color-text-placeholder);
 }
 
-/* Playhead: white triangle at ruler (points at notch) + vertical line through tracks */
+/* Playhead: white triangle at ruler (points at notch) + vertical line through tracks.
+   Triangle sits above the notch band; its tip aligns with the base of the notches. */
 .playback-module__playhead {
   position: absolute;
-  top: 0;
+  top: calc(-1 * var(--spacing-sm)); /* Triangle height; pulls playhead up so tip hits notch base */
   bottom: 0;
   width: var(--spacing-md);
   margin-left: calc(-1 * var(--spacing-md) / 2);
@@ -537,7 +522,7 @@
   height: 0;
   border-left: 6px solid transparent;
   border-right: 6px solid transparent;
-  border-top: 8px solid var(--color-grey-0);
+  border-top: var(--spacing-sm) solid var(--color-grey-0);
 }
 
 /* Playhead line: 1px wide (intentional break from tokens for NLE-standard thin playhead) */

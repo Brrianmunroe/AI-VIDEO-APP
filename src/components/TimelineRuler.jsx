@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 
 const FPS = 24;
 /** Min px between small notches when zoomed out—avoids chunkiness */
 const SMALL_NOTCH_MIN_SPACING_PX = 6;
 /** When ppf >= this, use per-frame notches (24 fps = one notch per frame) */
 const PER_FRAME_NOTCHES_MIN_PX_PER_FRAME = 3;
+/** Max small notch DOM elements — caps density to avoid slowdown on long clips */
+const MAX_SMALL_NOTCHES = 2000;
 
 /** Find smallest divisor of major that is >= minFrames (for even spacing) */
 function smallestDivisorAtLeast(majorFrames, minFrames) {
@@ -16,10 +18,16 @@ function smallestDivisorAtLeast(majorFrames, minFrames) {
   return majorFrames;
 }
 
+/** All divisors of n, ascending */
+function divisors(n) {
+  const d = [];
+  for (let i = 1; i <= n; i++) if (n % i === 0) d.push(i);
+  return d;
+}
+
 /**
  * Shared timeline ruler for 24fps: tall at timestamps, small between.
- * Zoomed in: one notch per frame (24/sec). Zoomed out: fewer, spaced by zoom.
- * Small step is derived from major so they align perfectly (no gaps).
+ * All notches are DOM elements positioned with frameToPx — single source of truth, no gaps or overlays.
  */
 function TimelineRuler({
   contentWidthPx,
@@ -29,43 +37,66 @@ function TimelineRuler({
   framesToTimecode,
 }) {
   const effectivePx = Math.max(0.5, pixelsPerFrame);
-  /* Tall notches align with timestamp labels (0.5s, 1s, 5s, etc. at 24fps) */
   const tickStepFrames =
     rulerTicks.length >= 2 ? rulerTicks[1].frame - rulerTicks[0].frame : FPS;
-  /* Small notches: per-frame when zoomed in, fewer when zoomed out */
-  const usePerFrame =
-    effectivePx >= PER_FRAME_NOTCHES_MIN_PX_PER_FRAME && tickStepFrames >= 1;
-  const smallStepFrames = usePerFrame
-    ? 1
-    : smallestDivisorAtLeast(
-        tickStepFrames,
-        Math.max(1, Math.ceil(SMALL_NOTCH_MIN_SPACING_PX / effectivePx))
-      );
-  const numSmallPerMajor =
-    smallStepFrames > 0 ? tickStepFrames / smallStepFrames : 1;
-  /* Use integer small step, derive major = small * count. Guarantees small
-     notches land exactly on tall positions—perfect alignment. */
-  const idealSmallPx = effectivePx * smallStepFrames;
-  const smallStepPx = Math.max(1, Math.round(idealSmallPx));
-  const majorStepPx =
-    numSmallPerMajor >= 1
-      ? smallStepPx * numSmallPerMajor
-      : Math.max(1, Math.round(effectivePx * tickStepFrames));
-  const showSmallNotches =
-    usePerFrame ||
-    (smallStepPx >= SMALL_NOTCH_MIN_SPACING_PX &&
-      smallStepFrames < tickStepFrames);
+  const durationFrames = rulerTicks[rulerTicks.length - 1]?.frame ?? 0;
+  const majorFrames = useMemo(
+    () => new Set(rulerTicks.map((t) => t.frame)),
+    [rulerTicks]
+  );
+
+  const { smallNotchFrames, showSmallNotches } = useMemo(() => {
+    const usePerFrame =
+      effectivePx >= PER_FRAME_NOTCHES_MIN_PX_PER_FRAME && tickStepFrames >= 1;
+    let smallStepFrames = usePerFrame
+      ? 1
+      : smallestDivisorAtLeast(
+          tickStepFrames,
+          Math.max(1, Math.ceil(SMALL_NOTCH_MIN_SPACING_PX / effectivePx))
+        );
+
+    const smallStepPx = (tickStepFrames / smallStepFrames) * effectivePx;
+    const wouldShow =
+      usePerFrame ||
+      (smallStepPx >= SMALL_NOTCH_MIN_SPACING_PX &&
+        smallStepFrames < tickStepFrames);
+
+    function collectFrames(step) {
+      const f = [];
+      for (let frame = step; frame < durationFrames; frame += step) {
+        if (!majorFrames.has(frame)) f.push(frame);
+      }
+      return f;
+    }
+
+    let frames = collectFrames(smallStepFrames);
+
+    if (wouldShow && frames.length > MAX_SMALL_NOTCHES) {
+      const divs = divisors(tickStepFrames);
+      let idx = divs.indexOf(smallStepFrames);
+      while (idx < divs.length - 1 && frames.length > MAX_SMALL_NOTCHES) {
+        idx += 1;
+        smallStepFrames = divs[idx];
+        frames = collectFrames(smallStepFrames);
+      }
+    }
+
+    const show = wouldShow && frames.length > 0 && frames.length <= MAX_SMALL_NOTCHES;
+    return {
+      smallNotchFrames: show ? frames : [],
+      showSmallNotches: show,
+    };
+  }, [
+    effectivePx,
+    tickStepFrames,
+    durationFrames,
+    majorFrames,
+  ]);
 
   return (
     <div
       className={`playback-module__timeline-ruler${showSmallNotches ? ' playback-module__timeline-ruler--small-notches' : ''}`}
-      style={{
-        width: contentWidthPx,
-        '--ruler-notch-major-step-px': `${majorStepPx}px`,
-        '--ruler-notch-small-step-px': `${smallStepPx}px`,
-        '--ruler-notch-major-height': 'var(--spacing-md)',
-        '--ruler-notch-small-height': 'var(--spacing-xs)',
-      }}
+      style={{ width: contentWidthPx }}
     >
       <div className="playback-module__ruler-labels">
         {rulerTicks.map(({ frame }) => (
@@ -81,7 +112,24 @@ function TimelineRuler({
         ))}
       </div>
       <div className="playback-module__ruler-spacer" aria-hidden="true" />
-      <div className="playback-module__ruler-notches" aria-hidden="true" />
+      <div className="playback-module__ruler-notch-band">
+        {smallNotchFrames.map((frame) => (
+          <div
+            key={frame}
+            className="playback-module__ruler-notch playback-module__ruler-notch--small"
+            style={{ left: frameToPx(frame) }}
+            aria-hidden="true"
+          />
+        ))}
+        {rulerTicks.map(({ frame }) => (
+          <div
+            key={`major-${frame}`}
+            className="playback-module__ruler-notch playback-module__ruler-notch--major"
+            style={{ left: frameToPx(frame) }}
+            aria-hidden="true"
+          />
+        ))}
+      </div>
     </div>
   );
 }
