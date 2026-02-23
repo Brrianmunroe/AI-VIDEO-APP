@@ -506,6 +506,40 @@ function PlaybackModule({
     return () => video.removeEventListener('timeupdate', onTimeUpdateEvent);
   }, [isControlled, onTimeUpdate]);
 
+  // Scroll timeline viewport to show playhead when currentTimeSec changes (e.g. transcript click, seek)
+  useEffect(() => {
+    if (!isControlled || isDraggingRef.current) return;
+    const viewport = viewportRef.current;
+    if (!viewport || viewport.scrollWidth <= viewport.clientWidth) return;
+    const t = Number(currentTimeSec);
+    if (!Number.isFinite(t) || t < 0) return;
+    const pf = useFullTimeline
+      ? Math.max(0, Math.min(durationFrames, Math.round(t * FPS)))
+      : (effectiveSegment != null
+          ? Math.max(0, Math.min(durationFrames, Math.round((t - segmentStartSec) * FPS)))
+          : Math.max(0, Math.min(durationFrames, Math.round(t * FPS))));
+    const playheadLeftPx = pf * effectivePixelsPerFrame;
+    const playheadScrollX = LABEL_COLUMN_PX + playheadLeftPx;
+    const marginPx = 80;
+    const inView =
+      playheadScrollX >= viewport.scrollLeft &&
+      playheadScrollX <= viewport.scrollLeft + viewport.clientWidth;
+    if (!inView) {
+      viewport.scrollLeft = Math.max(0, Math.min(
+        viewport.scrollWidth - viewport.clientWidth,
+        playheadScrollX - marginPx
+      ));
+    }
+  }, [
+    isControlled,
+    currentTimeSec,
+    useFullTimeline,
+    effectiveSegment,
+    segmentStartSec,
+    durationFrames,
+    effectivePixelsPerFrame,
+  ]);
+
   // High-frequency time updates while playing; stop at end of playback range (highlight or in/out)
   // Also scroll timeline viewport so playhead stays visible (instant scroll when it exits right)
   useEffect(() => {
@@ -528,7 +562,7 @@ function PlaybackModule({
         if (onPlayStateChange) onPlayStateChange(false);
         if (onSeek) onSeek(range.startSec);
       }
-      // Keep playhead in view: when it exits right, scroll so it re-enters from the left
+      // Keep playhead in view: scroll when it exits right or is off to the left (e.g. user scrolled past, then hit play)
       if (!isDraggingRef.current) {
         const viewport = viewportRef.current;
         if (viewport && viewport.scrollWidth > viewport.clientWidth) {
@@ -540,8 +574,11 @@ function PlaybackModule({
           const playheadLeftPx = pf * effectivePixelsPerFrame;
           const playheadScrollX = LABEL_COLUMN_PX + playheadLeftPx;
           const marginPx = 80;
-          if (playheadScrollX > viewport.scrollLeft + viewport.clientWidth) {
+          const maxScroll = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+          if (playheadScrollX < viewport.scrollLeft) {
             viewport.scrollLeft = Math.max(0, playheadScrollX - marginPx);
+          } else if (playheadScrollX > viewport.scrollLeft + viewport.clientWidth) {
+            viewport.scrollLeft = Math.min(maxScroll, playheadScrollX - marginPx);
           }
         }
       }
