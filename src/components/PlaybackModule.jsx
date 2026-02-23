@@ -265,9 +265,10 @@ function PlaybackModule({
         if (region) {
           const id = region.getAttribute('data-highlight-id');
           if (id) setSelectedHighlightId(id);
-          return;
+          /* fall through to seek — clicks anywhere on the timeline (including inside highlights) move the playhead */
+        } else {
+          setSelectedHighlightId(null);
         }
-        setSelectedHighlightId(null);
         const frame = getFrameFromClientX(e.clientX);
         if (frame == null) return;
         if (isControlled && onSeek) {
