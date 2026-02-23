@@ -61,11 +61,16 @@ function App() {
   const [importScreen, setImportScreen] = useState('import'); // 'import' | 'timeline' | 'timeline-review'
   const [acceptedTimelineClips, setAcceptedTimelineClips] = useState([]);
 
-  // In browser: open media upload page when hash is #/import (no Electron needed)
+  // In browser: open page from hash (e.g. #/import, #/timeline)
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (window.location.hash === '#/import' || window.location.hash === '#import') {
+    const hash = window.location.hash;
+    if (hash === '#/import' || hash === '#import') {
       setCurrentProject(MOCK_PROJECT_FOR_BROWSER);
+      setImportScreen('import');
+    } else if (hash === '#/timeline' || hash === '#timeline') {
+      setCurrentProject(MOCK_PROJECT_FOR_BROWSER);
+      setImportScreen('timeline');
     }
   }, []);
 

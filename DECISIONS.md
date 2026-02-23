@@ -4,6 +4,80 @@ This file captures **case-study-worthy** decisions: major scope cuts, platform b
 
 ---
 
+## Decision: Structured output for highlight reasoning
+- **Date:** 2026-02-23
+- **Context:** Highlight reason/suggestions were often omitted when relying on prompt-only instructions; the platform should guarantee the model returns them.
+- **Options considered:**
+  - A) Rely only on stronger prompt language and required schema in the user message
+  - B) Use OpenAI structured outputs (response_format with json_schema, strict: true) so the API enforces the response shape
+- **Decision:** **Option B** — Use OpenAI structured outputs for generate-selects. llmClient accepts an optional `responseFormat`; aiService passes a strict JSON schema that requires `reason` and `suggestions` on every range. The model output is then guaranteed to include these fields.
+- **Why (tradeoffs):**
+  - Pros: Reliable reason/suggestions in every new highlight; no retries or fallbacks for missing fields from the model.
+  - Cons: Requires a supported model (e.g. gpt-4o-mini); schema is duplicated (user-facing output_schema in payload + response_format schema).
+- **Impact on MVP:** llmClient.js sends response_format when provided; aiService.js defines HIGHLIGHTS_RESPONSE_FORMAT and passes it to callLLM. Existing parsing unchanged (response content remains JSON string).
+- **Follow-ups:** None.
+
+---
+
+## Decision: Per-highlight AI reason and usage suggestions
+- **Date:** 2026-02-23
+- **Context:** Users want to see why the AI selected each moment and how to use it in the edit. The info icon already exists on each highlight row in the Interview Selects list.
+- **Options considered:**
+  - A) Do not store or show AI reasoning; keep info icon as no-op
+  - B) LLM returns reason and usage suggestions per range; persist on highlight object; show in a modal when the user clicks the info icon
+- **Decision:** **Option B** — LLM returns `reason` and `suggestions` per range; we persist them on each highlight object (in media highlights JSON); when the user clicks the info icon on a highlight row, open a modal showing "Why we selected this" and "How you might use it." Fallback copy when data is missing (e.g. legacy or manually added highlights).
+- **Why (tradeoffs):**
+  - Pros: Clear value for the user; builds on existing one-row-per-highlight UI; DB already stores arbitrary JSON so no schema change.
+  - Cons: Slightly larger LLM payload and response; modal adds one more UI surface to maintain.
+- **Impact on MVP:** aiService prompt and output schema extended; validHighlights and Timeline normalizeHighlights/mediaToSelect preserve reason and suggestions; new HighlightInfoModal; TranscriptPanel passes full row to onSelectInfo; info icon hidden for rows with no highlight. Reasoning is now enforced via structured output (see above).
+- **Follow-ups:** None.
+
+---
+
+## Decision: Interview Selects — one row per highlight, select clip and seek to highlight
+- **Date:** 2026-02-23
+- **Context:** Interview Selects tab originally showed one row per clip with "N Highlights". User requested one row per highlight so each moment is directly clickable, with clip context (name, thumbnail) and seek to that highlight's in/out on click.
+- **Options considered:**
+  - A) Keep one row per clip; add sub-rows or expandable list for highlights
+  - B) Flatten list to one row per highlight; click row = select clip + seek to highlight in
+- **Decision:** **Option B** — Flatten to one row per highlight (and one row per clip when a clip has 0 highlights so it remains in the list). Click selects the clip and seeks the playhead to that highlight's in time.
+- **Why (tradeoffs):**
+  - Pros: Direct access to each highlight; no expand/collapse; consistent "click to jump" mental model. Clips with 0 highlights still appear as a single row ("0 Highlights") and are selectable.
+  - Cons: Longer list when clips have many highlights; ref-based coordination in Timeline so the "selected clip changed" effect does not overwrite the seek time.
+- **Impact on MVP:** TranscriptPanel derives `visibleHighlightRows` from `visibleSelects`; HighlightContainer supports optional `highlightOrdinal` for "Highlight N" label; Timeline adds `onSelectClipAndSeek(clipId, seekToSec)` and `selectAndSeekRef` so the effect skips resetting `currentTimeSec` when the user chose a highlight row. Info icon now opens HighlightInfoModal (see "Per-highlight AI reason and usage suggestions").
+- **Follow-ups:** None.
+
+---
+
+## Decision: Waveform top/bottom cutoff fix — Y-scaling instead of clamping
+- **Date:** 2026-02-20
+- **Context:** The waveform appeared cut off at the top and bottom on the timeline. Diagnosis (instrumentation and code review) identified the root cause.
+- **Root cause:** **(B) Code clamping** — The draw loop used `topY = Math.max(yMin, Math.min(yMax, topY))` and `botY = Math.max(yMin, Math.min(yMax, botY))`, which flattened peaks that exceeded the drawable bounds instead of scaling the full waveform to fit.
+- **Decision:** Compute `dataMin`/`dataMax` from the window, center with `dataCenter`, scale with `scale = drawableH / dataRange` so the full range maps to [yMin, yMax], then draw using `topY = midY - (maxVal - dataCenter) * scale` and `botY = midY - (minVal - dataCenter) * scale` without per-bar clamping.
+- **Why (tradeoffs):**
+  - Pros: Waveform peaks are preserved; no flattening; 1:1 visual representation of audio amplitude.
+  - Cons: None; scaling is the correct approach.
+- **Impact on MVP:** Waveforms display correctly without top/bottom cutoff on Retina and during playback.
+
+---
+
+## Decision: Tiled canvas waveform rendering
+- **Date:** 2026-02-20
+- **Context:** The single full-width `<canvas>` approach silently failed on clips longer than ~6 minutes because Chromium limits canvas dimensions to ~16,384px. A 24-minute clip at default zoom needs ~68,000px — the canvas would render the first ~16K pixels and the rest was blank. The original viewport-aware (sticky canvas) approach avoided this but caused a broken parallax scroll effect.
+- **Options considered:**
+  - A) Fix the original viewport-aware sticky canvas (render only what's visible, reposition on scroll)
+  - B) Single full-width canvas (already tried — fails on long clips due to GPU canvas size limit)
+  - C) Tiled canvas — split the waveform into fixed-width canvas tiles (~4,096px each) laid side by side
+- **Decision:** **Option C** — tiled canvas rendering.
+- **Why (tradeoffs):**
+  - Pros: Each tile is well under the GPU limit; tiles scroll naturally with the timeline (no sticky/parallax bugs); tiles render once and cache; proven pattern used by wavesurfer.js, Descript, and other web-based editors; simple to implement and explain in a case study.
+  - Cons: For very long clips at high zoom, many tiles exist in the DOM (manageable for a desktop Electron app with ample memory). All tiles render upfront rather than lazily.
+  - Why not viewport-aware (Option A): The previous implementation broke due to `overflow: hidden` defeating `position: sticky`. The approach is more complex and already failed once. Tiling avoids that entire class of CSS positioning bugs.
+- **Impact on MVP:** Waveforms now render correctly for clips of any length, staying visually in sync with video clips on the timeline. Works on both Interview Selects and Timeline Review screens.
+- **Follow-ups:** If clips exceed 2+ hours at high zoom, consider lazy-loading tiles outside the viewport. Not needed for typical interview footage (10–60 minutes).
+
+---
+
 ## Decision: Viewport-based multi-resolution waveform architecture
 - **Date:** 2026-02-20
 - **Context:** The waveform rendering was blurry when zoomed out and blob-like when zoomed in because the backend sent a fixed-count flat array (20K peaks), the frontend drew all of them onto an oversized canvas that got CSS-scaled, and there was no concept of rendering only what's visible.

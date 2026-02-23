@@ -131,8 +131,52 @@ const SYSTEM_PROMPT = `You are an assistant video editor. Your job is to read in
 - Prioritize key moments that fit the story. Use the specified video length as a guide, but it is acceptable to select more content than the target if the best material warrants it—the user can pare down. The main goal is to surface the strongest, story-relevant moments. Avoid including weak or tangential content that adds length without adding value.
 
 - When multiple speakers/clips exist, prefer diversity of voices unless one clip is clearly stronger for the story.
+
+- For every highlight range you MUST include two text fields: "reason" (one short sentence explaining why this moment was selected) and "suggestions" (short phrases for how to use the clip in the edit, e.g. "Good for intro" or "Strong quote for social"). Never omit reason or suggestions; they are required and shown to the user.
+
 - Output ONLY valid JSON matching the schema provided. No explanations or commentary outside JSON.
 - Use continuous ranges only (no internal gaps); the editor will fine-cut filler later.`;
+
+/** OpenAI structured-output schema: enforces highlights array with reason and suggestions per range. */
+const HIGHLIGHTS_RESPONSE_FORMAT = {
+  type: 'json_schema',
+  json_schema: {
+    name: 'highlight_selects',
+    strict: true,
+    schema: {
+      type: 'object',
+      properties: {
+        highlights: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              mediaId: { type: 'number' },
+              ranges: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    in: { type: 'number' },
+                    out: { type: 'number' },
+                    reason: { type: 'string' },
+                    suggestions: { type: 'string' },
+                  },
+                  required: ['in', 'out', 'reason', 'suggestions'],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ['mediaId', 'ranges'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ['highlights'],
+      additionalProperties: false,
+    },
+  },
+};
 
 /**
  * Generate selects for a project using the LLM.
@@ -207,11 +251,12 @@ export async function generateSelectsForProject({
                 type: 'array',
                 items: {
                   type: 'object',
-                  required: ['in', 'out'],
+                  required: ['in', 'out', 'reason', 'suggestions'],
                   properties: {
                     in: { type: 'number' },
                     out: { type: 'number' },
-                    reason: { type: 'string' },
+                    reason: { type: 'string', description: 'Why this moment was selected' },
+                    suggestions: { type: 'string', description: 'How to use this clip, e.g. Good for intro; Strong quote for social' },
                   },
                 },
               },
@@ -223,7 +268,7 @@ export async function generateSelectsForProject({
   };
 
   const instructions =
-    'Using the information above, produce selects. Use desired_video_duration_sec as a guide for total content—prioritize the strongest story-relevant moments. in/out must be in seconds from clip start, within each clip durationSec. Return ONLY a JSON object with a "highlights" array. No Markdown, no comments.';
+    'Using the information above, produce selects. Use desired_video_duration_sec as a guide for total content—prioritize the strongest story-relevant moments. in/out must be in seconds from clip start, within each clip durationSec. For EVERY range you must include: "reason" (one short sentence why this moment was selected) and "suggestions" (how to use it, e.g. "Good for intro; Strong quote for social"). Example range: {"in": 5.2, "out": 18.4, "reason": "Clear explanation of product pricing.", "suggestions": "Good for intro; Use in pricing section."}. Return ONLY a JSON object with a "highlights" array. No Markdown, no comments.';
 
   const userContent = JSON.stringify(userPayload, null, 0) + '\n\n' + instructions;
 
@@ -233,6 +278,7 @@ export async function generateSelectsForProject({
       provider: 'openai',
       systemPrompt: SYSTEM_PROMPT,
       userPayload: userContent,
+      responseFormat: HIGHLIGHTS_RESPONSE_FORMAT,
     });
   } catch (err) {
     const msg = err?.message || String(err);
@@ -277,10 +323,18 @@ export async function generateSelectsForProject({
       outSec = snapped.out;
 
       if (outSec - inSec < 1) continue;
+      const reason =
+        typeof r.reason === 'string' && r.reason.trim() ? r.reason.trim() : '';
+      const suggestions =
+        typeof r.suggestions === 'string' && r.suggestions.trim()
+          ? r.suggestions.trim()
+          : '';
       validHighlights.push({
         id: generateHighlightId(),
         in: inSec,
         out: outSec,
+        reason,
+        suggestions,
       });
     }
 

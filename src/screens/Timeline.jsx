@@ -3,6 +3,7 @@ import ProjectHeader from '../components/ProjectHeader';
 import TranscriptPanel from '../components/TranscriptPanel';
 import PlaybackModule from '../components/PlaybackModule';
 import Button from '../components/Button';
+import HighlightInfoModal from '../components/HighlightInfoModal';
 import './styles/Timeline.css';
 
 /** Generate a unique id for a highlight (e.g. for React keys and updates). */
@@ -10,7 +11,7 @@ function generateHighlightId() {
   return `highlight_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 }
 
-/** Normalize highlights: sort by in, ensure in < out, clamp to [0, duration]. */
+/** Normalize highlights: sort by in, ensure in < out, clamp to [0, duration]. Preserve reason and suggestions. */
 function normalizeHighlights(highlights, durationSec) {
   if (!Array.isArray(highlights) || highlights.length === 0) return [];
   const dur = Number.isFinite(durationSec) && durationSec >= 0 ? durationSec : 86400;
@@ -20,6 +21,8 @@ function normalizeHighlights(highlights, durationSec) {
       id: h.id,
       in: Math.max(0, Math.min(dur, Number(h.in) || 0)),
       out: Math.max(0, Math.min(dur, Number(h.out) || 0)),
+      reason: h.reason != null ? String(h.reason) : '',
+      suggestions: h.suggestions != null ? String(h.suggestions) : '',
     }))
     .filter((h) => h.out > h.in)
     .sort((a, b) => a.in - b.in);
@@ -34,6 +37,8 @@ function mediaToSelect(m) {
         id: h.id != null ? String(h.id) : generateHighlightId(),
         in: Number(h.in) || 0,
         out: Number(h.out) || 0,
+        reason: h.reason != null ? String(h.reason) : '',
+        suggestions: h.suggestions != null ? String(h.suggestions) : '',
       }))
     : [];
   return {
@@ -132,6 +137,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
   const transcriptionStartedForProjectIdRef = useRef(null);
   const transcriptionInProgressRef = useRef(false);
   const persistHighlightsTimeoutRef = useRef(null);
+  const selectAndSeekRef = useRef(null);
 
   const selectsList = Array.isArray(selects) ? selects : [];
 
@@ -198,7 +204,12 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
       setIsPlaying(false);
       return;
     }
-    setCurrentTimeSec(0);
+    // If user chose a highlight row (select+seek), don't overwrite currentTimeSec with 0
+    if (selectAndSeekRef.current?.clipId === selectedSelectId && selectAndSeekRef.current.seekTo != null) {
+      selectAndSeekRef.current = null;
+    } else {
+      setCurrentTimeSec(0);
+    }
     setIsPlaying(false);
     let cancelled = false;
     (async () => {
@@ -325,7 +336,10 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
       if (!Number.isFinite(inNum) || !Number.isFinite(outNum) || outNum <= inNum) return;
       const clip = selectsList.find((s) => s.id === selectedSelectId);
       const current = Array.isArray(clip?.highlights) ? clip.highlights : [];
-      const next = [...current, { id: generateHighlightId(), in: inNum, out: outNum }];
+      const next = [
+        ...current,
+        { id: generateHighlightId(), in: inNum, out: outNum, reason: '', suggestions: '' },
+      ];
       updateSelectHighlights(selectedSelectId, next);
     },
     [selectedSelectId, selectsList, updateSelectHighlights]
@@ -360,6 +374,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
   );
 
   const [showNoHighlightsModal, setShowNoHighlightsModal] = useState(false);
+  const [highlightInfoModal, setHighlightInfoModal] = useState(null);
 
   useEffect(() => {
     if (showNoHighlightsModal && acceptedClipsWithNoHighlights.length === 0) {
@@ -396,12 +411,24 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
     setCurrentTimeSec(seconds);
   }, []);
 
+  const handleSelectClipAndSeek = useCallback((clipId, seekToSec) => {
+    selectAndSeekRef.current = { clipId, seekTo: seekToSec };
+    setSelectedSelectId(clipId);
+    setCurrentTimeSec(seekToSec);
+  }, []);
+
   const handlePlayStateChange = useCallback((playing) => {
     setIsPlaying(playing);
   }, []);
 
   const handleTimeUpdate = useCallback((seconds) => {
     setCurrentTimeSec(seconds);
+  }, []);
+
+  const handleSelectInfo = useCallback((row) => {
+    if (row?.highlightId != null) {
+      setHighlightInfoModal(row);
+    }
   }, []);
 
   if (!project) {
@@ -477,6 +504,11 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
           </div>
         </>
       )}
+      <HighlightInfoModal
+        isOpen={highlightInfoModal != null}
+        onClose={() => setHighlightInfoModal(null)}
+        highlight={highlightInfoModal ?? undefined}
+      />
       <ProjectHeader
         projectName={projectName}
         onBack={onBack}
@@ -488,7 +520,8 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
             selects={selectsList}
             selectedSelectId={selectedSelectId}
             onSelectClip={setSelectedSelectId}
-            onSelectInfo={() => {}}
+            onSelectClipAndSeek={handleSelectClipAndSeek}
+            onSelectInfo={handleSelectInfo}
             onDelete={handleDelete}
             onAccept={handleAccept}
             onProceedToReviewTimeline={handleProceedToReviewTimeline}

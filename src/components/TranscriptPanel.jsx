@@ -101,6 +101,7 @@ function TranscriptPanel({
   selects: selectsProp = [],
   selectedSelectId,
   onSelectClip,
+  onSelectClipAndSeek,
   onSelectInfo,
   className = '',
   onDelete,
@@ -116,6 +117,43 @@ function TranscriptPanel({
   const highlights = Array.isArray(highlightsProp) ? highlightsProp : [];
   /** Show only pending and accepted with valid id; deleted clips disappear from the list */
   const visibleSelects = selects.filter((s) => s != null && s.id != null && s.status !== 'deleted');
+  /** Flatten to one row per highlight (and one row per clip when clip has 0 highlights) */
+  const visibleHighlightRows = useMemo(() => {
+    const rows = [];
+    visibleSelects.forEach((s) => {
+      const highlights = Array.isArray(s.highlights) ? s.highlights : [];
+      if (highlights.length === 0) {
+        rows.push({
+          clipId: s.id,
+          thumbnail: s.thumbnail,
+          clipName: s.clipName,
+          status: s.status,
+          highlightId: null,
+          in: 0,
+          out: Math.max(0, Number(s.duration) || 0),
+          ordinal: 0,
+          reason: '',
+          suggestions: '',
+        });
+      } else {
+        highlights.forEach((h, idx) => {
+          rows.push({
+            clipId: s.id,
+            thumbnail: s.thumbnail,
+            clipName: s.clipName,
+            status: s.status,
+            highlightId: h.id,
+            in: Number(h.in) || 0,
+            out: Number(h.out) || 0,
+            ordinal: idx + 1,
+            reason: h.reason ?? '',
+            suggestions: h.suggestions ?? '',
+          });
+        });
+      }
+    });
+    return rows;
+  }, [visibleSelects]);
   const selectedClip = visibleSelects.find((s) => s.id === selectedSelectId);
   const selectedIsPending = selectedClip?.status === 'pending';
   const [activeTab, setActiveTab] = useState('interview');
@@ -299,22 +337,30 @@ function TranscriptPanel({
           >
             <div className="transcript-panel__selects-container">
               <div className="transcript-panel__selects-content" role="list" aria-label="Interview selects">
-                {visibleSelects.length === 0 ? (
+                {visibleHighlightRows.length === 0 ? (
                   <div className="transcript-panel__placeholder">
                     No clips in this project. Upload videos in the Import step.
                   </div>
                 ) : (
                   <div className="transcript-panel__selects-list">
-                    {visibleSelects.map((item) => (
+                    {visibleHighlightRows.map((row) => (
                       <HighlightContainer
-                        key={item.id}
-                        thumbnail={item.thumbnail}
-                        clipName={item.clipName}
-                        highlightCount={item.highlightCount}
-                        status={item.status}
-                        selected={selectedSelectId === item.id}
-                        onClick={() => onSelectClip?.(item.id)}
-                        onInfoClick={() => onSelectInfo?.(item.id)}
+                        key={row.highlightId != null ? `${row.clipId}-${row.highlightId}` : `${row.clipId}-no-highlights`}
+                        thumbnail={row.thumbnail}
+                        clipName={row.clipName}
+                        highlightCount={row.ordinal === 0 ? 0 : 1}
+                        highlightOrdinal={row.ordinal > 0 ? row.ordinal : undefined}
+                        status={row.status}
+                        selected={selectedSelectId === row.clipId}
+                        onClick={() => {
+                          if (typeof onSelectClipAndSeek === 'function') {
+                            onSelectClipAndSeek(row.clipId, row.in);
+                          } else {
+                            onSelectClip?.(row.clipId);
+                          }
+                        }}
+                        showInfoButton={row.highlightId != null}
+                        onInfoClick={() => onSelectInfo?.(row)}
                       />
                     ))}
                   </div>

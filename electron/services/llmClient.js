@@ -54,10 +54,11 @@ const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
 
 /**
  * Call the LLM with a system prompt and user payload.
- * @param {{ provider?: string, modelId?: string, systemPrompt: string, userPayload: object }} options
+ * @param {{ provider?: string, modelId?: string, systemPrompt: string, userPayload: string|object, responseFormat?: object }} options
+ *   responseFormat: optional OpenAI response_format (e.g. { type: 'json_schema', json_schema: { name, strict, schema } }) for structured output
  * @returns {Promise<string>} Raw response text from the model
  */
-export async function callLLM({ provider = 'openai', modelId, systemPrompt, userPayload }) {
+export async function callLLM({ provider = 'openai', modelId, systemPrompt, userPayload, responseFormat }) {
   const apiKey = process.env.OPENAI_API_KEY;
   const model = modelId || process.env.OPENAI_MODEL_ID || 'gpt-4o-mini';
 
@@ -71,21 +72,26 @@ export async function callLLM({ provider = 'openai', modelId, systemPrompt, user
 
   const userContent = typeof userPayload === 'string' ? userPayload : JSON.stringify(userPayload, null, 0);
 
+  const body = {
+    model,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userContent },
+    ],
+    temperature: 0.3,
+    max_tokens: 8192,
+  };
+  if (responseFormat != null && typeof responseFormat === 'object') {
+    body.response_format = responseFormat;
+  }
+
   const response = await fetch(OPENAI_API_URL, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey.trim()}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userContent },
-      ],
-      temperature: 0.3,
-      max_tokens: 8192,
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {

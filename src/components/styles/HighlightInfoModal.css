@@ -1,0 +1,91 @@
+/* Highlight info modal — design system tokens only */
+
+.highlight-info-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: color-mix(in srgb, var(--color-primary-950) 70%, transparent);
+  backdrop-filter: blur(var(--spacing-sm));
+  -webkit-backdrop-filter: blur(var(--spacing-sm));
+  z-index: 1000;
+}
+
+.highlight-info-modal-container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: var(--color-surface-page-surface-default);
+  border: var(--stroke-width-md) solid var(--color-border-border-default);
+  border-radius: var(--radius-none);
+  width: 90%;
+  max-width: 500px;
+  z-index: 1001;
+}
+
+.highlight-info-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-lg);
+}
+
+.highlight-info-modal-title {
+  font-size: var(--font-size-heading-03);
+  font-weight: var(--font-weight-heading-03);
+  color: var(--color-text-heading);
+  margin: 0;
+}
+
+.highlight-info-modal-close {
+  background: none;
+  border: none;
+  color: var(--color-text-placeholder);
+  cursor: pointer;
+  padding: 0;
+  width: var(--icon-size-sm);
+  height: var(--icon-size-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s ease;
+}
+
+.highlight-info-modal-close:hover {
+  color: var(--color-icon-hover);
+}
+
+.highlight-info-modal-close:hover .icon {
+  color: var(--color-icon-hover);
+}
+
+.highlight-info-modal-body {
+  padding: var(--spacing-lg);
+  padding-top: 0;
+}
+
+.highlight-info-modal-section {
+  margin-bottom: var(--spacing-lg);
+}
+
+.highlight-info-modal-section:last-child {
+  margin-bottom: 0;
+}
+
+.highlight-info-modal-label {
+  font-size: var(--font-size-label);
+  font-weight: var(--font-weight-label);
+  color: var(--color-text-label);
+  margin: 0 0 var(--spacing-xs) 0;
+}
+
+.highlight-info-modal-text {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-body);
+  line-height: var(--line-height-body);
+  color: var(--color-text-heading);
+  margin: 0;
+}
