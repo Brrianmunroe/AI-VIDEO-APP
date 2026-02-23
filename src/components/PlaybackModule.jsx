@@ -507,6 +507,7 @@ function PlaybackModule({
   }, [isControlled, onTimeUpdate]);
 
   // High-frequency time updates while playing; stop at end of playback range (highlight or in/out)
+  // Also scroll timeline viewport so playhead stays visible (instant scroll when it exits right)
   useEffect(() => {
     if (!isControlled || !isPlayingState) return;
     const video = videoRef.current;
@@ -527,13 +528,42 @@ function PlaybackModule({
         if (onPlayStateChange) onPlayStateChange(false);
         if (onSeek) onSeek(range.startSec);
       }
+      // Keep playhead in view: when it exits right, scroll so it re-enters from the left
+      if (!isDraggingRef.current) {
+        const viewport = viewportRef.current;
+        if (viewport && viewport.scrollWidth > viewport.clientWidth) {
+          const pf = useFullTimeline
+            ? Math.max(0, Math.min(durationFrames, Math.round(t * FPS)))
+            : (effectiveSegment != null
+                ? Math.max(0, Math.min(durationFrames, Math.round((t - segmentStartSec) * FPS)))
+                : Math.max(0, Math.min(durationFrames, Math.round(t * FPS))));
+          const playheadLeftPx = pf * effectivePixelsPerFrame;
+          const playheadScrollX = LABEL_COLUMN_PX + playheadLeftPx;
+          const marginPx = 80;
+          if (playheadScrollX > viewport.scrollLeft + viewport.clientWidth) {
+            viewport.scrollLeft = Math.max(0, playheadScrollX - marginPx);
+          }
+        }
+      }
       rafId = requestAnimationFrame(tick);
     };
     rafId = requestAnimationFrame(tick);
     return () => {
       if (rafId != null) cancelAnimationFrame(rafId);
     };
-  }, [isControlled, isPlayingState, onTimeUpdate, onPlayStateChange, onSeek, playbackRangeSec]);
+  }, [
+    isControlled,
+    isPlayingState,
+    onTimeUpdate,
+    onPlayStateChange,
+    onSeek,
+    playbackRangeSec,
+    useFullTimeline,
+    effectiveSegment,
+    segmentStartSec,
+    durationFrames,
+    effectivePixelsPerFrame,
+  ]);
 
   const zoomIn = useCallback(() => {
     setPixelsPerFrame((p) => Math.min(MAX_PX_PER_FRAME, p * 1.5));
