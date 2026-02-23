@@ -107,6 +107,14 @@ function runMigrations() {
   if (!hasHighlights) {
     db.exec('ALTER TABLE media ADD COLUMN highlights TEXT');
   }
+
+  // Add speaker_labels to transcripts if missing (for existing databases)
+  const hasSpeakerLabels = db.prepare(
+    "SELECT 1 FROM pragma_table_info('transcripts') WHERE name = 'speaker_labels'"
+  ).get();
+  if (!hasSpeakerLabels) {
+    db.exec('ALTER TABLE transcripts ADD COLUMN speaker_labels TEXT');
+  }
 }
 
 /**

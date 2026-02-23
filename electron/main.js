@@ -1,3 +1,4 @@
+import './loadEnv.js'; // Load .env.local first so DEEPGRAM_API_KEY etc. are available for transcription
 import { app, BrowserWindow, ipcMain, dialog, protocol, shell } from 'electron';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -440,6 +441,24 @@ ipcMain.handle('transcription:runForProject', async (event, projectId) => {
   try {
     const result = await transcriptionService.runForProject(projectId);
     return { success: true, ...result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('transcription:reTranscribeForMedia', async (event, mediaId) => {
+  try {
+    const result = await transcriptionService.reTranscribeForMedia(mediaId);
+    return { success: true, data: result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('transcription:updateSpeakerLabels', (event, mediaId, speakerLabels) => {
+  try {
+    const ok = transcriptionService.updateSpeakerLabels(mediaId, speakerLabels);
+    return { success: ok };
   } catch (error) {
     return { success: false, error: error.message };
   }

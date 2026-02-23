@@ -83,6 +83,7 @@ function lineToWords(line) {
     word,
     start: start + idx * step,
     end: start + (idx + 1) * step,
+    speaker_id: 0,
   }));
 }
 
@@ -92,8 +93,20 @@ const TABS = [
   { id: 'clipinfo', label: 'Clip info' },
 ];
 
+/** Get display name for speaker_id from labels or fallback "Speaker N" */
+function getSpeakerDisplayName(speakerId, speakerLabels) {
+  const id = String(speakerId);
+  if (speakerLabels && typeof speakerLabels[id] === 'string' && speakerLabels[id].trim()) {
+    return speakerLabels[id].trim();
+  }
+  return `Speaker ${Number(speakerId) + 1}`;
+}
+
 function TranscriptPanel({
   transcript = [],
+  speakerLabels = {},
+  selectedMediaId,
+  onSpeakerLabelChange,
   transcriptEmptyReason = null,
   transcriptionErrors = [],
   currentTimeSec,
@@ -158,6 +171,9 @@ function TranscriptPanel({
   const selectedIsPending = selectedClip?.status === 'pending';
   const [activeTab, setActiveTab] = useState('interview');
   const [search, setSearch] = useState('');
+  const [editingSpeakerId, setEditingSpeakerId] = useState(null);
+  const [editingSpeakerValue, setEditingSpeakerValue] = useState('');
+  const [editingLineIndex, setEditingLineIndex] = useState(null);
   const activeLineRef = useRef(null);
   const transcriptContentRef = useRef(null);
   const [draggingHandle, setDraggingHandle] = useState(null);
@@ -177,6 +193,19 @@ function TranscriptPanel({
     () => getHighlightBoundaries(filteredLines, highlights),
     [filteredLines, highlights]
   );
+
+  /** Unique speaker IDs from transcript (from words in each line), sorted */
+  const speakerIds = useMemo(() => {
+    const ids = new Set();
+    transcriptList.forEach((line) => {
+      const words = Array.isArray(line?.words) && line.words.length > 0 ? line.words : lineToWords(line);
+      words.forEach((w) => {
+        const sid = w?.speaker_id != null ? Number(w.speaker_id) : 0;
+        ids.add(sid);
+      });
+    });
+    return Array.from(ids).sort((a, b) => a - b);
+  }, [transcriptList]);
 
   const currentTime = currentTimeSec != null ? Number(currentTimeSec) : null;
   const activeLineIndex = useMemo(() => {
@@ -530,6 +559,10 @@ function TranscriptPanel({
                           }
                         });
                       }
+                      const firstWord = words[0];
+                      const lineSpeakerId = firstWord?.speaker_id != null ? Number(firstWord.speaker_id) : 0;
+                      const lineSpeakerName = getSpeakerDisplayName(lineSpeakerId, speakerLabels);
+
                       return (
                         <li
                           key={`${line.start ?? line.time ?? i}-${i}`}
@@ -549,12 +582,60 @@ function TranscriptPanel({
                           role={isClickable ? 'button' : undefined}
                           tabIndex={isClickable ? 0 : undefined}
                         >
-                          <span className="transcript-panel__time" aria-hidden="true">
-                            {lineTime(line)}
-                          </span>
-                          <span className="transcript-panel__text">
-                            {wordNodes}
-                          </span>
+                          <div className={`transcript-panel__line-inner${speakerIds.length > 0 ? ' transcript-panel__line-inner--with-speaker' : ''}`}>
+                            {speakerIds.length > 0 && (
+                              editingSpeakerId === lineSpeakerId && editingLineIndex === i ? (
+                                <input
+                                  type="text"
+                                  className="transcript-panel__speaker-edit-input"
+                                  value={editingSpeakerValue}
+                                  onChange={(e) => setEditingSpeakerValue(e.target.value)}
+                                  onBlur={() => {
+                                    const val = editingSpeakerValue.trim();
+                                    if (selectedMediaId != null && typeof onSpeakerLabelChange === 'function') {
+                                      onSpeakerLabelChange(selectedMediaId, { [String(lineSpeakerId)]: val || getSpeakerDisplayName(lineSpeakerId, speakerLabels) });
+                                    }
+                                    setEditingSpeakerId(null);
+                                    setEditingLineIndex(null);
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.target.blur();
+                                    }
+                                    if (e.key === 'Escape') {
+                                      setEditingSpeakerValue(getSpeakerDisplayName(lineSpeakerId, speakerLabels));
+                                      setEditingSpeakerId(null);
+                                      setEditingLineIndex(null);
+                                      e.target.blur();
+                                    }
+                                  }}
+                                  autoFocus
+                                  aria-label={`Edit name for speaker ${lineSpeakerId + 1}`}
+                                />
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="transcript-panel__speaker-chip"
+                                  onClick={(e) => e.stopPropagation()}
+                                  onDoubleClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingSpeakerId(lineSpeakerId);
+                                    setEditingSpeakerValue(getSpeakerDisplayName(lineSpeakerId, speakerLabels));
+                                    setEditingLineIndex(i);
+                                  }}
+                                  aria-label={`${lineSpeakerName}. Double-click to edit.`}
+                                >
+                                  {lineSpeakerName}
+                                </button>
+                              )
+                            )}
+                            <span className="transcript-panel__time" aria-hidden="true">
+                              {lineTime(line)}
+                            </span>
+                            <span className="transcript-panel__text">
+                              {wordNodes}
+                            </span>
+                          </div>
                         </li>
                       );
                     })}

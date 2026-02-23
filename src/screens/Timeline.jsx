@@ -52,14 +52,23 @@ function mediaToSelect(m) {
   };
 }
 
-/** Normalize segment-level words to lines with { start, end, text } (no .words) */
+/** Normalize segment-level words to lines with { start, end, text, words } (preserve speaker_id) */
 function wordsToLines(words) {
   if (!Array.isArray(words) || words.length === 0) return [];
-  return words.map((w) => ({
-    start: Number(w.start) || 0,
-    end: Number(w.end) || 0,
-    text: typeof w.word === 'string' ? w.word : String(w.word ?? ''),
-  }));
+  return words.map((w) => {
+    const wordObj = {
+      word: typeof w.word === 'string' ? w.word : String(w.word ?? ''),
+      start: Number(w.start) || 0,
+      end: Number(w.end) || 0,
+      speaker_id: w.speaker_id != null ? Number(w.speaker_id) : 0,
+    };
+    return {
+      start: wordObj.start,
+      end: wordObj.end,
+      text: wordObj.word,
+      words: [wordObj],
+    };
+  });
 }
 
 const LINE_GAP_THRESHOLD_SEC = 0.5;
@@ -83,6 +92,7 @@ function buildTranscriptLines(words) {
     word: typeof w.word === 'string' ? w.word : String(w.word ?? ''),
     start: Number(w.start) || 0,
     end: Number(w.end) || 0,
+    speaker_id: w.speaker_id != null ? Number(w.speaker_id) : 0,
   }));
   const trimmedSingleWord = (w) => !/\s/.test((w.word || '').trim()) && (w.word || '').trim().length > 0;
   const noSpaces = normalized.filter(trimmedSingleWord).length;
@@ -130,6 +140,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
   const [currentTimeSec, setCurrentTimeSec] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [transcriptLines, setTranscriptLines] = useState([]);
+  const [speakerLabels, setSpeakerLabels] = useState({});
   const [transcriptEmptyReason, setTranscriptEmptyReason] = useState(null);
   const [transcriptionErrors, setTranscriptionErrors] = useState([]);
   const [waveformCache, setWaveformCache] = useState({});
@@ -227,6 +238,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
           }
         }
         setTranscriptLines(lines);
+        setSpeakerLabels(data?.speakerLabels && typeof data.speakerLabels === 'object' ? data.speakerLabels : {});
         setTranscriptEmptyReason(
           data == null
             ? null
@@ -238,6 +250,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
         console.error('Failed to load transcript:', err);
         if (!cancelled) {
           setTranscriptLines([]);
+          setSpeakerLabels({});
           setTranscriptEmptyReason(null);
         }
       }
@@ -271,6 +284,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
           if (!res?.success || selectedSelectIdRef.current !== mediaIdToRefresh) return;
           const data = res.data;
           setTranscriptLines(data?.words ? buildTranscriptLines(data.words) : []);
+          setSpeakerLabels(data?.speakerLabels && typeof data.speakerLabels === 'object' ? data.speakerLabels : {});
           setTranscriptEmptyReason(
             data && (!data.words || data.words.length === 0) ? (data.emptyReason ?? null) : null
           );
@@ -425,6 +439,17 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
     setCurrentTimeSec(seconds);
   }, []);
 
+  const handleSpeakerLabelChange = useCallback((mediaId, nextLabels) => {
+    if (mediaId == null || typeof nextLabels !== 'object') return;
+    setSpeakerLabels((prev) => {
+      const merged = { ...prev, ...nextLabels };
+      window.electronAPI?.transcription?.updateSpeakerLabels?.(mediaId, merged).then((res) => {
+        if (!res?.success) setSpeakerLabels((p) => ({ ...p })); // revert on failure
+      }).catch(() => {});
+      return merged;
+    });
+  }, []);
+
   const handleSelectInfo = useCallback((row) => {
     if (row?.highlightId != null) {
       setHighlightInfoModal(row);
@@ -527,6 +552,9 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
             onProceedToReviewTimeline={handleProceedToReviewTimeline}
             allDecided={allDecided}
             transcript={Array.isArray(transcriptLines) ? transcriptLines : []}
+            speakerLabels={speakerLabels}
+            selectedMediaId={selectedSelectId}
+            onSpeakerLabelChange={handleSpeakerLabelChange}
             transcriptEmptyReason={transcriptEmptyReason}
             transcriptionErrors={transcriptionErrors}
             currentTimeSec={currentTimeSec}

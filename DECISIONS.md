@@ -4,6 +4,22 @@ This file captures **case-study-worthy** decisions: major scope cuts, platform b
 
 ---
 
+## Decision: Speaker identification via Deepgram with local fallback
+- **Date:** 2026-02-23
+- **Context:** Users want speaker labels (Speaker 1, Speaker 2, etc.) on transcript lines and the ability to rename speakers (e.g. Speaker 2 → Ryan) with propagation to all lines.
+- **Options considered:**
+  - A) Cloud API (Deepgram/AssemblyAI) with diarization
+  - B) Local pyannote.audio (requires Hugging Face token, GPU recommended)
+  - C) Local Whisply (faster-whisper + pyannote)
+- **Decision:** **Option A** — Deepgram as optional provider when `DEEPGRAM_API_KEY` is in `.env.local`. Falls back to local Whisper (words get `speaker_id: 0`) when key is absent. UI supports speaker legend (double-click to edit) and line prefixes regardless of diarization.
+- **Why (tradeoffs):**
+  - Pros: Simple integration; works without key; user gets diarization when they add a key; per-minute billing is predictable.
+  - Cons: Paid per minute when using Deepgram; requires API key for accurate multi-speaker identification.
+- **Impact on MVP:** Schema adds `speaker_labels` to transcripts; words support `speaker_id`; transcription service tries Deepgram first, then local; TranscriptPanel shows speaker legend and line prefixes; `transcription:updateSpeakerLabels` IPC persists renames.
+- **Follow-ups:** Consider local pyannote/Whisply for fully offline diarization; document re-transcription for existing clips to get speaker data.
+
+---
+
 ## Decision: Structured output for highlight reasoning
 - **Date:** 2026-02-23
 - **Context:** Highlight reason/suggestions were often omitted when relying on prompt-only instructions; the platform should guarantee the model returns them.

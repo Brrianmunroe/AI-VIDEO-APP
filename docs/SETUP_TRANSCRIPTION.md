@@ -133,3 +133,19 @@ pip install faster-whisper
 Ensure `python3` (or `python` on Windows) is on your PATH. The app will try to run `scripts/transcribe_words.py` when transcribing; if it succeeds, the transcript is stored with real word timestamps. If Python or the script fails, the app falls back to Whisper (whisper-node) and stores segment-level data as before.
 
 **Packaged app (no Python install needed):** When you build the app with the transcription bundle, Python and faster-whisper are included so recipients get word-level sync without installing anything. From the project root, run `npm run prepare:transcribe` (downloads standalone Python and installs faster-whisper into `resources/`), then `npm run build:electron`. Or run `npm run build:electron:full` to do both in one step. The first run of `prepare:transcribe` downloads Python and pip-installs faster-whisper; the first transcription in the packaged app may download the Whisper model if not already cached.
+
+---
+
+## 5. Optional: speaker diarization (Deepgram)
+
+For **speaker identification** (Speaker 1, Speaker 2, etc.), the app can use Deepgram's API with diarization enabled. Without it, all transcript lines show as a single speaker.
+
+1. Sign up at [Deepgram](https://deepgram.com) and get an API key.
+2. Add to your `.env.local` file in the project root:
+   ```
+   DEEPGRAM_API_KEY=your_api_key_here
+   ```
+3. Restart the app. New transcriptions will use Deepgram with speaker diarization when the key is set.
+4. In the Transcript tab, double-click any speaker label (e.g. "Speaker 1") to edit the name; the change applies to all lines from that speaker.
+
+**Cost:** Deepgram charges per minute of audio (see [pricing](https://deepgram.com/pricing)); speaker diarization is an add-on. If the key is not set, the app falls back to local Whisper (single speaker).

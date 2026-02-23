@@ -222,6 +222,43 @@
   width: 100%;
 }
 
+/* Inline speaker label (double-click to edit) */
+.transcript-panel__speaker-chip {
+  background: none;
+  border: none;
+  padding: var(--spacing-xxs) var(--spacing-xs);
+  font-family: var(--font-family-label);
+  font-size: var(--font-size-label);
+  color: var(--color-text-label);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.transcript-panel__speaker-chip:hover {
+  color: var(--color-text-heading);
+  background-color: var(--color-surface-secondary-button-surface-hover);
+}
+
+.transcript-panel__speaker-edit-input {
+  font-family: var(--font-family-label);
+  font-size: var(--font-size-label);
+  color: var(--color-text-heading);
+  background-color: var(--color-surface-page-surface-default);
+  border: var(--stroke-width-md) solid var(--color-border-border-focused);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xxs) var(--spacing-xs);
+  min-width: 4em;
+  outline: none;
+}
+
+/* Speaker prefix (legacy, kept for reference) */
+.transcript-panel__speaker-prefix {
+  flex-shrink: 0;
+  font-family: var(--font-family-label);
+  font-size: var(--font-size-label);
+  color: var(--color-text-label);
+}
+
 /* Banner when some clips failed to transcribe (e.g. Whisper/FFmpeg not set up) */
 .transcript-panel__transcription-error-banner {
   flex-shrink: 0;
@@ -252,8 +289,6 @@
 }
 
 .transcript-panel__line {
-  display: flex;
-  gap: var(--spacing-md);
   margin-bottom: var(--spacing-md);
   font-family: var(--font-family-body);
   font-size: var(--font-size-body);
@@ -265,6 +300,47 @@
   margin-bottom: 0;
 }
 
+/* Line layout: speaker above text (both aligned); timestamp in line with text */
+.transcript-panel__line-inner {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  gap: var(--spacing-xxs) var(--spacing-md);
+  align-items: baseline;
+}
+
+/* With speaker: row 1 = speaker, row 2 = time + text */
+.transcript-panel__line-inner--with-speaker .transcript-panel__speaker-chip,
+.transcript-panel__line-inner--with-speaker .transcript-panel__speaker-edit-input {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.transcript-panel__line-inner--with-speaker .transcript-panel__time {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.transcript-panel__line-inner--with-speaker .transcript-panel__text {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+/* No speaker: single row, time + text */
+.transcript-panel__line-inner:not(.transcript-panel__line-inner--with-speaker) .transcript-panel__time {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.transcript-panel__line-inner:not(.transcript-panel__line-inner--with-speaker) .transcript-panel__text {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.transcript-panel__speaker-chip {
+  justify-self: start;
+}
+
 .transcript-panel__line--clickable {
   cursor: pointer;
   border-radius: var(--radius-sm);
@@ -272,6 +348,10 @@
   margin-left: calc(-1 * var(--spacing-sm));
   margin-right: calc(-1 * var(--spacing-sm));
   padding-left: var(--spacing-sm);
+}
+
+.transcript-panel__line--clickable .transcript-panel__line-inner {
+  padding-left: 0;
 }
 
 .transcript-panel__time {

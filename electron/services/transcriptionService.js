@@ -1,6 +1,7 @@
 /**
  * Transcription Service
  * Runs local Whisper (via whisper-node) on project media and stores transcripts in the DB.
+ * Optional: Deepgram (with DEEPGRAM_API_KEY in .env.local) for speaker diarization.
  * Requires: FFmpeg (for 16kHz WAV extraction), whisper-node and a downloaded model.
  *
  * We check for whisper binary and model BEFORE importing whisper-node, because
@@ -141,6 +142,7 @@ async function runWordLevelScript(wavPath) {
       word: w.word,
       start: Number(w.start),
       end: Number(w.end),
+      speaker_id: w.speaker_id != null ? Number(w.speaker_id) : 0,
     }));
   } catch (err) {
     console.warn('[transcription] Word-level script failed:', err?.message);
@@ -192,6 +194,70 @@ async function runWhisperAndParseSrt(wavPath, whisperCppDir, mainBinary) {
   }
 }
 
+/**
+ * Transcribe using Deepgram API with speaker diarization.
+ * Requires DEEPGRAM_API_KEY in .env.local. Returns words with speaker_id or null on failure.
+ */
+async function runDeepgramTranscription(wavPath, mediaId) {
+  const apiKey = process.env.DEEPGRAM_API_KEY?.trim();
+  if (!apiKey) {
+    console.log('[transcription] Deepgram skipped (no API key set)');
+    return null;
+  }
+
+  if (!existsSync(wavPath)) return null;
+  const audioBuffer = readFileSync(wavPath);
+
+  const params = new URLSearchParams({
+    model: 'nova-2',
+    diarize: 'true',
+    punctuate: 'true',
+    smart_format: 'true',
+  });
+  const url = `https://api.deepgram.com/v1/listen?${params.toString()}`;
+
+  console.log('[transcription] Attempting Deepgram (with diarization) for media', mediaId, '...');
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Token ${apiKey}`,
+        'Content-Type': 'audio/wav',
+      },
+      body: audioBuffer,
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.warn('[transcription] Deepgram API error:', response.status, errText);
+      return null;
+    }
+
+    const data = await response.json();
+    const channel = data?.results?.channels?.[0];
+    if (!channel?.alternatives?.[0]) {
+      console.warn('[transcription] Deepgram returned no transcript (empty response)');
+      return null;
+    }
+
+    const words = channel.alternatives[0].words;
+    if (!Array.isArray(words) || words.length === 0) return null;
+
+    const speakerCount = new Set(words.map((w) => (w.speaker != null ? Number(w.speaker) : 0))).size;
+    console.log('[transcription] Deepgram succeeded:', words.length, 'words,', speakerCount, 'speaker(s)');
+
+    return words.map((w) => ({
+      word: String(w.word ?? '').trim(),
+      start: Number(w.start) || 0,
+      end: Number(w.end) || 0,
+      speaker_id: w.speaker != null ? Number(w.speaker) : 0,
+    })).filter((w) => w.word.length > 0);
+  } catch (err) {
+    console.warn('[transcription] Deepgram failed:', err?.message, err?.cause);
+    return null;
+  }
+}
+
 /** Directory for temporary 16kHz WAV files under userData */
 function getTranscriptionAudioDir() {
   const dir = join(app.getPath('userData'), 'transcription_audio');
@@ -203,44 +269,88 @@ function getTranscriptionAudioDir() {
 
 /**
  * Get transcript for a media id, if any.
- * Returns { id, mediaId, text, words, emptyReason, createdAt } or null.
+ * Returns { id, mediaId, text, words, speakerLabels, emptyReason, createdAt } or null.
  */
 export function getTranscriptByMediaId(mediaId) {
   const db = getDatabase();
   const row = db.prepare(
-    'SELECT id, media_id, text, words, empty_reason, created_at FROM transcripts WHERE media_id = ?'
+    'SELECT id, media_id, text, words, speaker_labels, empty_reason, created_at FROM transcripts WHERE media_id = ?'
   ).get(mediaId);
   if (!row) return null;
+  const speakerLabels = row.speaker_labels && row.speaker_labels.trim()
+    ? JSON.parse(row.speaker_labels)
+    : {};
   return {
     id: row.id,
     mediaId: row.media_id,
     text: row.text,
     words: JSON.parse(row.words || '[]'),
+    speakerLabels,
     emptyReason: row.empty_reason ?? null,
     createdAt: row.created_at,
   };
 }
 
 /**
+ * Delete transcript for a media item (used before re-transcribing).
+ * Cascades to selects table. Returns true if a row was deleted.
+ */
+export function deleteTranscriptByMediaId(mediaId) {
+  const db = getDatabase();
+  const result = db.prepare('DELETE FROM transcripts WHERE media_id = ?').run(mediaId);
+  return result.changes > 0;
+}
+
+/**
+ * Re-transcribe a media item (deletes existing transcript first, then runs transcription).
+ * Use when Deepgram was not available initially, or to refresh speaker diarization.
+ */
+export async function reTranscribeForMedia(mediaId) {
+  deleteTranscriptByMediaId(mediaId);
+  return runForMedia(mediaId);
+}
+
+/**
+ * Update speaker display labels for a transcript (by media id).
+ * speakerLabels: { "0": "Speaker 1", "1": "Ryan", ... }
+ */
+export function updateSpeakerLabels(mediaId, speakerLabels) {
+  const db = getDatabase();
+  const transcript = db.prepare('SELECT id FROM transcripts WHERE media_id = ?').get(mediaId);
+  if (!transcript) return false;
+  const json = speakerLabels != null && typeof speakerLabels === 'object'
+    ? JSON.stringify(speakerLabels)
+    : '{}';
+  db.prepare('UPDATE transcripts SET speaker_labels = ? WHERE media_id = ?').run(json, mediaId);
+  return true;
+}
+
+/**
  * Get all transcripts for a project (one per media that has a transcript).
- * Returns array of { id, mediaId, text, words, createdAt }.
+ * Returns array of { id, mediaId, text, words, speakerLabels, createdAt }.
  */
 export function getTranscriptsByProject(projectId) {
   const db = getDatabase();
   const rows = db.prepare(`
-    SELECT t.id, t.media_id, t.text, t.words, t.created_at
+    SELECT t.id, t.media_id, t.text, t.words, t.speaker_labels, t.created_at
     FROM transcripts t
     INNER JOIN media m ON m.id = t.media_id
     WHERE m.project_id = ?
     ORDER BY m.created_at ASC, t.id ASC
   `).all(projectId);
-  return rows.map((row) => ({
-    id: row.id,
-    mediaId: row.media_id,
-    text: row.text,
-    words: JSON.parse(row.words || '[]'),
-    createdAt: row.created_at,
-  }));
+  return rows.map((row) => {
+    const speakerLabels = row.speaker_labels && row.speaker_labels.trim()
+      ? JSON.parse(row.speaker_labels)
+      : {};
+    return {
+      id: row.id,
+      mediaId: row.media_id,
+      text: row.text,
+      words: JSON.parse(row.words || '[]'),
+      speakerLabels,
+      createdAt: row.created_at,
+    };
+  });
 }
 
 /**
@@ -248,7 +358,7 @@ export function getTranscriptsByProject(projectId) {
  * @param {object} db - Database instance
  * @param {number} mediaId
  * @param {string} [reason] - 'no_audio' | 'transcription_failed'; why the transcript is empty
- * @returns {{ id: number, mediaId: number, text: string, words: Array, emptyReason: string|null }}
+ * @returns {{ id: number, mediaId: number, text: string, words: Array, speakerLabels: object, emptyReason: string|null }}
  */
 function insertEmptyTranscript(db, mediaId, reason = null) {
   const insertStmt = db.prepare(
@@ -256,13 +366,17 @@ function insertEmptyTranscript(db, mediaId, reason = null) {
   );
   insertStmt.run(mediaId, '', JSON.stringify([]), reason);
   const row = db.prepare(
-    'SELECT id, media_id, text, words, empty_reason FROM transcripts WHERE media_id = ?'
+    'SELECT id, media_id, text, words, speaker_labels, empty_reason FROM transcripts WHERE media_id = ?'
   ).get(mediaId);
+  const speakerLabels = row.speaker_labels && row.speaker_labels.trim()
+    ? JSON.parse(row.speaker_labels)
+    : {};
   return {
     id: row.id,
     mediaId: row.media_id,
     text: '',
     words: [],
+    speakerLabels,
     emptyReason: row.empty_reason ?? null,
   };
 }
@@ -304,9 +418,25 @@ export async function runForMedia(mediaId) {
   }
 
   let words = null;
-  try {
-    words = await runWordLevelScript(wavPath);
-  } catch (_) {}
+  const hasDgKey = !!process.env.DEEPGRAM_API_KEY?.trim();
+  if (!hasDgKey) {
+    console.log('[transcription] DEEPGRAM_API_KEY not set; using local transcription (single speaker)');
+  }
+
+  // Try Deepgram first if API key is set (provides speaker diarization)
+  if (hasDgKey) {
+    try {
+      words = await runDeepgramTranscription(wavPath, mediaId);
+    } catch (_) {}
+  }
+
+  // Fall back to local Python word-level script (faster-whisper)
+  if (words == null || words.length === 0) {
+    console.log('[transcription] Using local transcription for media', mediaId, '(no speaker diarization)');
+    try {
+      words = await runWordLevelScript(wavPath);
+    } catch (_) {}
+  }
 
   if (words == null || words.length === 0) {
     let segments;
@@ -333,6 +463,7 @@ export async function runForMedia(mediaId) {
       word: seg.text,
       start: seg.start,
       end: seg.end,
+      speaker_id: 0,
     }));
   } else {
     try {
@@ -340,21 +471,31 @@ export async function runForMedia(mediaId) {
     } catch (_) {}
   }
 
-  const text = words.map((w) => w.word).join(' ');
+  // Ensure each word has speaker_id (0 = single speaker when no diarization)
+  const wordsWithSpeaker = words.map((w) => ({
+    ...w,
+    speaker_id: w.speaker_id != null ? Number(w.speaker_id) : 0,
+  }));
+
+  const text = wordsWithSpeaker.map((w) => w.word).join(' ');
 
   const insertStmt = db.prepare(
     'INSERT INTO transcripts (media_id, text, words) VALUES (?, ?, ?)'
   );
-  insertStmt.run(mediaId, text, JSON.stringify(words));
+  insertStmt.run(mediaId, text, JSON.stringify(wordsWithSpeaker));
 
   const row = db.prepare(
-    'SELECT id, media_id, text, words, empty_reason FROM transcripts WHERE media_id = ?'
+    'SELECT id, media_id, text, words, speaker_labels, empty_reason FROM transcripts WHERE media_id = ?'
   ).get(mediaId);
+  const speakerLabels = row.speaker_labels && row.speaker_labels.trim()
+    ? JSON.parse(row.speaker_labels)
+    : {};
   return {
     id: row.id,
     mediaId: row.media_id,
     text: row.text,
     words: JSON.parse(row.words || '[]'),
+    speakerLabels,
     emptyReason: row.empty_reason ?? null,
   };
 }

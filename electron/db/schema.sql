@@ -36,7 +36,8 @@ CREATE TABLE IF NOT EXISTS transcripts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   media_id INTEGER NOT NULL,
   text TEXT NOT NULL, -- Full transcript text
-  words TEXT NOT NULL, -- JSON blob: [{"word": "hello", "start": 0.5, "end": 0.8}, ...]
+  words TEXT NOT NULL, -- JSON blob: [{"word": "hello", "start": 0.5, "end": 0.8, "speaker_id": 0}, ...]
+  speaker_labels TEXT, -- JSON: {"0": "Speaker 1", "1": "Ryan", ...} user-editable display names per speaker_id
   empty_reason TEXT, -- NULL = has content; 'no_audio' = no audio/extract failed; 'transcription_failed' = Whisper failed or no speech
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (media_id) REFERENCES media(id) ON DELETE CASCADE

@@ -42,6 +42,9 @@ try {
   transcription: {
     getByMediaId: (mediaId) => ipcRenderer.invoke('transcription:getByMediaId', mediaId),
     runForProject: (projectId) => ipcRenderer.invoke('transcription:runForProject', projectId),
+    reTranscribeForMedia: (mediaId) => ipcRenderer.invoke('transcription:reTranscribeForMedia', mediaId),
+    updateSpeakerLabels: (mediaId, speakerLabels) =>
+      ipcRenderer.invoke('transcription:updateSpeakerLabels', mediaId, speakerLabels),
   },
 
   // Waveform (peaks from main process via FFmpeg)
