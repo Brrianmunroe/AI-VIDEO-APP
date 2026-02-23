@@ -19,6 +19,7 @@ import './styles/HighlightContainer.css';
  * @param {function} onClick - Click handler
  * @param {function} onInfoClick - Click handler for info icon
  * @param {boolean} [showInfoButton=true] - When false, hide the info icon (e.g. for rows with no highlight)
+ * @param {boolean} [isDeleting=false] - When true, shows delete animation
  * @param {string} className - Additional CSS classes
  */
 function HighlightContainer({
@@ -29,6 +30,7 @@ function HighlightContainer({
   selected = false,
   disabled = false,
   status = 'pending',
+  isDeleting = false,
   onClick,
   onInfoClick,
   showInfoButton = true,
@@ -39,6 +41,7 @@ function HighlightContainer({
     selected ? 'highlight--selected' : '',
     disabled ? 'highlight--disabled' : '',
     status === 'accepted' ? 'highlight--accepted' : '',
+    isDeleting ? 'highlight--deleting' : '',
     className,
   ].filter(Boolean).join(' ');
 
@@ -50,7 +53,7 @@ function HighlightContainer({
   return (
     <div
       className={classes}
-      onClick={!disabled ? onClick : undefined}
+      onClick={!disabled && !isDeleting ? onClick : undefined}
       role="button"
       tabIndex={disabled ? -1 : 0}
       aria-disabled={disabled}

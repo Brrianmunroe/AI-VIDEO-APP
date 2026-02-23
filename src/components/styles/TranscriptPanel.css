@@ -187,6 +187,19 @@
   gap: var(--spacing-md);
 }
 
+/* Wrapper for each highlight row; collapsing this creates the slide-up effect */
+.transcript-panel__highlight-row {
+  max-height: 100px;
+  overflow: hidden;
+  transition: max-height 0.28s ease-out, margin-bottom 0.28s ease-out;
+}
+
+
+.transcript-panel__highlight-row--deleting {
+  max-height: 0 !important;
+  margin-bottom: calc(-1 * var(--spacing-md));
+}
+
 .transcript-panel__placeholder {
   flex: 1;
   font-family: var(--font-family-body);

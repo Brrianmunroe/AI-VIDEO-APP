@@ -31,7 +31,10 @@ function getHighlightBoundaries(transcriptLines, highlights) {
         last = { lineIdx, wordIdx };
       }
     }
-    if (first != null && last != null) boundaries[h.id] = { first, last, ordinal: index + 1 };
+    if (first != null && last != null) {
+      const ord = typeof h.ordinal === 'number' && h.ordinal >= 1 ? h.ordinal : index + 1;
+      boundaries[h.id] = { first, last, ordinal: ord };
+    }
   });
   return boundaries;
 }
@@ -45,7 +48,8 @@ function getWordHighlightInfo(wordStart, wordEnd, highlights) {
   for (let i = 0; i < highlights.length; i++) {
     const h = highlights[i];
     if (wordOverlapsHighlight(wordStart, wordEnd, h.in, h.out)) {
-      return { id: h.id, ordinal: i + 1 };
+      const ord = typeof h.ordinal === 'number' && h.ordinal >= 1 ? h.ordinal : i + 1;
+      return { id: h.id, ordinal: ord };
     }
   }
   return null;
@@ -113,8 +117,10 @@ function TranscriptPanel({
   onSeek,
   selects: selectsProp = [],
   selectedSelectId,
+  selectedHighlightId,
   onSelectClip,
   onSelectClipAndSeek,
+  onRemoveHighlight,
   onSelectInfo,
   className = '',
   onDelete,
@@ -150,15 +156,16 @@ function TranscriptPanel({
         });
       } else {
         highlights.forEach((h, idx) => {
+          const ord = typeof h.ordinal === 'number' && h.ordinal >= 1 ? h.ordinal : idx + 1;
           rows.push({
             clipId: s.id,
             thumbnail: s.thumbnail,
             clipName: s.clipName,
-            status: s.status,
+            status: h.status === 'accepted' ? 'accepted' : 'pending',
             highlightId: h.id,
             in: Number(h.in) || 0,
             out: Number(h.out) || 0,
-            ordinal: idx + 1,
+            ordinal: ord,
             reason: h.reason ?? '',
             suggestions: h.suggestions ?? '',
           });
@@ -168,7 +175,20 @@ function TranscriptPanel({
     return rows;
   }, [visibleSelects]);
   const selectedClip = visibleSelects.find((s) => s.id === selectedSelectId);
-  const selectedIsPending = selectedClip?.status === 'pending';
+  const selectedRow = useMemo(
+    () =>
+      selectedHighlightId != null
+        ? visibleHighlightRows.find(
+            (r) => r.clipId === selectedSelectId && r.highlightId === selectedHighlightId
+          )
+        : selectedSelectId != null
+          ? visibleHighlightRows.find(
+              (r) => r.clipId === selectedSelectId && r.highlightId == null
+            ) ?? visibleHighlightRows.find((r) => r.clipId === selectedSelectId)
+          : null,
+    [visibleHighlightRows, selectedSelectId, selectedHighlightId]
+  );
+  const selectedIsPending = selectedRow ? selectedRow.status === 'pending' : true;
   const [activeTab, setActiveTab] = useState('interview');
   const [search, setSearch] = useState('');
   const [editingSpeakerId, setEditingSpeakerId] = useState(null);
@@ -177,6 +197,7 @@ function TranscriptPanel({
   const activeLineRef = useRef(null);
   const transcriptContentRef = useRef(null);
   const [draggingHandle, setDraggingHandle] = useState(null);
+  const [deletingHighlightIds, setDeletingHighlightIds] = useState(new Set());
 
   const filteredLines = useMemo(() => {
     if (!search.trim()) return transcriptList;
@@ -222,6 +243,37 @@ function TranscriptPanel({
       activeLineRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
   }, [activeTab, activeLineIndex]);
+
+  const HIGHLIGHT_DELETE_ANIMATION_MS = 280;
+
+  const handleRequestDeleteHighlight = useCallback(
+    (highlightId) => {
+      if (highlightId == null || typeof onRemoveHighlight !== 'function') return;
+      setDeletingHighlightIds((prev) => new Set(prev).add(highlightId));
+      setTimeout(() => {
+        onRemoveHighlight(highlightId);
+        setDeletingHighlightIds((prev) => {
+          const next = new Set(prev);
+          next.delete(highlightId);
+          return next;
+        });
+      }, HIGHLIGHT_DELETE_ANIMATION_MS);
+    },
+    [onRemoveHighlight]
+  );
+
+  // Delete/Backspace: remove selected highlight when on Interview Selects tab
+  useEffect(() => {
+    if (activeTab !== 'interview') return;
+    const handleKeyDown = (e) => {
+      if ((e.key !== 'Delete' && e.key !== 'Backspace') || selectedHighlightId == null) return;
+      if (e.target?.closest?.('input, textarea, [contenteditable="true"]')) return;
+      e.preventDefault();
+      handleRequestDeleteHighlight(selectedHighlightId);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTab, selectedHighlightId, handleRequestDeleteHighlight]);
 
   const handleLineClick = useCallback(
     (line) => {
@@ -372,26 +424,39 @@ function TranscriptPanel({
                   </div>
                 ) : (
                   <div className="transcript-panel__selects-list">
-                    {visibleHighlightRows.map((row) => (
-                      <HighlightContainer
-                        key={row.highlightId != null ? `${row.clipId}-${row.highlightId}` : `${row.clipId}-no-highlights`}
-                        thumbnail={row.thumbnail}
-                        clipName={row.clipName}
-                        highlightCount={row.ordinal === 0 ? 0 : 1}
-                        highlightOrdinal={row.ordinal > 0 ? row.ordinal : undefined}
-                        status={row.status}
-                        selected={selectedSelectId === row.clipId}
-                        onClick={() => {
-                          if (typeof onSelectClipAndSeek === 'function') {
-                            onSelectClipAndSeek(row.clipId, row.in);
-                          } else {
-                            onSelectClip?.(row.clipId);
-                          }
-                        }}
-                        showInfoButton={row.highlightId != null}
-                        onInfoClick={() => onSelectInfo?.(row)}
-                      />
-                    ))}
+                    {visibleHighlightRows.map((row) => {
+                      const isDeleting = row.highlightId != null && deletingHighlightIds.has(row.highlightId);
+                      return (
+                        <div
+                          key={row.highlightId != null ? `${row.clipId}-${row.highlightId}` : `${row.clipId}-no-highlights`}
+                          className={`transcript-panel__highlight-row${isDeleting ? ' transcript-panel__highlight-row--deleting' : ''}`}
+                        >
+                          <HighlightContainer
+                            thumbnail={row.thumbnail}
+                            clipName={row.clipName}
+                            highlightCount={row.ordinal === 0 ? 0 : 1}
+                            highlightOrdinal={row.ordinal > 0 ? row.ordinal : undefined}
+                            status={row.status}
+                            isDeleting={isDeleting}
+                            selected={
+                              selectedSelectId === row.clipId &&
+                              (row.highlightId == null
+                                ? selectedHighlightId == null
+                                : selectedHighlightId === row.highlightId)
+                            }
+                            onClick={() => {
+                              if (typeof onSelectClipAndSeek === 'function') {
+                                onSelectClipAndSeek(row.clipId, row.in, row.highlightId);
+                              } else {
+                                onSelectClip?.(row.clipId);
+                              }
+                            }}
+                            showInfoButton={row.highlightId != null}
+                            onInfoClick={() => onSelectInfo?.(row)}
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -665,17 +730,27 @@ function TranscriptPanel({
               <>
                 <Button
                   variant="secondary"
-                  onClick={() => selectedSelectId != null && onDelete?.(selectedSelectId)}
-                  disabled={!selectedIsPending}
+                  onClick={() => {
+                    if (selectedHighlightId != null && typeof onRemoveHighlight === 'function') {
+                      handleRequestDeleteHighlight(selectedHighlightId);
+                    } else if (selectedSelectId != null && onDelete) {
+                      onDelete(selectedSelectId);
+                    }
+                  }}
+                  disabled={selectedHighlightId != null ? false : !selectedIsPending}
                 >
                   Delete
                 </Button>
                 <Button
                   variant="primary"
-                  onClick={() => selectedSelectId != null && onAccept?.(selectedSelectId)}
-                  disabled={!selectedIsPending}
+                  onClick={() => onAccept?.(selectedSelectId ?? null, selectedHighlightId ?? null)}
+                  disabled={
+                    selectedSelectId != null
+                      ? !selectedIsPending
+                      : false
+                  }
                 >
-                  Accept
+                  {selectedHighlightId != null ? 'Accept Highlight' : 'Accept All'}
                 </Button>
               </>
             )}

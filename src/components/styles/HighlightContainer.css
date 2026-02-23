@@ -43,6 +43,21 @@
   cursor: not-allowed;
 }
 
+/* === Deleting (exit animation) === */
+.highlight--deleting {
+  pointer-events: none;
+  animation: highlight-delete 0.28s ease-out forwards;
+}
+
+@keyframes highlight-delete {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 /* === Accepted: "Accepted" label in success green === */
 .highlight--accepted .highlight__count {
   color: var(--color-text-success);

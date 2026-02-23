@@ -736,11 +736,12 @@ function PlaybackModule({
         const inFrame = Math.max(0, Math.round((Number(h.in) || 0) * FPS));
         const outFrame = Math.max(inFrame, Math.round((Number(h.out) || 0) * FPS));
         const durationFramesRegion = Math.min(outFrame - inFrame, fullDurationFrames - inFrame);
+        const ord = typeof h.ordinal === 'number' && h.ordinal >= 1 ? h.ordinal : index + 1;
         return {
           id: h.id,
           leftPx: frameToPx(inFrame),
           widthPx: frameToPx(durationFramesRegion),
-          ordinal: index + 1,
+          ordinal: ord,
         };
       });
     }
@@ -757,11 +758,12 @@ function PlaybackModule({
       const inFrame = Math.max(0, Math.round((Number(h.in) || 0) * FPS));
       const outFrame = Math.max(inFrame, Math.round((Number(h.out) || 0) * FPS));
       const durationFramesRegion = Math.min(outFrame - inFrame, durationFrames - inFrame);
+      const ord = typeof h.ordinal === 'number' && h.ordinal >= 1 ? h.ordinal : index + 1;
       return {
         id: h.id,
         leftPx: frameToPx(inFrame),
         widthPx: frameToPx(durationFramesRegion),
-        ordinal: index + 1,
+        ordinal: ord,
       };
     });
   }, [useFullTimeline, effectiveSegment, highlightRanges, durationFrames, fullDurationFrames, frameToPx, contentWidthPx]);

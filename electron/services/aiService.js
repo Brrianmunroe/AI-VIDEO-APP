@@ -313,6 +313,7 @@ export async function generateSelectsForProject({
     const segments = segmentsByMediaId.get(mediaId) ?? [];
 
     const validHighlights = [];
+    let ordinal = 1;
     for (const r of ranges) {
       let inSec = Math.max(0, Math.min(durationSec, Number(r.in) || 0));
       let outSec = Math.max(inSec, Math.min(durationSec, Number(r.out) || inSec));
@@ -335,7 +336,10 @@ export async function generateSelectsForProject({
         out: outSec,
         reason,
         suggestions,
+        ordinal,
+        status: 'pending',
       });
+      ordinal++;
     }
 
     if (validHighlights.length > 0) {

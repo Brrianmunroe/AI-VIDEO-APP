@@ -11,21 +11,30 @@ function generateHighlightId() {
   return `highlight_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
 }
 
-/** Normalize highlights: sort by in, ensure in < out, clamp to [0, duration]. Preserve reason and suggestions. */
+/** Normalize highlights: sort by in, ensure in < out, clamp to [0, duration]. Preserve reason, suggestions, ordinal, and status. */
 function normalizeHighlights(highlights, durationSec) {
   if (!Array.isArray(highlights) || highlights.length === 0) return [];
   const dur = Number.isFinite(durationSec) && durationSec >= 0 ? durationSec : 86400;
   return highlights
     .filter((h) => h != null && typeof h.id === 'string')
-    .map((h) => ({
+    .map((h, idx) => ({
       id: h.id,
       in: Math.max(0, Math.min(dur, Number(h.in) || 0)),
       out: Math.max(0, Math.min(dur, Number(h.out) || 0)),
       reason: h.reason != null ? String(h.reason) : '',
       suggestions: h.suggestions != null ? String(h.suggestions) : '',
+      ordinal: typeof h.ordinal === 'number' && h.ordinal >= 1 ? h.ordinal : idx + 1,
+      status: h.status === 'accepted' ? 'accepted' : 'pending',
     }))
     .filter((h) => h.out > h.in)
     .sort((a, b) => a.in - b.in);
+}
+
+/** Next ordinal for a new highlight (max existing + 1; never renumbers on delete). */
+function nextHighlightOrdinal(highlights) {
+  if (!Array.isArray(highlights) || highlights.length === 0) return 1;
+  const max = Math.max(0, ...highlights.map((h) => (typeof h.ordinal === 'number' ? h.ordinal : 0)));
+  return max + 1;
 }
 
 function mediaToSelect(m) {
@@ -33,12 +42,14 @@ function mediaToSelect(m) {
   const duration = m.duration != null ? Number(m.duration) : 0;
   const rawHighlights = Array.isArray(m.highlights) ? m.highlights : [];
   const highlights = rawHighlights.length
-    ? rawHighlights.map((h) => ({
+    ? rawHighlights.map((h, idx) => ({
         id: h.id != null ? String(h.id) : generateHighlightId(),
         in: Number(h.in) || 0,
         out: Number(h.out) || 0,
         reason: h.reason != null ? String(h.reason) : '',
         suggestions: h.suggestions != null ? String(h.suggestions) : '',
+        ordinal: typeof h.ordinal === 'number' && h.ordinal >= 1 ? h.ordinal : idx + 1,
+        status: h.status === 'accepted' ? 'accepted' : 'pending',
       }))
     : [];
   return {
@@ -137,6 +148,7 @@ function buildTranscriptLines(words) {
 function Timeline({ project, onBack, onNavigateToTimelineReview }) {
   const [selects, setSelects] = useState([]);
   const [selectedSelectId, setSelectedSelectId] = useState(null);
+  const [selectedHighlightId, setSelectedHighlightId] = useState(null);
   const [currentTimeSec, setCurrentTimeSec] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [transcriptLines, setTranscriptLines] = useState([]);
@@ -299,23 +311,6 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
       });
   }, [project?.id]);
 
-  const handleAccept = useCallback((clipId) => {
-    const clip = selectsList.find((s) => s.id === clipId);
-    setSelects((prev) =>
-      prev.map((s) => (s.id === clipId ? { ...s, status: 'accepted' } : s))
-    );
-    if (clip && window.electronAPI?.media?.updateHighlights) {
-      window.electronAPI.media.updateHighlights(clipId, clip.highlights || []).catch(() => {});
-    }
-  }, [selectsList]);
-
-  const handleDelete = useCallback((clipId) => {
-    setSelects((prev) =>
-      prev.map((s) => (s.id === clipId ? { ...s, status: 'deleted' } : s))
-    );
-    setSelectedSelectId((id) => (id === clipId ? null : id));
-  }, []);
-
   const updateSelectHighlights = useCallback((mediaId, nextHighlights) => {
     let normalized = [];
     setSelects((prev) =>
@@ -342,6 +337,67 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
     }
   }, []);
 
+  const handleAccept = useCallback(
+    (clipId, highlightId) => {
+      if (clipId == null) {
+        // Accept all pending clips (and all their highlights)
+        const toAccept = selectsList.filter((s) => s.status === 'pending');
+        setSelects((prev) =>
+          prev.map((s) => {
+            if (s.status !== 'pending') return s;
+            const h = Array.isArray(s.highlights) ? s.highlights : [];
+            const nextH = h.length > 0 ? h.map((x) => ({ ...x, status: 'accepted' })) : h;
+            return { ...s, status: 'accepted', highlights: nextH };
+          })
+        );
+        toAccept.forEach((clip) => {
+          const h = Array.isArray(clip.highlights) ? clip.highlights : [];
+          const nextH = h.length > 0 ? h.map((x) => ({ ...x, status: 'accepted' })) : h;
+          if (window.electronAPI?.media?.updateHighlights) {
+            window.electronAPI.media.updateHighlights(clip.id, nextH.length > 0 ? nextH : clip.highlights || []).catch(() => {});
+          }
+        });
+        return;
+      }
+      if (highlightId != null) {
+        // Accept only the selected highlight
+        const clip = selectsList.find((s) => s.id === clipId);
+        const current = Array.isArray(clip?.highlights) ? clip.highlights : [];
+        const next = current.map((h) =>
+          h.id === highlightId ? { ...h, status: 'accepted' } : h
+        );
+        updateSelectHighlights(clipId, next);
+        return;
+      }
+      // Accept the selected clip (whole clip: clip status + all its highlights)
+      const clip = selectsList.find((s) => s.id === clipId);
+      const current = Array.isArray(clip?.highlights) ? clip.highlights : [];
+      const nextHighlights =
+        current.length > 0
+          ? current.map((h) => ({ ...h, status: 'accepted' }))
+          : current;
+      setSelects((prev) =>
+        prev.map((s) =>
+          s.id === clipId
+            ? { ...s, status: 'accepted', highlights: nextHighlights }
+            : s
+        )
+      );
+      if (clip && window.electronAPI?.media?.updateHighlights) {
+        window.electronAPI.media.updateHighlights(clipId, nextHighlights).catch(() => {});
+      }
+    },
+    [selectsList, updateSelectHighlights]
+  );
+
+  const handleDelete = useCallback((clipId) => {
+    setSelects((prev) =>
+      prev.map((s) => (s.id === clipId ? { ...s, status: 'deleted' } : s))
+    );
+    setSelectedSelectId((id) => (id === clipId ? null : id));
+    setSelectedHighlightId(null);
+  }, []);
+
   const handleAddHighlightFromInOut = useCallback(
     (inSec, outSec) => {
       if (selectedSelectId == null) return;
@@ -350,9 +406,18 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
       if (!Number.isFinite(inNum) || !Number.isFinite(outNum) || outNum <= inNum) return;
       const clip = selectsList.find((s) => s.id === selectedSelectId);
       const current = Array.isArray(clip?.highlights) ? clip.highlights : [];
+      const nextOrdinal = nextHighlightOrdinal(current);
       const next = [
         ...current,
-        { id: generateHighlightId(), in: inNum, out: outNum, reason: '', suggestions: '' },
+        {
+          id: generateHighlightId(),
+          in: inNum,
+          out: outNum,
+          reason: '',
+          suggestions: '',
+          ordinal: nextOrdinal,
+          status: 'pending',
+        },
       ];
       updateSelectHighlights(selectedSelectId, next);
     },
@@ -377,12 +442,26 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
       const current = Array.isArray(clip?.highlights) ? clip.highlights : [];
       const next = current.filter((h) => h.id !== highlightId);
       updateSelectHighlights(selectedSelectId, next);
+      setSelectedHighlightId((prev) => (prev === highlightId ? null : prev));
     },
     [selectedSelectId, selectsList, updateSelectHighlights]
   );
 
-  const allDecided = selectsList.length > 0 && selectsList.every((s) => s.status === 'accepted' || s.status === 'deleted');
-  const acceptedClips = selectsList.filter((s) => s.status === 'accepted');
+  const allDecided =
+    selectsList.length > 0 &&
+    selectsList.every((s) => {
+      if (s.status === 'deleted') return true;
+      if (s.status === 'accepted') return true;
+      const highlights = Array.isArray(s.highlights) ? s.highlights : [];
+      if (highlights.length === 0) return false; // pending clip with no highlights
+      return highlights.every((h) => h.status === 'accepted');
+    });
+  const acceptedClips = selectsList.filter((s) => {
+    if (s.status === 'accepted') return true;
+    const highlights = Array.isArray(s.highlights) ? s.highlights : [];
+    if (highlights.length === 0) return false;
+    return highlights.every((h) => h.status === 'accepted');
+  });
   const acceptedClipsWithNoHighlights = acceptedClips.filter(
     (c) => !Array.isArray(c.highlights) || c.highlights.length === 0
   );
@@ -411,6 +490,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
 
   const handleResolveNoHighlightsReviewClip = useCallback((clipId) => {
     setSelectedSelectId(clipId);
+    setSelectedHighlightId(null);
     setShowNoHighlightsModal(false);
   }, []);
 
@@ -425,11 +505,24 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
     setCurrentTimeSec(seconds);
   }, []);
 
-  const handleSelectClipAndSeek = useCallback((clipId, seekToSec) => {
+  const handleSelectClipAndSeek = useCallback((clipId, seekToSec, highlightId) => {
     selectAndSeekRef.current = { clipId, seekTo: seekToSec };
     setSelectedSelectId(clipId);
+    setSelectedHighlightId(highlightId ?? null);
     setCurrentTimeSec(seekToSec);
   }, []);
+
+  // When playhead moves within the selected clip, sync selection to the highlight at that time
+  useEffect(() => {
+    if (!selectedClip || !selectedSelectId || currentTimeSec == null) return;
+    const highlights = Array.isArray(selectedClip.highlights) ? selectedClip.highlights : [];
+    const containingHighlight = highlights.find(
+      (h) => currentTimeSec >= (Number(h.in) || 0) && currentTimeSec < (Number(h.out) || 0)
+    );
+    if (containingHighlight) {
+      setSelectedHighlightId((prev) => (prev === containingHighlight.id ? prev : containingHighlight.id));
+    }
+  }, [selectedClip, selectedSelectId, currentTimeSec]);
 
   const handlePlayStateChange = useCallback((playing) => {
     setIsPlaying(playing);
@@ -544,8 +637,10 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
           <TranscriptPanel
             selects={selectsList}
             selectedSelectId={selectedSelectId}
+            selectedHighlightId={selectedHighlightId}
             onSelectClip={setSelectedSelectId}
             onSelectClipAndSeek={handleSelectClipAndSeek}
+            onRemoveHighlight={handleRemoveHighlight}
             onSelectInfo={handleSelectInfo}
             onDelete={handleDelete}
             onAccept={handleAccept}
