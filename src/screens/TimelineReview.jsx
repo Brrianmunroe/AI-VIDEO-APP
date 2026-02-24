@@ -243,6 +243,7 @@ function TimelineReview({ project, onBack, acceptedClips = [] }) {
           videoClips={rippledSegments}
           durationFrames={durationFrames}
           editableTimeline={true}
+          hideToolbarButtons={['mark-in', 'mark-out', 'split', 'clear-in']}
           onSegmentTrim={handleSegmentTrim}
           onSegmentTrimDragStart={handleSegmentTrimDragStart}
           onSegmentTrimDragEnd={handleSegmentTrimDragEnd}

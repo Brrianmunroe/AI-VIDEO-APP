@@ -124,7 +124,9 @@ function PlaybackModule({
   onRedo,
   canUndo = false,
   canRedo = false,
+  hideToolbarButtons: hideToolbarButtonsProp = [],
 }) {
+  const hideToolbarButtons = Array.isArray(hideToolbarButtonsProp) ? hideToolbarButtonsProp : [];
   const highlightRanges = Array.isArray(highlightRangesProp) ? highlightRangesProp : [];
   const isControlled = videoUrl != null && typeof onSeek === 'function';
   const [internalPlaying, setInternalPlaying] = useState(false);
@@ -779,15 +781,16 @@ function PlaybackModule({
   }, [playheadFrame, inPointFrame, onAddHighlightFromInOut]);
 
   useEffect(() => {
+    if (hideToolbarButtons.includes('mark-in') && hideToolbarButtons.includes('mark-out')) return;
     const handleKeyDown = (e) => {
       if (e.target?.closest?.('input, textarea, [contenteditable="true"]')) return;
       const key = e.key;
-      if (key === 'i' || key === 'I') {
+      if (!hideToolbarButtons.includes('mark-in') && (key === 'i' || key === 'I')) {
         e.preventDefault();
         handleMarkIn();
         return;
       }
-      if (key === 'o' || key === 'O') {
+      if (!hideToolbarButtons.includes('mark-out') && (key === 'o' || key === 'O')) {
         e.preventDefault();
         handleMarkOut();
         return;
@@ -795,7 +798,7 @@ function PlaybackModule({
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [handleMarkIn, handleMarkOut]);
+  }, [handleMarkIn, handleMarkOut, hideToolbarButtons]);
 
   // Delete/Backspace → Clear selected highlight on timeline
   useEffect(() => {
@@ -1012,7 +1015,11 @@ function PlaybackModule({
         <div className="playback-module__toolbar" role="toolbar" aria-label="Playback controls">
           <div className="playback-module__toolbar-spacer playback-module__toolbar-spacer--left" aria-hidden="true" />
           <div className="playback-module__toolbar-controls">
-            {TOOLBAR_BUTTONS.filter((b) => !b.editableOnly || editableTimeline).map(({ id, icon, label, tooltip }) => {
+            {TOOLBAR_BUTTONS.filter((b) => {
+              if (hideToolbarButtons.includes(b.id)) return false;
+              if (b.editableOnly && !editableTimeline) return false;
+              return true;
+            }).map(({ id, icon, label, tooltip }) => {
               const isUndo = id === 'undo';
               const isRedo = id === 'redo';
               const isDisabled = (isUndo && !canUndo) || (isRedo && !canRedo);
