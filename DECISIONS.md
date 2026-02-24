@@ -4,6 +4,21 @@ This file captures **case-study-worthy** decisions: major scope cuts, platform b
 
 ---
 
+## Decision: Single story-context text box + duration-driven highlight constraints
+- **Date:** 2026-02-24
+- **Context:** Context Brief modal had three text areas (Story, Style, Instructions); desired video length was a native select with limited options; Skip did not trigger AI or show loading.
+- **Options considered:**
+  - A) Keep three fields; add Skip-to-loading
+  - B) Consolidate to one story-context text box; Dropdown for duration; both Skip and Create go to loading
+- **Decision:** **Option B** — One textarea for Story Context (story, pace, style, instructions); DropDown component with 15s→45s→1min→2min→3min→4min→5min→5 min+; Skip passes empty context and selected duration to AI; Create passes user context. Duration drives derived constraints (max_highlights_per_clip, max_highlight_duration_sec) and prompt guidance so shorter targets yield fewer/shorter highlights.
+- **Why (tradeoffs):**
+  - Pros: Simpler UX; duration selection has real impact on output; Skip and Create both useful; DropDown matches design system.
+  - Cons: Less structured separation of story vs style vs instructions; single field may encourage dumping all context.
+- **Impact on MVP:** GenerateSelectsModal: one textarea + DropDown; ImportMedia: Skip calls generateSelects with empty storyContext; main.js and aiService: single storyContext param; aiService derives duration-based constraints and adds duration-aware prompt guidance.
+- **Follow-ups:** None.
+
+---
+
 ## Decision: Undo/redo for timeline, transcript, and highlight actions
 - **Date:** 2026-02-24
 - **Context:** Users need to undo and redo actions (add/remove highlights, accept, delete, speaker labels, mark in/out, split, trim) across the Interview Selects and Timeline Review screens.

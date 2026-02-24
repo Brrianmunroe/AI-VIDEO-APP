@@ -517,8 +517,6 @@ ipcMain.handle('ai:generateSelects', async (event, payload) => {
     const result = await aiService.generateSelectsForProject({
       projectId,
       storyContext: payload?.storyContext ?? '',
-      styleContext: payload?.styleContext ?? '',
-      userInstructions: payload?.userInstructions ?? '',
       desiredDurationSec: payload?.desiredDurationSec ?? 120,
       onProgress,
     });

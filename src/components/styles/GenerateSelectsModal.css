@@ -7,7 +7,7 @@
 
 .modal-body--scrollable {
   overflow-y: auto;
-  flex: 1;
+  flex: 0 1 auto;
   min-height: 0;
   padding-top: var(--spacing-md);
 }

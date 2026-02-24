@@ -179,21 +179,53 @@ const HIGHLIGHTS_RESPONSE_FORMAT = {
 };
 
 /**
+ * Derive max_highlights_per_clip and max_highlight_duration_sec from desired duration.
+ * Shorter targets -> fewer, shorter highlights. Longer targets -> more, longer allowed.
+ */
+function getDurationConstraints(desiredDurationSec) {
+  const sec = Math.max(15, Math.min(600, Number(desiredDurationSec) || 120));
+  if (sec <= 60) {
+    return { maxHighlightsPerClip: 4, maxHighlightDurationSec: 20 };
+  }
+  if (sec <= 180) {
+    return { maxHighlightsPerClip: 6, maxHighlightDurationSec: 40 };
+  }
+  if (sec <= 300) {
+    return { maxHighlightsPerClip: 8, maxHighlightDurationSec: 60 };
+  }
+  return { maxHighlightsPerClip: 10, maxHighlightDurationSec: 60 };
+}
+
+/**
+ * Get duration-aware prompt guidance for the LLM.
+ */
+function getDurationGuidance(desiredDurationSec) {
+  const sec = Math.max(15, Math.min(600, Number(desiredDurationSec) || 120));
+  if (sec <= 60) {
+    return 'For this short target (15–60 sec), select only the strongest 2–4 moments per clip, each 5–15 seconds. Be highly selective.';
+  }
+  if (sec <= 180) {
+    return 'For this medium target (1–3 min), aim for 4–6 highlights per clip, typically 15–30 seconds each. Prioritize the best material.';
+  }
+  if (sec <= 300) {
+    return 'For this longer target (4–5 min), include more moments per clip (6–8), allowing highlights up to 45–60 seconds where the content warrants it.';
+  }
+  return 'For 5+ minutes, select generously—up to 10 highlights per clip, allowing longer clips (20–60 sec) for full thoughts and anecdotes.';
+}
+
+/**
  * Generate selects for a project using the LLM.
  * @param {{
  *   projectId: number,
  *   storyContext: string,
- *   styleContext: string,
- *   userInstructions?: string,
- *   desiredDurationSec?: number
+ *   desiredDurationSec?: number,
+ *   onProgress?: function
  * }} options
  * @returns {Promise<{ success: boolean, summary?: { clipsWithHighlights: number, totalRanges: number }, error?: string }>}
  */
 export async function generateSelectsForProject({
   projectId,
   storyContext,
-  styleContext,
-  userInstructions = '',
   desiredDurationSec = 120,
   onProgress,
 }) {
@@ -234,15 +266,19 @@ export async function generateSelectsForProject({
   }
   report(1, 'preparing', 35, 'Preparing transcripts');
 
+  const desiredSec = Math.max(15, Math.min(600, Number(desiredDurationSec) || 120));
+  const { maxHighlightsPerClip, maxHighlightDurationSec } = getDurationConstraints(desiredDurationSec);
+  const durationGuidance = getDurationGuidance(desiredDurationSec);
+
   const userPayload = {
     project_context: {
       story_context: (storyContext || '').trim() || 'General interview; select the best moments.',
-      style_context: (styleContext || '').trim() || 'Standard pace; clear and concise.',
-      user_instructions: (userInstructions || '').trim() || '',
-      desired_video_duration_sec: Math.max(15, Math.min(600, Number(desiredDurationSec) || 120)),
-      max_highlights_per_clip: 10,
+      style_context: 'Standard pace; clear and concise.',
+      user_instructions: '',
+      desired_video_duration_sec: desiredSec,
+      max_highlights_per_clip: maxHighlightsPerClip,
       min_highlight_duration_sec: 1,
-      max_highlight_duration_sec: 60,
+      max_highlight_duration_sec: maxHighlightDurationSec,
     },
     clips,
     output_schema: {
@@ -277,7 +313,7 @@ export async function generateSelectsForProject({
   };
 
   const instructions =
-    'Using the information above, produce selects. Use desired_video_duration_sec as a guide for total content—prioritize the strongest story-relevant moments. in/out must be in seconds from clip start, within each clip durationSec. For EVERY range you must include: "reason" (one short sentence why this moment was selected) and "suggestions" (how to use it, e.g. "Good for intro; Strong quote for social"). Example range: {"in": 5.2, "out": 18.4, "reason": "Clear explanation of product pricing.", "suggestions": "Good for intro; Use in pricing section."}. Return ONLY a JSON object with a "highlights" array. No Markdown, no comments.';
+    `${durationGuidance} Using the information above, produce selects. Respect max_highlights_per_clip and max_highlight_duration_sec—they vary by desired video length. Prioritize the strongest story-relevant moments. in/out must be in seconds from clip start, within each clip durationSec. For EVERY range you must include: "reason" (one short sentence why this moment was selected) and "suggestions" (how to use it, e.g. "Good for intro; Strong quote for social"). Example range: {"in": 5.2, "out": 18.4, "reason": "Clear explanation of product pricing.", "suggestions": "Good for intro; Use in pricing section."}. Return ONLY a JSON object with a "highlights" array. No Markdown, no comments.`;
 
   const userContent = JSON.stringify(userPayload, null, 0) + '\n\n' + instructions;
 

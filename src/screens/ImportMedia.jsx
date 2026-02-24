@@ -135,8 +135,6 @@ function ImportMedia({ project, onBack, onNavigateToTimeline }) {
     const promise = window.electronAPI.ai.generateSelects({
       projectId: project.id,
       storyContext: context.storyContext ?? '',
-      styleContext: context.styleContext ?? '',
-      userInstructions: context.userInstructions ?? '',
       desiredDurationSec: context.desiredDurationSec ?? 120,
     });
     setGenerateSelectsPromise(promise);
@@ -152,10 +150,19 @@ function ImportMedia({ project, onBack, onNavigateToTimeline }) {
     setGenerateSelectsPromise(null);
   };
 
-  const handleSkipGenerateSelects = () => {
-    console.log('Skipped context brief - using default AI behavior');
+  const handleSkipGenerateSelects = (context = {}) => {
+    if (!project || !window.electronAPI?.ai?.generateSelects) {
+      console.error('AI generateSelects not available');
+      return;
+    }
     setIsGenerateSelectsModalOpen(false);
-    // TODO: Call AI without context (default cutting behavior)
+    const promise = window.electronAPI.ai.generateSelects({
+      projectId: project.id,
+      storyContext: '',
+      desiredDurationSec: context.desiredDurationSec ?? 120,
+    });
+    setGenerateSelectsPromise(promise);
+    setShowGenerateSelectsLoading(true);
   };
 
   if (loading) {
