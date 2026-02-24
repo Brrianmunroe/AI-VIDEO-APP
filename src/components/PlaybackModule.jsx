@@ -14,7 +14,7 @@ const MIN_LABEL_SPACING_PX = 80;
 const NICE_INTERVALS_FRAMES = [12, 24, 120, 240, 720, 1440];
 
 const TOOLBAR_BUTTONS = [
-  { id: 'back', icon: 'back', label: 'Back', tooltip: 'Previous clip' },
+  { id: 'back', icon: 'back', label: 'Back', tooltip: 'Previous clip (⌘←)' },
   { id: 'undo', icon: 'undo', label: 'Undo', tooltip: 'Undo' },
   { id: 'mark-in', icon: 'mark-in', label: 'Mark In', tooltip: 'Mark In' },
   { id: 'play', icon: 'play', label: 'Play', tooltip: 'Play' },
@@ -102,6 +102,7 @@ function PlaybackModule({
   onAddHighlightFromInOut,
   onHighlightInOutChange,
   onRemoveHighlight,
+  onPreviousClip,
   editableTimeline = false,
   onSegmentTrim,
   mediaDurationById = {},
@@ -667,6 +668,20 @@ function PlaybackModule({
     [handleTogglePlay]
   );
 
+  // Cmd/Ctrl + Left Arrow → Previous clip (Interview Selects; document-level so it works when focus is elsewhere)
+  useEffect(() => {
+    if (typeof onPreviousClip !== 'function') return;
+    const handleKeyDown = (e) => {
+      if (e.target.closest('input, textarea, [contenteditable="true"]')) return;
+      if ((e.metaKey || e.ctrlKey) && e.key === 'ArrowLeft') {
+        e.preventDefault();
+        onPreviousClip();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onPreviousClip]);
+
   const handleToolbarClick = (id) => {
     if (id === 'play') {
       if (isControlled && onPlayStateChange) {
@@ -721,6 +736,10 @@ function PlaybackModule({
       return;
     }
     if (id === 'back') {
+      if (typeof onPreviousClip === 'function') {
+        onPreviousClip();
+        return;
+      }
       if (effectiveSegment != null && isControlled && onSeek) {
         onSeek(segmentStartSec);
       } else if (editableTimeline && currentSequenceSegment) {

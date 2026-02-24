@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import ProjectHeader from '../components/ProjectHeader';
 import TranscriptPanel from '../components/TranscriptPanel';
 import PlaybackModule from '../components/PlaybackModule';
@@ -496,6 +496,33 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
 
   const selectedClip = selectsList.find((s) => s.id === selectedSelectId);
   const videoUrl = selectedSelectId ? `media://local/${selectedSelectId}` : null;
+
+  /** Ordered list of highlight rows (one per highlight; one per clip when 0 highlights) for prev/next navigation */
+  const orderedHighlightRows = useMemo(() => {
+    const rows = [];
+    const visible = selectsList.filter((s) => s?.id != null && s.status !== 'deleted');
+    visible.forEach((s) => {
+      const highlights = Array.isArray(s.highlights) ? s.highlights : [];
+      if (highlights.length === 0) {
+        rows.push({
+          clipId: s.id,
+          highlightId: null,
+          in: 0,
+          out: Math.max(0, Number(s.duration) || 0),
+        });
+      } else {
+        highlights.forEach((h) => {
+          rows.push({
+            clipId: s.id,
+            highlightId: h.id,
+            in: Number(h.in) || 0,
+            out: Number(h.out) || 0,
+          });
+        });
+      }
+    });
+    return rows;
+  }, [selectsList]);
   const rawDuration = selectedClip?.duration != null ? selectedClip.duration : 0;
   const durationSec = Number.isFinite(Number(rawDuration))
     ? Math.max(0, Math.min(86400, Number(rawDuration)))
@@ -511,6 +538,35 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
     setSelectedHighlightId(highlightId ?? null);
     setCurrentTimeSec(seekToSec);
   }, []);
+
+  const handlePreviousClip = useCallback(() => {
+    if (orderedHighlightRows.length === 0 || !selectedSelectId) return;
+
+    const t = Number(currentTimeSec);
+    const clipRows = orderedHighlightRows.filter((r) => r.clipId === selectedSelectId);
+    if (clipRows.length === 0) return;
+
+    const inside = orderedHighlightRows.find(
+      (r) => r.clipId === selectedSelectId && r.highlightId != null && t >= r.in && t < r.out
+    );
+    let currentIdx;
+    if (inside) {
+      currentIdx = orderedHighlightRows.indexOf(inside);
+    } else {
+      const nextOnClip = clipRows.find((r) => r.in > t);
+      if (nextOnClip) {
+        currentIdx = orderedHighlightRows.indexOf(nextOnClip);
+      } else {
+        currentIdx = orderedHighlightRows.indexOf(clipRows[clipRows.length - 1]) + 1;
+      }
+    }
+
+    const prevIdx = currentIdx - 1;
+    if (prevIdx < 0) return;
+
+    const target = orderedHighlightRows[prevIdx];
+    handleSelectClipAndSeek(target.clipId, target.in, target.highlightId ?? undefined);
+  }, [orderedHighlightRows, selectedSelectId, currentTimeSec, handleSelectClipAndSeek]);
 
   // When playhead moves within the selected clip, sync selection to the highlight at that time
   useEffect(() => {
@@ -674,6 +730,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
             onAddHighlightFromInOut={handleAddHighlightFromInOut}
             onHighlightInOutChange={handleHighlightInOutChange}
             onRemoveHighlight={handleRemoveHighlight}
+            onPreviousClip={orderedHighlightRows.length > 0 ? handlePreviousClip : undefined}
             showFullClipTimeline
           />
         </div>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import Icon from './Icon';
 import Button from './Button';
 import HighlightContainer from './HighlightContainer';
@@ -195,6 +195,7 @@ function TranscriptPanel({
   const [editingSpeakerValue, setEditingSpeakerValue] = useState('');
   const [editingLineIndex, setEditingLineIndex] = useState(null);
   const activeLineRef = useRef(null);
+  const selectedRowRef = useRef(null);
   const transcriptContentRef = useRef(null);
   const [draggingHandle, setDraggingHandle] = useState(null);
   const [deletingHighlightIds, setDeletingHighlightIds] = useState(new Set());
@@ -237,12 +238,23 @@ function TranscriptPanel({
     return idx;
   }, [transcriptList, currentTime]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (activeTab !== 'transcript') return;
-    if (activeLineIndex >= 0 && activeLineRef.current) {
-      activeLineRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }
-  }, [activeTab, activeLineIndex]);
+    if (activeLineIndex < 0 || !activeLineRef.current) return;
+    const el = activeLineRef.current;
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
+  }, [activeTab, activeLineIndex, currentTime]);
+
+  useLayoutEffect(() => {
+    if (activeTab !== 'interview') return;
+    if (!selectedRowRef.current) return;
+    const el = selectedRowRef.current;
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
+  }, [activeTab, selectedSelectId, selectedHighlightId]);
 
   const HIGHLIGHT_DELETE_ANIMATION_MS = 280;
 
@@ -426,9 +438,13 @@ function TranscriptPanel({
                   <div className="transcript-panel__selects-list">
                     {visibleHighlightRows.map((row) => {
                       const isDeleting = row.highlightId != null && deletingHighlightIds.has(row.highlightId);
+                      const isSelected =
+                        selectedSelectId === row.clipId &&
+                        (row.highlightId == null ? selectedHighlightId == null : selectedHighlightId === row.highlightId);
                       return (
                         <div
                           key={row.highlightId != null ? `${row.clipId}-${row.highlightId}` : `${row.clipId}-no-highlights`}
+                          ref={isSelected ? selectedRowRef : undefined}
                           className={`transcript-panel__highlight-row${isDeleting ? ' transcript-panel__highlight-row--deleting' : ''}`}
                         >
                           <HighlightContainer
@@ -438,12 +454,7 @@ function TranscriptPanel({
                             highlightOrdinal={row.ordinal > 0 ? row.ordinal : undefined}
                             status={row.status}
                             isDeleting={isDeleting}
-                            selected={
-                              selectedSelectId === row.clipId &&
-                              (row.highlightId == null
-                                ? selectedHighlightId == null
-                                : selectedHighlightId === row.highlightId)
-                            }
+                            selected={isSelected}
                             onClick={() => {
                               if (typeof onSelectClipAndSeek === 'function') {
                                 onSelectClipAndSeek(row.clipId, row.in, row.highlightId);
