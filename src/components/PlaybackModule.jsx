@@ -15,9 +15,10 @@ const NICE_INTERVALS_FRAMES = [12, 24, 120, 240, 720, 1440];
 
 const TOOLBAR_BUTTONS = [
   { id: 'back', icon: 'back', label: 'Back', tooltip: 'Previous clip (⌘←)' },
-  { id: 'undo', icon: 'undo', label: 'Undo', tooltip: 'Undo' },
-  { id: 'mark-in', icon: 'mark-in', label: 'Mark In', tooltip: 'Mark In' },
+  { id: 'undo', icon: 'undo', label: 'Undo', tooltip: 'Undo (⌘Z)' },
+  { id: 'redo', icon: 'redo', label: 'Redo', tooltip: 'Redo (⌘⇧Z)' },
   { id: 'play', icon: 'play', label: 'Play', tooltip: 'Play' },
+  { id: 'mark-in', icon: 'mark-in', label: 'Mark In', tooltip: 'Mark In' },
   { id: 'mark-out', icon: 'mark-out', label: 'Mark Out', tooltip: 'Mark Out' },
   { id: 'split', icon: 'vertical', label: 'Split', tooltip: 'Split at playhead', editableOnly: true },
   { id: 'clear-in', icon: 'clear-selection', label: 'Clear In', tooltip: 'Clear selection' },
@@ -101,10 +102,14 @@ function PlaybackModule({
   highlightRanges: highlightRangesProp = [],
   onAddHighlightFromInOut,
   onHighlightInOutChange,
+  onHighlightDragStart,
+  onHighlightDragEnd,
   onRemoveHighlight,
   onPreviousClip,
   editableTimeline = false,
   onSegmentTrim,
+  onSegmentTrimDragStart,
+  onSegmentTrimDragEnd,
   mediaDurationById = {},
   selectedSegmentId,
   onSelectSegment,
@@ -112,6 +117,10 @@ function PlaybackModule({
   onDeleteSegment,
   showFullClipTimeline = false,
   preloadedWaveformByMediaId = {},
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
 }) {
   const highlightRanges = Array.isArray(highlightRangesProp) ? highlightRangesProp : [];
   const isControlled = videoUrl != null && typeof onSeek === 'function';
@@ -338,14 +347,17 @@ function PlaybackModule({
         if (newOut <= safeDurationSec) onHighlightInOutChange(highlightId, { out: newOut });
       }
     };
-    const handleUp = () => setDraggingHighlight(null);
+    const handleUp = () => {
+      onHighlightDragEnd?.();
+      setDraggingHighlight(null);
+    };
     document.addEventListener('mousemove', handleMove);
     document.addEventListener('mouseup', handleUp);
     return () => {
       document.removeEventListener('mousemove', handleMove);
       document.removeEventListener('mouseup', handleUp);
     };
-  }, [draggingHighlight, highlightRanges, getFrameFromClientX, onHighlightInOutChange, safeDurationSec, useFullTimeline, effectiveSegment, segmentStartSec, segmentEndSec]);
+  }, [draggingHighlight, highlightRanges, getFrameFromClientX, onHighlightInOutChange, onHighlightDragEnd, safeDurationSec, useFullTimeline, effectiveSegment, segmentStartSec, segmentEndSec]);
 
   useEffect(() => {
     if (!draggingSegmentHandle || typeof onSegmentTrim !== 'function') return;
@@ -369,14 +381,17 @@ function PlaybackModule({
         onSegmentTrim(segmentId, { sourceInSec: startSourceIn, sourceOutSec: newOut });
       }
     };
-    const handleUp = () => setDraggingSegmentHandle(null);
+    const handleUp = () => {
+      onSegmentTrimDragEnd?.();
+      setDraggingSegmentHandle(null);
+    };
     document.addEventListener('mousemove', handleMove);
     document.addEventListener('mouseup', handleUp);
     return () => {
       document.removeEventListener('mousemove', handleMove);
       document.removeEventListener('mouseup', handleUp);
     };
-  }, [draggingSegmentHandle, videoClips, mediaDurationById, getFrameFromClientX, onSegmentTrim]);
+  }, [draggingSegmentHandle, videoClips, mediaDurationById, getFrameFromClientX, onSegmentTrim, onSegmentTrimDragEnd]);
 
   // When showing segment-only view, keep playhead inside the segment (e.g. on load or when switching highlight)
   useEffect(() => {
@@ -682,7 +697,36 @@ function PlaybackModule({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [onPreviousClip]);
 
+  // Cmd/Ctrl + Z → Undo; Cmd/Ctrl + Shift + Z → Redo (skip when focus is in editable field)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.target?.closest?.('input, textarea, [contenteditable="true"]')) return;
+      if (!(e.metaKey || e.ctrlKey) || e.key !== 'z' && e.key !== 'Z') return;
+      if (e.shiftKey) {
+        if (typeof onRedo === 'function' && canRedo) {
+          e.preventDefault();
+          onRedo();
+        }
+      } else {
+        if (typeof onUndo === 'function' && canUndo) {
+          e.preventDefault();
+          onUndo();
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onUndo, onRedo, canUndo, canRedo]);
+
   const handleToolbarClick = (id) => {
+    if (id === 'undo') {
+      if (typeof onUndo === 'function') onUndo();
+      return;
+    }
+    if (id === 'redo') {
+      if (typeof onRedo === 'function') onRedo();
+      return;
+    }
     if (id === 'play') {
       if (isControlled && onPlayStateChange) {
         if (!isPlayingState && playbackRangeSec) {
@@ -887,25 +931,31 @@ function PlaybackModule({
         <div className="playback-module__toolbar" role="toolbar" aria-label="Playback controls">
           <div className="playback-module__toolbar-spacer playback-module__toolbar-spacer--left" aria-hidden="true" />
           <div className="playback-module__toolbar-controls">
-            {TOOLBAR_BUTTONS.filter((b) => !b.editableOnly || editableTimeline).map(({ id, icon, label, tooltip }) => (
-              <div key={id} className="playback-module__toolbar-btn-wrap">
-                <span className="playback-module__toolbar-tooltip" role="tooltip">
-                  {tooltip}
-                </span>
-                <button
-                  type="button"
-                  className="playback-module__toolbar-btn"
-                  onClick={() => handleToolbarClick(id)}
-                  aria-label={label}
-                >
-                  <Icon
-                    type={icon}
-                    size="md"
-                    state={id === 'play' && isPlayingState ? 'selected' : 'primary'}
-                  />
-                </button>
-              </div>
-            ))}
+            {TOOLBAR_BUTTONS.filter((b) => !b.editableOnly || editableTimeline).map(({ id, icon, label, tooltip }) => {
+              const isUndo = id === 'undo';
+              const isRedo = id === 'redo';
+              const isDisabled = (isUndo && !canUndo) || (isRedo && !canRedo);
+              return (
+                <div key={id} className="playback-module__toolbar-btn-wrap">
+                  <span className="playback-module__toolbar-tooltip" role="tooltip">
+                    {tooltip}
+                  </span>
+                  <button
+                    type="button"
+                    className="playback-module__toolbar-btn"
+                    onClick={() => handleToolbarClick(id)}
+                    aria-label={label}
+                    disabled={isDisabled}
+                  >
+                    <Icon
+                      type={icon}
+                      size="md"
+                      state={id === 'play' && isPlayingState ? 'selected' : isDisabled ? 'disabled' : 'primary'}
+                    />
+                  </button>
+                </div>
+              );
+            })}
           </div>
           <div className="playback-module__toolbar-extra">
             {toolbarExtra}
@@ -977,6 +1027,7 @@ function PlaybackModule({
                             onMouseDown={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
+                              onSegmentTrimDragStart?.();
                               setDraggingSegmentHandle({
                                 segmentId: clip.id,
                                 side: 'in',
@@ -992,6 +1043,7 @@ function PlaybackModule({
                             onMouseDown={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
+                              onSegmentTrimDragStart?.();
                               setDraggingSegmentHandle({
                                 segmentId: clip.id,
                                 side: 'out',
@@ -1083,6 +1135,7 @@ function PlaybackModule({
                       onMouseDown={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        onHighlightDragStart?.();
                         setDraggingHighlight({ highlightId: region.id, side: 'in' });
                       }}
                     />
@@ -1095,6 +1148,7 @@ function PlaybackModule({
                       onMouseDown={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        onHighlightDragStart?.();
                         setDraggingHighlight({ highlightId: region.id, side: 'out' });
                       }}
                     />

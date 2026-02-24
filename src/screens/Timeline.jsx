@@ -85,6 +85,11 @@ function wordsToLines(words) {
 const LINE_GAP_THRESHOLD_SEC = 0.5;
 /** Max words per line when there's no punctuation or long pause (phrase-length chunks). */
 const MAX_WORDS_PER_LINE = 14;
+const UNDO_MAX_HISTORY = 50;
+
+function deepClone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
 
 /** True if word (after trim) ends with sentence-ending punctuation. */
 function wordEndsSentence(word) {
@@ -161,8 +166,62 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
   const transcriptionInProgressRef = useRef(false);
   const persistHighlightsTimeoutRef = useRef(null);
   const selectAndSeekRef = useRef(null);
+  const undoStackRef = useRef([]);
+  const redoStackRef = useRef([]);
+  const isDraggingHighlightRef = useRef(false);
+  const [, setUndoRedoVersion] = useState(0);
 
   const selectsList = Array.isArray(selects) ? selects : [];
+
+  const pushUndo = useCallback(() => {
+    const snapshot = { selects: deepClone(selects), speakerLabels: deepClone(speakerLabels) };
+    undoStackRef.current = [...undoStackRef.current.slice(-(UNDO_MAX_HISTORY - 1)), snapshot];
+    redoStackRef.current = [];
+    setUndoRedoVersion((v) => v + 1);
+  }, [selects, speakerLabels]);
+
+  const persistRestoredState = useCallback((restoredSelects, restoredSpeakerLabels) => {
+    if (window.electronAPI?.media?.updateHighlights) {
+      restoredSelects.forEach((s) => {
+        const h = Array.isArray(s.highlights) ? s.highlights : [];
+        window.electronAPI.media.updateHighlights(s.id, h).catch(() => {});
+      });
+    }
+    if (selectedSelectId && window.electronAPI?.transcription?.updateSpeakerLabels && typeof restoredSpeakerLabels === 'object') {
+      window.electronAPI.transcription.updateSpeakerLabels(selectedSelectId, restoredSpeakerLabels).catch(() => {});
+    }
+  }, [selectedSelectId]);
+
+  const handleUndo = useCallback(() => {
+    if (undoStackRef.current.length === 0) return;
+    const prev = undoStackRef.current.pop();
+    redoStackRef.current = [...redoStackRef.current, { selects: deepClone(selects), speakerLabels: deepClone(speakerLabels) }];
+    setSelects(prev.selects);
+    setSpeakerLabels(prev.speakerLabels || {});
+    if (persistHighlightsTimeoutRef.current) {
+      clearTimeout(persistHighlightsTimeoutRef.current);
+      persistHighlightsTimeoutRef.current = null;
+    }
+    persistRestoredState(prev.selects, prev.speakerLabels);
+    setUndoRedoVersion((v) => v + 1);
+  }, [selects, speakerLabels, persistRestoredState]);
+
+  const handleRedo = useCallback(() => {
+    if (redoStackRef.current.length === 0) return;
+    const next = redoStackRef.current.pop();
+    undoStackRef.current = [...undoStackRef.current, { selects: deepClone(selects), speakerLabels: deepClone(speakerLabels) }];
+    setSelects(next.selects);
+    setSpeakerLabels(next.speakerLabels || {});
+    if (persistHighlightsTimeoutRef.current) {
+      clearTimeout(persistHighlightsTimeoutRef.current);
+      persistHighlightsTimeoutRef.current = null;
+    }
+    persistRestoredState(next.selects, next.speakerLabels);
+    setUndoRedoVersion((v) => v + 1);
+  }, [selects, speakerLabels, persistRestoredState]);
+
+  const canUndo = undoStackRef.current.length > 0;
+  const canRedo = redoStackRef.current.length > 0;
 
   useEffect(() => {
     selectedSelectIdRef.current = selectedSelectId;
@@ -210,6 +269,9 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
         const valid = data.filter((m) => m != null && m.id != null);
         const mapped = valid.map(mediaToSelect).filter(Boolean);
         setSelects(mapped);
+        undoStackRef.current = [];
+        redoStackRef.current = [];
+        setUndoRedoVersion((v) => v + 1);
       } catch (err) {
         console.error('Failed to load project media:', err);
         if (!cancelled) setSelects([]);
@@ -311,7 +373,8 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
       });
   }, [project?.id]);
 
-  const updateSelectHighlights = useCallback((mediaId, nextHighlights) => {
+  const updateSelectHighlights = useCallback((mediaId, nextHighlights, options = {}) => {
+    if (!options.skipUndo) pushUndo();
     let normalized = [];
     setSelects((prev) =>
       prev.map((s) => {
@@ -335,10 +398,11 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
         window.electronAPI.media.updateHighlights(mediaId, normalized).catch(() => {});
       }, 500);
     }
-  }, []);
+  }, [pushUndo]);
 
   const handleAccept = useCallback(
     (clipId, highlightId) => {
+      pushUndo();
       if (clipId == null) {
         // Accept all pending clips (and all their highlights)
         const toAccept = selectsList.filter((s) => s.status === 'pending');
@@ -366,7 +430,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
         const next = current.map((h) =>
           h.id === highlightId ? { ...h, status: 'accepted' } : h
         );
-        updateSelectHighlights(clipId, next);
+        updateSelectHighlights(clipId, next, { skipUndo: true });
         return;
       }
       // Accept the selected clip (whole clip: clip status + all its highlights)
@@ -387,16 +451,17 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
         window.electronAPI.media.updateHighlights(clipId, nextHighlights).catch(() => {});
       }
     },
-    [selectsList, updateSelectHighlights]
+    [selectsList, updateSelectHighlights, pushUndo]
   );
 
   const handleDelete = useCallback((clipId) => {
+    pushUndo();
     setSelects((prev) =>
       prev.map((s) => (s.id === clipId ? { ...s, status: 'deleted' } : s))
     );
     setSelectedSelectId((id) => (id === clipId ? null : id));
     setSelectedHighlightId(null);
-  }, []);
+  }, [pushUndo]);
 
   const handleAddHighlightFromInOut = useCallback(
     (inSec, outSec) => {
@@ -424,13 +489,22 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
     [selectedSelectId, selectsList, updateSelectHighlights]
   );
 
+  const handleHighlightDragStart = useCallback(() => {
+    pushUndo();
+    isDraggingHighlightRef.current = true;
+  }, [pushUndo]);
+
+  const handleHighlightDragEnd = useCallback(() => {
+    isDraggingHighlightRef.current = false;
+  }, []);
+
   const handleHighlightInOutChange = useCallback(
     (highlightId, patch) => {
       if (selectedSelectId == null) return;
       const clip = selectsList.find((s) => s.id === selectedSelectId);
       const current = Array.isArray(clip?.highlights) ? clip.highlights : [];
       const next = current.map((h) => (h.id === highlightId ? { ...h, ...patch } : h));
-      updateSelectHighlights(selectedSelectId, next);
+      updateSelectHighlights(selectedSelectId, next, { skipUndo: isDraggingHighlightRef.current });
     },
     [selectedSelectId, selectsList, updateSelectHighlights]
   );
@@ -590,6 +664,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
 
   const handleSpeakerLabelChange = useCallback((mediaId, nextLabels) => {
     if (mediaId == null || typeof nextLabels !== 'object') return;
+    pushUndo();
     setSpeakerLabels((prev) => {
       const merged = { ...prev, ...nextLabels };
       window.electronAPI?.transcription?.updateSpeakerLabels?.(mediaId, merged).then((res) => {
@@ -597,7 +672,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
       }).catch(() => {});
       return merged;
     });
-  }, []);
+  }, [pushUndo]);
 
   const handleSelectInfo = useCallback((row) => {
     if (row?.highlightId != null) {
@@ -712,6 +787,8 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
             onSeek={handleSeek}
             highlights={selectedClip?.highlights ?? []}
             onHighlightsChange={updateSelectHighlights}
+            onHighlightDragStart={handleHighlightDragStart}
+            onHighlightDragEnd={handleHighlightDragEnd}
             onAddHighlightFromSelection={handleAddHighlightFromInOut}
           />
         </div>
@@ -729,9 +806,15 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
             highlightRanges={selectedClip?.highlights ?? []}
             onAddHighlightFromInOut={handleAddHighlightFromInOut}
             onHighlightInOutChange={handleHighlightInOutChange}
+            onHighlightDragStart={handleHighlightDragStart}
+            onHighlightDragEnd={handleHighlightDragEnd}
             onRemoveHighlight={handleRemoveHighlight}
             onPreviousClip={orderedHighlightRows.length > 0 ? handlePreviousClip : undefined}
             showFullClipTimeline
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            canUndo={canUndo}
+            canRedo={canRedo}
           />
         </div>
       </div>

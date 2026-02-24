@@ -4,6 +4,21 @@ This file captures **case-study-worthy** decisions: major scope cuts, platform b
 
 ---
 
+## Decision: Undo/redo for timeline, transcript, and highlight actions
+- **Date:** 2026-02-24
+- **Context:** Users need to undo and redo actions (add/remove highlights, accept, delete, speaker labels, mark in/out, split, trim) across the Interview Selects and Timeline Review screens.
+- **Options considered:**
+  - A) Command pattern with explicit undo/redo ops per action type
+  - B) Snapshot-based: store full state before each action; restore on undo/redo
+- **Decision:** **Option B** — Snapshot-based with 50-step history. Each screen maintains its own undo/redo stacks. Timeline snapshots include `{ selects, speakerLabels }`; TimelineReview snapshots include `segments`. On restore, persist to DB (highlights, speaker labels).
+- **Why (tradeoffs):**
+  - Pros: Simple to add new actions (just push before mutate); works for any state shape; single undo/redo flow.
+  - Cons: Larger memory per snapshot; deep clone on each action. 50-step cap keeps it bounded.
+- **Impact on MVP:** PlaybackModule toolbar has Undo/Redo buttons (Cmd+Z / Cmd+Shift+Z); redo icon is flipped undo. Timeline and TimelineReview integrate undo/redo. All timeline, transcript, and highlight-container actions are undoable.
+- **Follow-ups:** None.
+
+---
+
 ## Decision: Speaker identification via Deepgram with local fallback
 - **Date:** 2026-02-23
 - **Context:** Users want speaker labels (Speaker 1, Speaker 2, etc.) on transcript lines and the ability to rename speakers (e.g. Speaker 2 → Ryan) with propagation to all lines.

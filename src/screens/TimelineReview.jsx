@@ -1,8 +1,9 @@
-import React, { useMemo, useCallback, useState, useEffect } from 'react';
+import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react';
 import ProjectHeader from '../components/ProjectHeader';
 import PlaybackModule from '../components/PlaybackModule';
 import Button from '../components/Button';
 import ExportTimelineModal from '../components/ExportTimelineModal';
+import { useUndoRedo } from '../hooks/useUndoRedo';
 import './styles/TimelineReview.css';
 
 const FPS = 24;
@@ -60,11 +61,12 @@ function TimelineReview({ project, onBack, acceptedClips = [] }) {
     [acceptedClips]
   );
 
-  const [segments, setSegments] = useState([]);
+  const { state: segments, setState, setStateWithUndo: setSegmentsWithUndo, undo, redo, reset, canUndo, canRedo } = useUndoRedo(initial.videoClips, 50);
+  const isSegmentTrimDraggingRef = useRef(false);
 
   useEffect(() => {
-    setSegments(initial.videoClips);
-  }, [acceptedClips]);
+    reset(initial.videoClips);
+  }, [acceptedClips, initial.videoClips, reset]);
 
   const { segments: rippledSegments, durationFrames } = useMemo(
     () => applyRipple(segments),
@@ -105,21 +107,34 @@ function TimelineReview({ project, onBack, acceptedClips = [] }) {
     return () => { cancelled = true; };
   }, [uniqueMediaIds.join(',')]);
 
+  const handleSegmentTrimDragStart = useCallback(() => {
+    setSegmentsWithUndo((prev) => prev);
+    isSegmentTrimDraggingRef.current = true;
+  }, [setSegmentsWithUndo]);
+
+  const handleSegmentTrimDragEnd = useCallback(() => {
+    isSegmentTrimDraggingRef.current = false;
+  }, []);
+
   const handleSegmentTrim = useCallback((segmentId, { sourceInSec, sourceOutSec }) => {
-    setSegments((prev) =>
+    const updater = (prev) =>
       prev.map((seg) =>
         seg.id === segmentId
           ? { ...seg, sourceInSec, sourceOutSec }
           : seg
-      )
-    );
-  }, []);
+      );
+    if (isSegmentTrimDraggingRef.current) {
+      setState(updater);
+    } else {
+      setSegmentsWithUndo(updater);
+    }
+  }, [setState, setSegmentsWithUndo]);
 
   const handleDeleteSegment = useCallback(() => {
     if (!selectedSegmentId) return;
-    setSegments((prev) => prev.filter((seg) => seg.id !== selectedSegmentId));
+    setSegmentsWithUndo((prev) => prev.filter((seg) => seg.id !== selectedSegmentId));
     setSelectedSegmentId(null);
-  }, [selectedSegmentId]);
+  }, [selectedSegmentId, setSegmentsWithUndo]);
 
   useEffect(() => {
     const onKeyDown = (e) => {
@@ -133,25 +148,25 @@ function TimelineReview({ project, onBack, acceptedClips = [] }) {
   }, [selectedSegmentId, handleDeleteSegment]);
 
   const handleSplitAtPlayhead = useCallback((playheadFrame) => {
-    const { segments: withFrames } = applyRipple(segments);
-    const idx = withFrames.findIndex(
-      (seg) =>
-        playheadFrame >= seg.startFrame &&
-        playheadFrame < seg.startFrame + (seg.durationFrames ?? 0)
-    );
-    if (idx < 0) return;
-    const seg = withFrames[idx];
-    const inSec = Number(seg.sourceInSec) || 0;
-    const outSec = Number(seg.sourceOutSec) || 0;
-    const splitOffsetSec = (playheadFrame - seg.startFrame) / FPS;
-    const splitSec = Math.max(inSec, Math.min(outSec - 0.05, inSec + splitOffsetSec));
-    setSegments((prev) => {
+    setSegmentsWithUndo((prev) => {
+      const { segments: withFrames } = applyRipple(prev);
+      const idx = withFrames.findIndex(
+        (seg) =>
+          playheadFrame >= seg.startFrame &&
+          playheadFrame < seg.startFrame + (seg.durationFrames ?? 0)
+      );
+      if (idx < 0) return prev;
+      const seg = withFrames[idx];
+      const inSec = Number(seg.sourceInSec) || 0;
+      const outSec = Number(seg.sourceOutSec) || 0;
+      const splitOffsetSec = (playheadFrame - seg.startFrame) / FPS;
+      const splitSec = Math.max(inSec, Math.min(outSec - 0.05, inSec + splitOffsetSec));
       const raw = prev[idx];
       const segA = { ...raw, sourceOutSec: splitSec };
       const segB = { ...raw, id: `${raw.id}_split_${Date.now()}`, sourceInSec: splitSec };
       return [...prev.slice(0, idx), segA, segB, ...prev.slice(idx + 1)];
     });
-  }, [segments]);
+  }, [setSegmentsWithUndo]);
 
   const handleExportToTimeline = useCallback(() => {
     setExportModalOpen(true);
@@ -229,12 +244,18 @@ function TimelineReview({ project, onBack, acceptedClips = [] }) {
           durationFrames={durationFrames}
           editableTimeline={true}
           onSegmentTrim={handleSegmentTrim}
+          onSegmentTrimDragStart={handleSegmentTrimDragStart}
+          onSegmentTrimDragEnd={handleSegmentTrimDragEnd}
           mediaDurationById={mediaDurationById}
           preloadedWaveformByMediaId={waveformByMediaId}
           selectedSegmentId={selectedSegmentId}
           onSelectSegment={setSelectedSegmentId}
           onSplitAtPlayhead={handleSplitAtPlayhead}
           onDeleteSegment={handleDeleteSegment}
+          onUndo={undo}
+          onRedo={redo}
+          canUndo={canUndo}
+          canRedo={canRedo}
           toolbarExtra={
             <Button variant="primary" onClick={handleExportToTimeline}>
               Export to timeline

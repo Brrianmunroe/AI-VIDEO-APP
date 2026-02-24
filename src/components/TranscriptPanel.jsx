@@ -129,6 +129,8 @@ function TranscriptPanel({
   allDecided = false,
   highlights: highlightsProp = [],
   onHighlightsChange,
+  onHighlightDragStart,
+  onHighlightDragEnd,
   onAddHighlightFromSelection,
 }) {
   const selects = Array.isArray(selectsProp) ? selectsProp : [];
@@ -307,12 +309,12 @@ function TranscriptPanel({
   );
 
   const applyHighlightInOut = useCallback(
-    (highlightId, nextIn, nextOut) => {
+    (highlightId, nextIn, nextOut, options = {}) => {
       if (typeof onHighlightsChange !== 'function' || selectedSelectId == null) return;
       const next = highlights.map((h) =>
         h.id === highlightId ? { ...h, in: nextIn ?? h.in, out: nextOut ?? h.out } : h
       );
-      onHighlightsChange(selectedSelectId, next);
+      onHighlightsChange(selectedSelectId, next, options);
     },
     [highlights, onHighlightsChange, selectedSelectId]
   );
@@ -356,19 +358,22 @@ function TranscriptPanel({
       const tEnd = end != null ? Number(end) : null;
       if (!Number.isFinite(tStart) || !Number.isFinite(tEnd)) return;
       if (draggingHandle.inOrOut === 'in') {
-        applyHighlightInOut(draggingHandle.highlightId, tStart, undefined);
+        applyHighlightInOut(draggingHandle.highlightId, tStart, undefined, { skipUndo: true });
       } else {
-        applyHighlightInOut(draggingHandle.highlightId, undefined, tEnd);
+        applyHighlightInOut(draggingHandle.highlightId, undefined, tEnd, { skipUndo: true });
       }
     };
-    const handleUp = () => setDraggingHandle(null);
+    const handleUp = () => {
+      onHighlightDragEnd?.();
+      setDraggingHandle(null);
+    };
     document.addEventListener('mousemove', handleMove);
     document.addEventListener('mouseup', handleUp);
     return () => {
       document.removeEventListener('mousemove', handleMove);
       document.removeEventListener('mouseup', handleUp);
     };
-  }, [draggingHandle, applyHighlightInOut]);
+  }, [draggingHandle, applyHighlightInOut, onHighlightDragEnd]);
 
   const showNoTranscript = transcriptList.length === 0 && selectedSelectId != null;
   const showSelectClip = selectedSelectId == null;
@@ -564,6 +569,7 @@ function TranscriptPanel({
                                     onMouseDown={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
+                                      onHighlightDragStart?.();
                                       setDraggingHandle({ highlightId: hid, inOrOut: 'in' });
                                     }}
                                   />
@@ -608,6 +614,7 @@ function TranscriptPanel({
                                     onMouseDown={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
+                                      onHighlightDragStart?.();
                                       setDraggingHandle({ highlightId: hid, inOrOut: 'out' });
                                     }}
                                   />
