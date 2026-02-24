@@ -169,8 +169,10 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
   const undoStackRef = useRef([]);
   const redoStackRef = useRef([]);
   const isDraggingHighlightRef = useRef(false);
+  const lastClickedRowIndexRef = useRef(null);
   const [, setUndoRedoVersion] = useState(0);
 
+  const [selectedRowIndices, setSelectedRowIndices] = useState(() => new Set());
   const selectsList = Array.isArray(selects) ? selects : [];
 
   const pushUndo = useCallback(() => {
@@ -454,13 +456,14 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
     [selectsList, updateSelectHighlights, pushUndo]
   );
 
-  const handleDelete = useCallback((clipId) => {
-    pushUndo();
+  const handleDelete = useCallback((clipId, options = {}) => {
+    if (!options.skipUndo) pushUndo();
     setSelects((prev) =>
       prev.map((s) => (s.id === clipId ? { ...s, status: 'deleted' } : s))
     );
     setSelectedSelectId((id) => (id === clipId ? null : id));
     setSelectedHighlightId(null);
+    setSelectedRowIndices(new Set());
   }, [pushUndo]);
 
   const handleAddHighlightFromInOut = useCallback(
@@ -510,13 +513,15 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
   );
 
   const handleRemoveHighlight = useCallback(
-    (highlightId) => {
-      if (selectedSelectId == null) return;
-      const clip = selectsList.find((s) => s.id === selectedSelectId);
+    (highlightId, clipIdOverride) => {
+      const clipId = clipIdOverride ?? selectedSelectId;
+      if (clipId == null) return;
+      const clip = selectsList.find((s) => s.id === clipId);
       const current = Array.isArray(clip?.highlights) ? clip.highlights : [];
       const next = current.filter((h) => h.id !== highlightId);
-      updateSelectHighlights(selectedSelectId, next);
+      updateSelectHighlights(clipId, next);
       setSelectedHighlightId((prev) => (prev === highlightId ? null : prev));
+      setSelectedRowIndices(new Set());
     },
     [selectedSelectId, selectsList, updateSelectHighlights]
   );
@@ -606,26 +611,150 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
     setCurrentTimeSec(seconds);
   }, []);
 
-  const handleSelectClipAndSeek = useCallback((clipId, seekToSec, highlightId) => {
+  const handleSelectClipAndSeek = useCallback((clipId, seekToSec, highlightId, rowIndex) => {
     selectAndSeekRef.current = { clipId, seekTo: seekToSec };
     setSelectedSelectId(clipId);
     setSelectedHighlightId(highlightId ?? null);
     setCurrentTimeSec(seekToSec);
+    if (typeof rowIndex === 'number' && rowIndex >= 0) {
+      setSelectedRowIndices(new Set([rowIndex]));
+      lastClickedRowIndexRef.current = rowIndex;
+    }
   }, []);
+
+  const handleRowClick = useCallback(
+    (row, rowIndex, e) => {
+      const lastIdx = lastClickedRowIndexRef.current;
+      lastClickedRowIndexRef.current = rowIndex;
+
+      let nextIndices;
+      if (e.shiftKey) {
+        const lo = lastIdx != null ? Math.min(lastIdx, rowIndex) : rowIndex;
+        const hi = lastIdx != null ? Math.max(lastIdx, rowIndex) : rowIndex;
+        nextIndices = new Set([...Array(hi - lo + 1)].map((_, i) => lo + i));
+      } else if (e.metaKey || e.ctrlKey) {
+        nextIndices = new Set(selectedRowIndices);
+        if (nextIndices.has(rowIndex)) nextIndices.delete(rowIndex);
+        else nextIndices.add(rowIndex);
+        if (nextIndices.size === 0) nextIndices = new Set([rowIndex]);
+      } else {
+        nextIndices = new Set([rowIndex]);
+      }
+      setSelectedRowIndices(nextIndices);
+
+      selectAndSeekRef.current = { clipId: row.clipId, seekTo: row.in };
+      setSelectedSelectId(row.clipId);
+      setSelectedHighlightId(row.highlightId ?? null);
+      setCurrentTimeSec(row.in);
+    },
+    [selectedRowIndices]
+  );
+
+  const handleAcceptSelection = useCallback(
+    (indices) => {
+      if (!indices || indices.size === 0) return;
+      const rows = [...indices].map((i) => orderedHighlightRows[i]).filter(Boolean);
+      if (rows.length === 0) return;
+      const allAccepted = rows.every((r) => {
+        if (r.highlightId == null) {
+          const clip = selectsList.find((s) => s.id === r.clipId);
+          return clip?.status === 'accepted';
+        }
+        const clip = selectsList.find((s) => s.id === r.clipId);
+        return clip?.highlights?.find((h) => h.id === r.highlightId)?.status === 'accepted';
+      });
+      if (allAccepted) return;
+      pushUndo();
+      const clipIdsToAcceptWhole = new Set(rows.filter((r) => r.highlightId == null).map((r) => r.clipId));
+      const highlightIdsByClip = new Map();
+      rows.forEach((r) => {
+        if (r.highlightId != null && !clipIdsToAcceptWhole.has(r.clipId)) {
+          const set = highlightIdsByClip.get(r.clipId) ?? new Set();
+          set.add(r.highlightId);
+          highlightIdsByClip.set(r.clipId, set);
+        }
+      });
+      const nextSelects = selectsList.map((s) => {
+        if (clipIdsToAcceptWhole.has(s.id)) {
+          const h = Array.isArray(s.highlights) ? s.highlights : [];
+          const nextH = h.length > 0 ? h.map((x) => ({ ...x, status: 'accepted' })) : h;
+          return { ...s, status: 'accepted', highlights: nextH };
+        }
+        const toAccept = highlightIdsByClip.get(s.id);
+        if (!toAccept?.size) return s;
+        const current = Array.isArray(s.highlights) ? s.highlights : [];
+        const next = current.map((h) => (toAccept.has(h.id) ? { ...h, status: 'accepted' } : h));
+        return { ...s, highlights: next };
+      });
+      setSelects(nextSelects);
+      nextSelects.forEach((clip) => {
+        if (!clip?.id) return;
+        const toPersist = Array.isArray(clip.highlights) ? clip.highlights : [];
+        if (toPersist.length > 0 || clipIdsToAcceptWhole.has(clip.id)) {
+          window.electronAPI?.media?.updateHighlights(clip.id, toPersist).catch(() => {});
+        }
+      });
+    },
+    [orderedHighlightRows, selectsList, pushUndo]
+  );
+
+  const handleDeleteSelection = useCallback(
+    (indices) => {
+      if (!indices || indices.size === 0) return;
+      const rows = [...indices].map((i) => orderedHighlightRows[i]).filter(Boolean);
+      if (rows.length === 0) return;
+      pushUndo();
+      const clipIdsToDelete = new Set(rows.filter((r) => r.highlightId == null).map((r) => r.clipId));
+      const highlightsToRemoveByClip = new Map();
+      rows.forEach((r) => {
+        if (r.highlightId != null && !clipIdsToDelete.has(r.clipId)) {
+          const set = highlightsToRemoveByClip.get(r.clipId) ?? new Set();
+          set.add(r.highlightId);
+          highlightsToRemoveByClip.set(r.clipId, set);
+        }
+      });
+      const nextSelects = selectsList.map((s) => {
+        if (clipIdsToDelete.has(s.id)) return { ...s, status: 'deleted' };
+        const toRemove = highlightsToRemoveByClip.get(s.id);
+        if (!toRemove?.size) return s;
+        const current = Array.isArray(s.highlights) ? s.highlights : [];
+        const next = current.filter((h) => !toRemove.has(h.id));
+        return { ...s, highlights: next, highlightCount: next.length };
+      });
+      setSelects(nextSelects);
+      clipIdsToDelete.forEach((clipId) => {
+        setSelectedSelectId((id) => (id === clipId ? null : id));
+      });
+      setSelectedHighlightId(null);
+      setSelectedRowIndices(new Set());
+      nextSelects.forEach((s) => {
+        if (s.status === 'deleted' || !s.id) return;
+        const toPersist = Array.isArray(s.highlights) ? s.highlights : [];
+        if (window.electronAPI?.media?.updateHighlights) {
+          window.electronAPI.media.updateHighlights(s.id, toPersist).catch(() => {});
+        }
+      });
+    },
+    [orderedHighlightRows, selectsList, pushUndo]
+  );
 
   // Auto-select first highlight when landing on Interview Selects (selects just loaded, nothing selected)
   useEffect(() => {
     if (orderedHighlightRows.length === 0 || selectedSelectId != null) return;
     const first = orderedHighlightRows[0];
-    handleSelectClipAndSeek(first.clipId, first.in, first.highlightId ?? undefined);
+    handleSelectClipAndSeek(first.clipId, first.in, first.highlightId ?? undefined, 0);
   }, [orderedHighlightRows, selectedSelectId, handleSelectClipAndSeek]);
 
-  // Command+Enter / Ctrl+Enter to accept selected highlight
+  // Command+Enter / Ctrl+Enter to accept selected highlight(s)
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!(e.metaKey || e.ctrlKey) || e.key !== 'Enter') return;
       if (e.target?.closest?.('input, textarea, [contenteditable="true"]')) return;
       e.preventDefault();
+      if (selectedRowIndices.size >= 1) {
+        handleAcceptSelection(selectedRowIndices);
+        return;
+      }
       if (selectedSelectId == null) return;
       const clip = selectsList.find((s) => s.id === selectedSelectId);
       const status =
@@ -637,7 +766,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedSelectId, selectedHighlightId, selectsList, handleAccept]);
+  }, [selectedSelectId, selectedHighlightId, selectsList, handleAccept, selectedRowIndices, handleAcceptSelection]);
 
   const handlePreviousClip = useCallback(() => {
     if (orderedHighlightRows.length === 0 || !selectedSelectId) return;
@@ -665,7 +794,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
     if (prevIdx < 0) return;
 
     const target = orderedHighlightRows[prevIdx];
-    handleSelectClipAndSeek(target.clipId, target.in, target.highlightId ?? undefined);
+    handleSelectClipAndSeek(target.clipId, target.in, target.highlightId ?? undefined, prevIdx);
   }, [orderedHighlightRows, selectedSelectId, currentTimeSec, handleSelectClipAndSeek]);
 
   const handleNextClip = useCallback(() => {
@@ -694,7 +823,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
     if (nextIdx >= orderedHighlightRows.length) return;
 
     const target = orderedHighlightRows[nextIdx];
-    handleSelectClipAndSeek(target.clipId, target.in, target.highlightId ?? undefined);
+    handleSelectClipAndSeek(target.clipId, target.in, target.highlightId ?? undefined, nextIdx);
   }, [orderedHighlightRows, selectedSelectId, currentTimeSec, handleSelectClipAndSeek]);
 
   // When playhead moves within the selected clip, sync selection to the highlight at that time
@@ -824,12 +953,16 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
             selects={selectsList}
             selectedSelectId={selectedSelectId}
             selectedHighlightId={selectedHighlightId}
+            selectedRowIndices={selectedRowIndices}
             onSelectClip={setSelectedSelectId}
             onSelectClipAndSeek={handleSelectClipAndSeek}
+            onRowClick={handleRowClick}
             onRemoveHighlight={handleRemoveHighlight}
             onSelectInfo={handleSelectInfo}
             onDelete={handleDelete}
             onAccept={handleAccept}
+            onAcceptSelection={handleAcceptSelection}
+            onDeleteSelection={handleDeleteSelection}
             onProceedToReviewTimeline={handleProceedToReviewTimeline}
             allDecided={allDecided}
             transcript={Array.isArray(transcriptLines) ? transcriptLines : []}

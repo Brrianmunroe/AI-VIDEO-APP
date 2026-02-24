@@ -118,13 +118,17 @@ function TranscriptPanel({
   selects: selectsProp = [],
   selectedSelectId,
   selectedHighlightId,
+  selectedRowIndices,
   onSelectClip,
   onSelectClipAndSeek,
+  onRowClick,
   onRemoveHighlight,
   onSelectInfo,
   className = '',
   onDelete,
   onAccept,
+  onAcceptSelection,
+  onDeleteSelection,
   onProceedToReviewTimeline,
   allDecided = false,
   highlights: highlightsProp = [],
@@ -191,6 +195,16 @@ function TranscriptPanel({
     [visibleHighlightRows, selectedSelectId, selectedHighlightId]
   );
   const selectedIsPending = selectedRow ? selectedRow.status === 'pending' : true;
+  const selectedCount = selectedRowIndices?.size ?? 0;
+  const hasMultiSelection = selectedCount > 1;
+  const selectedRowsForIndices = useMemo(() => {
+    if (!hasMultiSelection || !selectedRowIndices) return [];
+    return [...selectedRowIndices].map((i) => visibleHighlightRows[i]).filter(Boolean);
+  }, [hasMultiSelection, selectedRowIndices, visibleHighlightRows]);
+  const hasAnyPendingInSelection = useMemo(() => {
+    if (selectedRowsForIndices.length === 0) return selectedIsPending;
+    return selectedRowsForIndices.some((r) => r.status === 'pending');
+  }, [selectedRowsForIndices, selectedIsPending]);
   const [activeTab, setActiveTab] = useState('interview');
   const [search, setSearch] = useState('');
   const [editingSpeakerId, setEditingSpeakerId] = useState(null);
@@ -446,15 +460,19 @@ function TranscriptPanel({
                   </div>
                 ) : (
                   <div className="transcript-panel__selects-list">
-                    {visibleHighlightRows.map((row) => {
+                    {visibleHighlightRows.map((row, index) => {
                       const isDeleting = row.highlightId != null && deletingHighlightIds.has(row.highlightId);
-                      const isSelected =
+                      const isPrimary =
                         selectedSelectId === row.clipId &&
                         (row.highlightId == null ? selectedHighlightId == null : selectedHighlightId === row.highlightId);
+                      const isSelected =
+                        selectedRowIndices?.size > 0
+                          ? selectedRowIndices.has(index)
+                          : isPrimary;
                       return (
                         <div
                           key={row.highlightId != null ? `${row.clipId}-${row.highlightId}` : `${row.clipId}-no-highlights`}
-                          ref={isSelected ? selectedRowRef : undefined}
+                          ref={isPrimary ? selectedRowRef : undefined}
                           className={`transcript-panel__highlight-row${isDeleting ? ' transcript-panel__highlight-row--deleting' : ''}`}
                         >
                           <HighlightContainer
@@ -465,8 +483,10 @@ function TranscriptPanel({
                             status={row.status}
                             isDeleting={isDeleting}
                             selected={isSelected}
-                            onClick={() => {
-                              if (typeof onSelectClipAndSeek === 'function') {
+                            onClick={(e) => {
+                              if (typeof onRowClick === 'function') {
+                                onRowClick(row, index, e);
+                              } else if (typeof onSelectClipAndSeek === 'function') {
                                 onSelectClipAndSeek(row.clipId, row.in, row.highlightId);
                               } else {
                                 onSelectClip?.(row.clipId);
@@ -772,26 +792,50 @@ function TranscriptPanel({
                 <Button
                   variant="secondary"
                   onClick={() => {
-                    if (selectedHighlightId != null && typeof onRemoveHighlight === 'function') {
+                    if (hasMultiSelection && typeof onDeleteSelection === 'function') {
+                      onDeleteSelection(selectedRowIndices);
+                    } else if (selectedHighlightId != null && typeof onRemoveHighlight === 'function') {
                       handleRequestDeleteHighlight(selectedHighlightId);
                     } else if (selectedSelectId != null && onDelete) {
                       onDelete(selectedSelectId);
                     }
                   }}
-                  disabled={selectedHighlightId != null ? false : !selectedIsPending}
+                  disabled={
+                    selectedCount === 0 && selectedSelectId == null
+                      ? true
+                      : hasMultiSelection
+                        ? false
+                        : selectedHighlightId != null
+                          ? false
+                          : !selectedIsPending
+                  }
                 >
-                  Delete
+                  {hasMultiSelection ? `Delete [${selectedCount}]` : 'Delete'}
                 </Button>
                 <Button
                   variant="primary"
-                  onClick={() => onAccept?.(selectedSelectId ?? null, selectedHighlightId ?? null)}
+                  onClick={() => {
+                    if (hasMultiSelection && typeof onAcceptSelection === 'function') {
+                      onAcceptSelection(selectedRowIndices);
+                    } else {
+                      onAccept?.(selectedSelectId ?? null, selectedHighlightId ?? null);
+                    }
+                  }}
                   disabled={
-                    selectedSelectId != null
-                      ? !selectedIsPending
-                      : false
+                    selectedCount === 0 && selectedSelectId == null
+                      ? true
+                      : hasMultiSelection
+                        ? !hasAnyPendingInSelection
+                        : selectedSelectId != null
+                          ? !selectedIsPending
+                          : false
                   }
                 >
-                  {selectedHighlightId != null ? 'Accept Highlight' : 'Accept All'}
+                  {hasMultiSelection
+                    ? `Accept Highlight(s) [${selectedCount}]`
+                    : selectedHighlightId != null
+                      ? 'Accept Highlight'
+                      : 'Accept All'}
                 </Button>
               </>
             )}
