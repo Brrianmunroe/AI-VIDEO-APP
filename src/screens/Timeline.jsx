@@ -613,6 +613,32 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
     setCurrentTimeSec(seekToSec);
   }, []);
 
+  // Auto-select first highlight when landing on Interview Selects (selects just loaded, nothing selected)
+  useEffect(() => {
+    if (orderedHighlightRows.length === 0 || selectedSelectId != null) return;
+    const first = orderedHighlightRows[0];
+    handleSelectClipAndSeek(first.clipId, first.in, first.highlightId ?? undefined);
+  }, [orderedHighlightRows, selectedSelectId, handleSelectClipAndSeek]);
+
+  // Command+Enter / Ctrl+Enter to accept selected highlight
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key !== 'Enter') return;
+      if (e.target?.closest?.('input, textarea, [contenteditable="true"]')) return;
+      e.preventDefault();
+      if (selectedSelectId == null) return;
+      const clip = selectsList.find((s) => s.id === selectedSelectId);
+      const status =
+        selectedHighlightId != null
+          ? clip?.highlights?.find((h) => h.id === selectedHighlightId)?.status
+          : clip?.status;
+      if (status === 'accepted') return;
+      handleAccept(selectedSelectId, selectedHighlightId);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedSelectId, selectedHighlightId, selectsList, handleAccept]);
+
   const handlePreviousClip = useCallback(() => {
     if (orderedHighlightRows.length === 0 || !selectedSelectId) return;
 

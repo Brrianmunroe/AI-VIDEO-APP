@@ -197,6 +197,7 @@ function TranscriptPanel({
   const [editingSpeakerValue, setEditingSpeakerValue] = useState('');
   const [editingLineIndex, setEditingLineIndex] = useState(null);
   const activeLineRef = useRef(null);
+  const prevActiveLineIndexRef = useRef(-1);
   const selectedRowRef = useRef(null);
   const transcriptContentRef = useRef(null);
   const [draggingHandle, setDraggingHandle] = useState(null);
@@ -244,8 +245,13 @@ function TranscriptPanel({
     if (activeTab !== 'transcript') return;
     if (activeLineIndex < 0 || !activeLineRef.current) return;
     const el = activeLineRef.current;
+    const isForward = activeLineIndex > prevActiveLineIndexRef.current;
+    prevActiveLineIndexRef.current = activeLineIndex;
     requestAnimationFrame(() => {
-      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      el.scrollIntoView({
+        block: isForward ? 'start' : 'nearest',
+        behavior: 'smooth',
+      });
     });
   }, [activeTab, activeLineIndex, currentTime]);
 
@@ -548,6 +554,7 @@ function TranscriptPanel({
                           const firstWi = r.wordIndices[0];
                           const lastWi = r.wordIndices[r.wordIndices.length - 1];
                           if (r.highlightId) {
+                            const isAccepted = highlights.find((h) => h.id === r.highlightId)?.status === 'accepted';
                             Object.entries(highlightBoundaries).forEach(([hid, b]) => {
                               if (hid !== r.highlightId) return;
                               if (b.first?.lineIdx === i && b.first?.wordIdx === firstWi) {
@@ -560,7 +567,7 @@ function TranscriptPanel({
                                 wordNodes.push(
                                   <span
                                     key={`in-${hid}`}
-                                    className="transcript-panel__handle transcript-panel__handle--in"
+                                    className={`transcript-panel__handle transcript-panel__handle--in${isAccepted ? ' transcript-panel__handle--accepted' : ''}`}
                                     role="slider"
                                     tabIndex={0}
                                     aria-label={`Highlight ${b.ordinal} in point. Drag to adjust.`}
@@ -576,7 +583,10 @@ function TranscriptPanel({
                               }
                             });
                             wordNodes.push(
-                              <span key={`run-${i}-${runIdx}`} className="transcript-panel__highlight-run">
+                              <span
+                                key={`run-${i}-${runIdx}`}
+                                className={`transcript-panel__highlight-run${isAccepted ? ' transcript-panel__highlight-run--accepted' : ''}`}
+                              >
                                 {r.wordIndices.map((wi, idx) => {
                                   const w = words[wi];
                                   const isWordActive =
@@ -605,7 +615,7 @@ function TranscriptPanel({
                                 wordNodes.push(
                                   <span
                                     key={`out-${hid}`}
-                                    className="transcript-panel__handle transcript-panel__handle--out"
+                                    className={`transcript-panel__handle transcript-panel__handle--out${isAccepted ? ' transcript-panel__handle--accepted' : ''}`}
                                     role="slider"
                                     tabIndex={0}
                                     aria-label={`Highlight ${b.ordinal} out point. Drag to adjust.`}

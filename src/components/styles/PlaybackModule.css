@@ -622,6 +622,22 @@
   z-index: 2;
 }
 
+/* Accepted: success green for outline, handles, and 20% opacity fill (white overlay unchanged) */
+.playback-module__highlight-region--accepted {
+  outline: 2px solid var(--color-success-500);
+  outline-offset: -2px;
+  background-color: color-mix(in srgb, var(--color-success-500) 20%, transparent);
+  box-sizing: border-box;
+}
+
+.playback-module__highlight-region--accepted .playback-module__highlight-handle {
+  background-color: var(--color-success-500);
+}
+
+.playback-module__highlight-region--accepted .playback-module__highlight-handle:hover {
+  background-color: var(--color-success-600);
+}
+
 /* Segment-only view: no full-width overlay so ruler/video/waveform stay visible; handles still show at edges */
 .playback-module__highlight-region--segment-mode {
   background-color: transparent;

@@ -917,6 +917,7 @@ function PlaybackModule({
           leftPx: frameToPx(inFrame),
           widthPx: frameToPx(durationFramesRegion),
           ordinal: ord,
+          status: h.status,
         };
       });
     }
@@ -926,6 +927,7 @@ function PlaybackModule({
         leftPx: 0,
         widthPx: contentWidthPx,
         ordinal: 1,
+        status: effectiveSegment.status,
       }];
     }
     if (highlightRanges.length === 0) return [];
@@ -939,6 +941,7 @@ function PlaybackModule({
         leftPx: frameToPx(inFrame),
         widthPx: frameToPx(durationFramesRegion),
         ordinal: ord,
+        status: h.status,
       };
     });
   }, [useFullTimeline, effectiveSegment, highlightRanges, durationFrames, fullDurationFrames, frameToPx, contentWidthPx]);
@@ -1212,7 +1215,7 @@ function PlaybackModule({
                 highlightRegions.map((region) => (
                   <div
                     key={region.id}
-                    className={`playback-module__highlight-region${selectedHighlightId === region.id ? ' playback-module__highlight-region--selected' : ''}${effectiveSegment != null && !useFullTimeline ? ' playback-module__highlight-region--segment-mode' : ''}`}
+                    className={`playback-module__highlight-region${selectedHighlightId === region.id ? ' playback-module__highlight-region--selected' : ''}${region.status === 'accepted' ? ' playback-module__highlight-region--accepted' : ''}${effectiveSegment != null && !useFullTimeline ? ' playback-module__highlight-region--segment-mode' : ''}`}
                     style={{ left: region.leftPx, width: region.widthPx }}
                     data-highlight-id={region.id}
                     aria-label={`Highlight ${region.ordinal}`}

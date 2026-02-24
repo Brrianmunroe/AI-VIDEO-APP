@@ -442,6 +442,18 @@
   white-space: pre-wrap;
 }
 
+.transcript-panel__highlight-run--accepted {
+  background-color: var(--color-success-200);
+}
+
+.transcript-panel__handle--accepted {
+  background-color: var(--color-success-500);
+}
+
+.transcript-panel__handle--accepted:hover {
+  background-color: var(--color-success-600);
+}
+
 /* Ordinal pill (1, 2, 3) at start of each highlight */
 .transcript-panel__ordinal-pill {
   display: inline-flex;
