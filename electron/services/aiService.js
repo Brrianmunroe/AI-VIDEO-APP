@@ -195,14 +195,22 @@ export async function generateSelectsForProject({
   styleContext,
   userInstructions = '',
   desiredDurationSec = 120,
+  onProgress,
 }) {
+  const report = (stepIndex, step, progress, label) => {
+    if (typeof onProgress === 'function') onProgress({ stepIndex, step, progress, label });
+  };
+
   // 1. Ensure transcripts exist
+  report(0, 'transcribing', 5, 'Transcribing audio');
   const transResult = await transcriptionService.runForProject(projectId);
+  report(0, 'transcribing', 25, 'Transcribing audio');
   if (transResult?.errors?.length > 0) {
     console.warn('[aiService] Transcription had errors:', transResult.errors);
   }
 
   // 2. Load media and transcripts
+  report(1, 'preparing', 28, 'Preparing transcripts');
   const mediaList = mediaService.getMediaByProject(projectId);
   const transcripts = transcriptionService.getTranscriptsByProject(projectId);
   const transcriptByMediaId = new Map(transcripts.map((t) => [t.mediaId, t]));
@@ -224,6 +232,7 @@ export async function generateSelectsForProject({
   if (clips.length === 0) {
     return { success: false, error: 'No transcripts available. Run transcription first.' };
   }
+  report(1, 'preparing', 35, 'Preparing transcripts');
 
   const userPayload = {
     project_context: {
@@ -272,6 +281,7 @@ export async function generateSelectsForProject({
 
   const userContent = JSON.stringify(userPayload, null, 0) + '\n\n' + instructions;
 
+  report(2, 'analyzing', 38, 'Analyzing with AI');
   let rawText;
   try {
     rawText = await callLLM({
@@ -285,8 +295,10 @@ export async function generateSelectsForProject({
     console.error('[aiService] LLM call failed:', msg);
     return { success: false, error: msg };
   }
+  report(2, 'analyzing', 85, 'Analyzing with AI');
 
   // 3. Parse and validate response
+  report(3, 'refining', 88, 'Refining selections');
   let parsed;
   try {
     const cleaned = rawText.replace(/^```(?:json)?\s*|\s*```$/g, '').trim();
@@ -299,6 +311,7 @@ export async function generateSelectsForProject({
   const highlightsArr = Array.isArray(parsed?.highlights) ? parsed.highlights : [];
   const mediaById = new Map(mediaList.map((m) => [m.id, m]));
   const segmentsByMediaId = new Map(clips.map((c) => [c.mediaId, c.transcript]));
+  report(3, 'refining', 95, 'Refining selections');
 
   let clipsWithHighlights = 0;
   let totalRanges = 0;
@@ -349,6 +362,7 @@ export async function generateSelectsForProject({
     }
   }
 
+  report(4, 'saving', 100, 'Saving highlights');
   return {
     success: true,
     summary: { clipsWithHighlights, totalRanges },

@@ -64,6 +64,11 @@ try {
   // AI (LLM-generated selects)
   ai: {
     generateSelects: (payload) => ipcRenderer.invoke('ai:generateSelects', payload),
+    onGenerateSelectsProgress: (callback) => {
+      const handler = (_event, payload) => callback(payload);
+      ipcRenderer.on('ai:generateSelects:progress', handler);
+      return () => ipcRenderer.removeListener('ai:generateSelects:progress', handler);
+    },
   },
   });
   console.log('[Preload] electronAPI exposed successfully');

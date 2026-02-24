@@ -511,12 +511,16 @@ ipcMain.handle('ai:generateSelects', async (event, payload) => {
     if (!projectId) {
       return { success: false, error: 'Missing projectId' };
     }
+    const onProgress = (progressPayload) => {
+      event.sender?.send?.('ai:generateSelects:progress', progressPayload);
+    };
     const result = await aiService.generateSelectsForProject({
       projectId,
       storyContext: payload?.storyContext ?? '',
       styleContext: payload?.styleContext ?? '',
       userInstructions: payload?.userInstructions ?? '',
       desiredDurationSec: payload?.desiredDurationSec ?? 120,
+      onProgress,
     });
     return result;
   } catch (err) {
