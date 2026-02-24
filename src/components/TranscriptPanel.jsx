@@ -276,9 +276,8 @@ function TranscriptPanel({
     [onRemoveHighlight]
   );
 
-  // Delete/Backspace: remove selected highlight when on Interview Selects tab
+  // Delete/Backspace: remove selected highlight (works from any tab when a highlight is selected)
   useEffect(() => {
-    if (activeTab !== 'interview') return;
     const handleKeyDown = (e) => {
       if ((e.key !== 'Delete' && e.key !== 'Backspace') || selectedHighlightId == null) return;
       if (e.target?.closest?.('input, textarea, [contenteditable="true"]')) return;
@@ -287,7 +286,7 @@ function TranscriptPanel({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTab, selectedHighlightId, handleRequestDeleteHighlight]);
+  }, [selectedHighlightId, handleRequestDeleteHighlight]);
 
   const handleLineClick = useCallback(
     (line) => {

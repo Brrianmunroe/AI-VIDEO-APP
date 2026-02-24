@@ -21,7 +21,7 @@ const TOOLBAR_BUTTONS = [
   { id: 'mark-in', icon: 'mark-in', label: 'Mark In', tooltip: 'Mark In (I)' },
   { id: 'mark-out', icon: 'mark-out', label: 'Mark Out', tooltip: 'Mark Out (O)' },
   { id: 'split', icon: 'vertical', label: 'Split', tooltip: 'Split at playhead', editableOnly: true },
-  { id: 'clear-in', icon: 'clear-selection', label: 'Clear In', tooltip: 'Clear selection' },
+  { id: 'clear-in', icon: 'clear-selection', label: 'Clear In', tooltip: 'Clear selection (Delete)' },
   { id: 'forward', icon: 'forward', label: 'Next', tooltip: 'Next clip' },
 ];
 
@@ -105,6 +105,8 @@ function PlaybackModule({
   onHighlightDragStart,
   onHighlightDragEnd,
   onRemoveHighlight,
+  onHighlightSelect,
+  selectedHighlightId: selectedHighlightIdProp,
   onPreviousClip,
   editableTimeline = false,
   onSegmentTrim,
@@ -131,7 +133,18 @@ function PlaybackModule({
   const [internalVideoClips] = useState(MOCK_VIDEO_CLIPS);
   const [audioClips] = useState(MOCK_AUDIO_CLIPS);
   const [pixelsPerFrame, setPixelsPerFrame] = useState(DEFAULT_PX_PER_FRAME);
-  const [selectedHighlightId, setSelectedHighlightId] = useState(null);
+  const [internalSelectedHighlightId, setInternalSelectedHighlightId] = useState(null);
+  const selectedHighlightId = selectedHighlightIdProp ?? internalSelectedHighlightId;
+  const setSelectedHighlightId = useCallback(
+    (id) => {
+      if (typeof onHighlightSelect === 'function') {
+        onHighlightSelect(id);
+      } else {
+        setInternalSelectedHighlightId(id);
+      }
+    },
+    [onHighlightSelect]
+  );
   const [draggingHighlight, setDraggingHighlight] = useState(null);
   const [draggingSegmentHandle, setDraggingSegmentHandle] = useState(null);
   const [viewportContentWidthPx, setViewportContentWidthPx] = useState(0);
@@ -768,6 +781,20 @@ function PlaybackModule({
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleMarkIn, handleMarkOut]);
+
+  // Delete/Backspace → Clear selected highlight on timeline
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.target?.closest?.('input, textarea, [contenteditable="true"]')) return;
+      if ((e.key !== 'Delete' && e.key !== 'Backspace') || selectedHighlightId == null) return;
+      if (typeof onRemoveHighlight !== 'function') return;
+      e.preventDefault();
+      onRemoveHighlight(selectedHighlightId);
+      setSelectedHighlightId(null);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedHighlightId, onRemoveHighlight]);
 
   const handleToolbarClick = (id) => {
     if (id === 'undo') {

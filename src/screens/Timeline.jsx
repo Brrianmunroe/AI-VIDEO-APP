@@ -809,6 +809,8 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
             onHighlightDragStart={handleHighlightDragStart}
             onHighlightDragEnd={handleHighlightDragEnd}
             onRemoveHighlight={handleRemoveHighlight}
+            onHighlightSelect={setSelectedHighlightId}
+            selectedHighlightId={selectedHighlightId}
             onPreviousClip={orderedHighlightRows.length > 0 ? handlePreviousClip : undefined}
             showFullClipTimeline
             onUndo={handleUndo}
