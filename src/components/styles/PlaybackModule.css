@@ -232,10 +232,25 @@
 }
 
 /* Scroll content: ruler row (sticky) + strip; both scroll horizontally together */
+/* Z-order (top to bottom): 4=labels+spacer+overlay, 3=playhead, 2=media+notches+timings, 1=blank tracks */
 .playback-module__timeline-scroll-content {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 100%;
+}
+
+/* Spacer overlay: thin band at ruler/track junction so playhead triangle appears underneath */
+.playback-module__timeline-scroll-content::after {
+  content: '';
+  position: absolute;
+  top: calc(var(--timeline-ruler-row-height) - 2px);
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--color-primary-950);
+  z-index: 4;
+  pointer-events: none;
 }
 
 .playback-module__ruler-row {
@@ -244,10 +259,11 @@
   flex-direction: row;
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 2;
   background-color: var(--color-primary-950);
 }
 
+/* Top layer: spacer (ruler left column) */
 .playback-module__ruler-row-spacer {
   flex-shrink: 0;
   width: 64px;
@@ -256,10 +272,12 @@
   background-color: var(--color-primary-950);
   position: sticky;
   left: 0;
-  z-index: 3;
+  z-index: 4;
 }
 
 .playback-module__timeline-strip {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: row;
   flex: 1;
@@ -268,10 +286,11 @@
   overflow: visible;
 }
 
+/* Top layer: Video and Audio track labels */
 .playback-module__timeline-labels {
   position: sticky;
   left: 0;
-  z-index: 2;
+  z-index: 4;
   flex-shrink: 0;
   width: 64px;
   display: flex;
@@ -313,8 +332,10 @@
   cursor: pointer;
 }
 
-/* Ruler: label band, 8px gap, notch band (column) — fixed height to align with left spacer */
+/* Ruler: notches and timings at layer 2 (same as media) */
 .playback-module__timeline-ruler {
+  position: relative;
+  z-index: 2;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -353,13 +374,13 @@
   background-color: var(--color-grey-600);
 }
 
-/* Small notch: short between majors, same positioning for pixel-perfect alignment */
+/* Small notch: between majors; taller so less is cut off by spacer overlay */
 .playback-module__ruler-notch--small {
   position: absolute;
   bottom: 0;
   width: 1px;
   margin-left: -0.5px;
-  height: var(--spacing-xs);
+  height: var(--spacing-sm);
   background-color: var(--color-grey-600);
 }
 
@@ -387,12 +408,15 @@
   z-index: 1;
 }
 
+/* Layer 1: blank tracks */
 .playback-module__timeline-content .playback-module__track {
   flex: 1 1 0;
   min-height: 48px;
   display: flex;
   overflow: visible;
   border-bottom: var(--stroke-width-sm) solid var(--color-border-border-default);
+  position: relative;
+  z-index: 1;
 }
 
 .playback-module__timeline-content .playback-module__track:last-child {
@@ -403,9 +427,11 @@
   display: none;
 }
 
+/* Layer 2: media (clips, waveforms) + notches and timings */
 .playback-module__track-content {
   flex: 1;
   position: relative;
+  z-index: 2;
   min-width: 0;
   min-height: 48px;
   overflow: visible;
@@ -462,13 +488,14 @@
   z-index: 1;
 }
 
+/* z-index: 0 so handles stack behind ruler row (z-index: 1), keeping them under the spacer */
 .playback-module__segment-handle {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 8px;
   cursor: ew-resize;
-  z-index: 2;
+  z-index: 0;
   background-color: var(--color-border-border-focused);
 }
 
@@ -500,12 +527,9 @@
   color: var(--color-text-placeholder);
 }
 
-/* Playhead: white triangle at ruler (points at notch) + vertical line through tracks.
-   Triangle sits above the notch band; its tip aligns with the base of the notches. */
+/* Playhead: triangle + line. Layer 3: below labels/spacer, above media. */
 .playback-module__playhead {
   position: absolute;
-  top: calc(-1 * var(--spacing-sm)); /* Triangle height; pulls playhead up so tip hits notch base */
-  bottom: 0;
   width: var(--spacing-md);
   margin-left: calc(-1 * var(--spacing-md) / 2);
   display: flex;
@@ -513,24 +537,43 @@
   align-items: center;
   pointer-events: auto;
   cursor: ew-resize;
-  z-index: 1;
 }
 
-.playback-module__playhead-triangle {
-  flex-shrink: 0;
-  width: 0;
-  height: 0;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-top: var(--spacing-sm) solid var(--color-grey-0);
+.playback-module__playhead--line {
+  top: 0;
+  bottom: 0;
+  z-index: 3;
 }
 
-/* Playhead line: 1px wide (intentional break from tokens for NLE-standard thin playhead) */
+/* Line: centered so its middle aligns with the triangle point */
 .playback-module__playhead-line {
   flex: 1;
   width: 1px;
   min-height: 4px;
+  margin-left: auto;
+  margin-right: auto;
   background-color: var(--color-grey-0);
+}
+
+.playback-module__playhead--triangle {
+  top: calc(-1 * var(--spacing-sm)); /* Pulls up so tip hits notch base */
+  height: var(--spacing-sm);
+  z-index: 3;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+/* Triangle: 12px wide (6+6), point at bottom center. Centered to align with line. */
+.playback-module__playhead-triangle {
+  flex-shrink: 0;
+  width: 0;
+  height: 0;
+  margin-left: auto;
+  margin-right: auto;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: var(--spacing-sm) solid var(--color-grey-0);
 }
 
 /* In/Out markers and shaded region */
@@ -564,7 +607,7 @@
   bottom: 0;
   background-color: rgba(255, 255, 255, 0.5);
   pointer-events: auto;
-  z-index: 0;
+  z-index: 2;
   display: flex;
   align-items: flex-start;
   padding-top: var(--spacing-xxs);
@@ -576,7 +619,7 @@
 .playback-module__highlight-region--selected {
   outline: 2px solid var(--color-border-border-focused);
   outline-offset: -2px;
-  z-index: 1;
+  z-index: 2;
 }
 
 /* Segment-only view: no full-width overlay so ruler/video/waveform stay visible; handles still show at edges */

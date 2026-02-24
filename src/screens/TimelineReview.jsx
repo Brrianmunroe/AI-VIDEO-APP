@@ -234,6 +234,7 @@ function TimelineReview({ project, onBack, acceptedClips = [] }) {
           selectedSegmentId={selectedSegmentId}
           onSelectSegment={setSelectedSegmentId}
           onSplitAtPlayhead={handleSplitAtPlayhead}
+          onDeleteSegment={handleDeleteSegment}
           toolbarExtra={
             <Button variant="primary" onClick={handleExportToTimeline}>
               Export to timeline

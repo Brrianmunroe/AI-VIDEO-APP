@@ -239,7 +239,7 @@
 .transcript-panel__speaker-chip {
   background: none;
   border: none;
-  padding: var(--spacing-xxs) var(--spacing-xs);
+  padding: var(--spacing-xxs) var(--spacing-xs) var(--spacing-xxs) 0;
   font-family: var(--font-family-label);
   font-size: var(--font-size-label);
   color: var(--color-text-label);
@@ -259,7 +259,7 @@
   background-color: var(--color-surface-page-surface-default);
   border: var(--stroke-width-md) solid var(--color-border-border-focused);
   border-radius: var(--radius-sm);
-  padding: var(--spacing-xxs) var(--spacing-xs);
+  padding: var(--spacing-xxs) var(--spacing-xs) var(--spacing-xxs) 0;
   min-width: 4em;
   outline: none;
 }
@@ -299,6 +299,7 @@
   list-style: none;
   margin: 0;
   padding: 0;
+  padding-inline-start: 0;
 }
 
 .transcript-panel__line {
@@ -320,6 +321,7 @@
   grid-template-rows: auto auto;
   gap: var(--spacing-xxs) var(--spacing-md);
   align-items: baseline;
+  overflow: hidden; /* prevent ordinal/text from overflowing into time column */
 }
 
 /* With speaker: row 1 = speaker, row 2 = time + text */
@@ -375,7 +377,26 @@
 }
 
 .transcript-panel__text {
+  display: block;
+  width: 100%;
   color: var(--color-text-transcript);
+  text-indent: 0;
+  padding-inline-start: 0;
+}
+
+/* When line starts with highlight: prefix stays put, flow wraps and aligns */
+.transcript-panel__text:has(> .transcript-panel__highlight-prefix) {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.transcript-panel__highlight-prefix {
+  flex-shrink: 0;
+}
+
+.transcript-panel__text-flow {
+  flex: 1;
+  min-width: 0;
 }
 
 .transcript-panel__word--active {
@@ -409,12 +430,15 @@
   white-space: pre;
 }
 
-/* Solid highlight run: one continuous background for consecutive highlighted words (no gaps). */
+/* Solid highlight run: one continuous background for consecutive highlighted words (no gaps).
+   Vertical padding only; no horizontal padding so when run wraps to start of a line, second line
+   aligns with margin. Margin-right adds space before following content. */
 .transcript-panel__highlight-run {
   background-color: rgba(255, 255, 255, 0.5);
   color: var(--color-blue-950);
   border-radius: var(--radius-sm);
-  padding: 0 var(--spacing-xxs);
+  padding: var(--spacing-xxs) 0;
+  margin-right: var(--spacing-xxs);
   white-space: pre-wrap;
 }
 

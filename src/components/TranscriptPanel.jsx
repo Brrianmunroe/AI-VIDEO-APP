@@ -507,6 +507,7 @@ function TranscriptPanel({
                           ? line.words
                           : lineToWords(line);
                       const wordNodes = [];
+                      let hasLeadingPill = false;
                       if (words.length === 0) {
                         wordNodes.push(
                           <span key="text" className="transcript-panel__text-inner">
@@ -535,6 +536,7 @@ function TranscriptPanel({
                             Object.entries(highlightBoundaries).forEach(([hid, b]) => {
                               if (hid !== r.highlightId) return;
                               if (b.first?.lineIdx === i && b.first?.wordIdx === firstWi) {
+                                hasLeadingPill = true;
                                 wordNodes.push(
                                   <span key={`ord-${hid}`} className="transcript-panel__ordinal-pill" aria-label={`Highlight ${b.ordinal}`}>
                                     {b.ordinal}
@@ -698,7 +700,19 @@ function TranscriptPanel({
                               {lineTime(line)}
                             </span>
                             <span className="transcript-panel__text">
-                              {wordNodes}
+                              {hasLeadingPill && wordNodes.length >= 2 ? (
+                                <>
+                                  <span className="transcript-panel__highlight-prefix">
+                                    {wordNodes[0]}
+                                    {wordNodes[1]}
+                                  </span>
+                                  <span className="transcript-panel__text-flow">
+                                    {wordNodes.slice(2)}
+                                  </span>
+                                </>
+                              ) : (
+                                wordNodes
+                              )}
                             </span>
                           </div>
                         </li>

@@ -19,6 +19,7 @@ const TOOLBAR_BUTTONS = [
   { id: 'mark-in', icon: 'mark-in', label: 'Mark In', tooltip: 'Mark In' },
   { id: 'play', icon: 'play', label: 'Play', tooltip: 'Play' },
   { id: 'mark-out', icon: 'mark-out', label: 'Mark Out', tooltip: 'Mark Out' },
+  { id: 'split', icon: 'vertical', label: 'Split', tooltip: 'Split at playhead', editableOnly: true },
   { id: 'clear-in', icon: 'clear-selection', label: 'Clear In', tooltip: 'Clear selection' },
   { id: 'forward', icon: 'forward', label: 'Next', tooltip: 'Next clip' },
 ];
@@ -507,18 +508,27 @@ function PlaybackModule({
     return () => video.removeEventListener('timeupdate', onTimeUpdateEvent);
   }, [isControlled, onTimeUpdate]);
 
-  // Scroll timeline viewport to show playhead when currentTimeSec changes (e.g. transcript click, seek)
+  // Scroll timeline viewport to show playhead when playhead moves (controlled: currentTimeSec; editable: playheadFrame)
   useEffect(() => {
-    if (!isControlled || isDraggingRef.current) return;
+    if (isDraggingRef.current) return;
     const viewport = viewportRef.current;
     if (!viewport || viewport.scrollWidth <= viewport.clientWidth) return;
-    const t = Number(currentTimeSec);
-    if (!Number.isFinite(t) || t < 0) return;
-    const pf = useFullTimeline
-      ? Math.max(0, Math.min(durationFrames, Math.round(t * FPS)))
-      : (effectiveSegment != null
-          ? Math.max(0, Math.min(durationFrames, Math.round((t - segmentStartSec) * FPS)))
-          : Math.max(0, Math.min(durationFrames, Math.round(t * FPS))));
+
+    let pf;
+    if (isControlled) {
+      const t = Number(currentTimeSec);
+      if (!Number.isFinite(t) || t < 0) return;
+      pf = useFullTimeline
+        ? Math.max(0, Math.min(durationFrames, Math.round(t * FPS)))
+        : (effectiveSegment != null
+            ? Math.max(0, Math.min(durationFrames, Math.round((t - segmentStartSec) * FPS)))
+            : Math.max(0, Math.min(durationFrames, Math.round(t * FPS))));
+    } else if (editableTimeline) {
+      pf = playheadFrame;
+    } else {
+      return;
+    }
+
     const playheadLeftPx = pf * effectivePixelsPerFrame;
     const playheadScrollX = LABEL_COLUMN_PX + playheadLeftPx;
     const marginPx = 80;
@@ -533,7 +543,9 @@ function PlaybackModule({
     }
   }, [
     isControlled,
+    editableTimeline,
     currentTimeSec,
+    playheadFrame,
     useFullTimeline,
     effectiveSegment,
     segmentStartSec,
@@ -691,7 +703,9 @@ function PlaybackModule({
       return;
     }
     if (id === 'clear-in') {
-      if (selectedHighlightId != null && typeof onRemoveHighlight === 'function') {
+      if (editableTimeline && selectedSegmentId != null && typeof onDeleteSegment === 'function') {
+        onDeleteSegment();
+      } else if (selectedHighlightId != null && typeof onRemoveHighlight === 'function') {
         onRemoveHighlight(selectedHighlightId);
         setSelectedHighlightId(null);
       } else {
@@ -700,9 +714,17 @@ function PlaybackModule({
       }
       return;
     }
+    if (id === 'split') {
+      if (editableTimeline && typeof onSplitAtPlayhead === 'function' && currentSequenceSegment) {
+        onSplitAtPlayhead(playheadFrame);
+      }
+      return;
+    }
     if (id === 'back') {
       if (effectiveSegment != null && isControlled && onSeek) {
         onSeek(segmentStartSec);
+      } else if (editableTimeline && currentSequenceSegment) {
+        setInternalPlayheadFrame(currentSequenceSegment.startFrame);
       } else {
         const targetFrame = inPointFrame != null ? inPointFrame : 0;
         if (isControlled && onSeek) onSeek(targetFrame / FPS);
@@ -713,6 +735,9 @@ function PlaybackModule({
     if (id === 'forward') {
       if (effectiveSegment != null && isControlled && onSeek) {
         onSeek(segmentEndSec);
+      } else if (editableTimeline && currentSequenceSegment) {
+        const segEnd = currentSequenceSegment.startFrame + (currentSequenceSegment.durationFrames ?? 0);
+        setInternalPlayheadFrame(segEnd);
       } else {
         const targetFrame = outPointFrame != null ? outPointFrame : durationFrames;
         if (isControlled && onSeek) onSeek(targetFrame / FPS);
@@ -843,7 +868,7 @@ function PlaybackModule({
         <div className="playback-module__toolbar" role="toolbar" aria-label="Playback controls">
           <div className="playback-module__toolbar-spacer playback-module__toolbar-spacer--left" aria-hidden="true" />
           <div className="playback-module__toolbar-controls">
-            {TOOLBAR_BUTTONS.map(({ id, icon, label, tooltip }) => (
+            {TOOLBAR_BUTTONS.filter((b) => !b.editableOnly || editableTimeline).map(({ id, icon, label, tooltip }) => (
               <div key={id} className="playback-module__toolbar-btn-wrap">
                 <span className="playback-module__toolbar-tooltip" role="tooltip">
                   {tooltip}
@@ -1078,7 +1103,7 @@ function PlaybackModule({
                 />
               )}
               <div
-                className="playback-module__playhead"
+                className="playback-module__playhead playback-module__playhead--line"
                 style={{ left: playheadLeftPx }}
                 onMouseDown={handlePlayheadMouseDown}
                 aria-hidden="true"
@@ -1089,8 +1114,15 @@ function PlaybackModule({
                 aria-label="Playhead"
                 tabIndex={0}
               >
-                <span className="playback-module__playhead-triangle" aria-hidden="true" />
                 <span className="playback-module__playhead-line" aria-hidden="true" />
+              </div>
+              <div
+                className="playback-module__playhead playback-module__playhead--triangle"
+                style={{ left: playheadLeftPx }}
+                onMouseDown={handlePlayheadMouseDown}
+                aria-hidden="true"
+              >
+                <span className="playback-module__playhead-triangle" aria-hidden="true" />
               </div>
             </div>
           </div>
