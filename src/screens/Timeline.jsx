@@ -642,6 +642,35 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
     handleSelectClipAndSeek(target.clipId, target.in, target.highlightId ?? undefined);
   }, [orderedHighlightRows, selectedSelectId, currentTimeSec, handleSelectClipAndSeek]);
 
+  const handleNextClip = useCallback(() => {
+    if (orderedHighlightRows.length === 0 || !selectedSelectId) return;
+
+    const t = Number(currentTimeSec);
+    const clipRows = orderedHighlightRows.filter((r) => r.clipId === selectedSelectId);
+    if (clipRows.length === 0) return;
+
+    const inside = orderedHighlightRows.find(
+      (r) => r.clipId === selectedSelectId && r.highlightId != null && t >= r.in && t < r.out
+    );
+    let currentIdx;
+    if (inside) {
+      currentIdx = orderedHighlightRows.indexOf(inside);
+    } else {
+      const nextOnClip = clipRows.find((r) => r.in > t);
+      if (nextOnClip) {
+        currentIdx = orderedHighlightRows.indexOf(nextOnClip);
+      } else {
+        currentIdx = orderedHighlightRows.indexOf(clipRows[clipRows.length - 1]) + 1;
+      }
+    }
+
+    const nextIdx = currentIdx + 1;
+    if (nextIdx >= orderedHighlightRows.length) return;
+
+    const target = orderedHighlightRows[nextIdx];
+    handleSelectClipAndSeek(target.clipId, target.in, target.highlightId ?? undefined);
+  }, [orderedHighlightRows, selectedSelectId, currentTimeSec, handleSelectClipAndSeek]);
+
   // When playhead moves within the selected clip, sync selection to the highlight at that time
   useEffect(() => {
     if (!selectedClip || !selectedSelectId || currentTimeSec == null) return;
@@ -812,6 +841,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
             onHighlightSelect={setSelectedHighlightId}
             selectedHighlightId={selectedHighlightId}
             onPreviousClip={orderedHighlightRows.length > 0 ? handlePreviousClip : undefined}
+            onNextClip={orderedHighlightRows.length > 0 ? handleNextClip : undefined}
             showFullClipTimeline
             onUndo={handleUndo}
             onRedo={handleRedo}

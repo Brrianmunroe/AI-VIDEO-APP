@@ -22,7 +22,7 @@ const TOOLBAR_BUTTONS = [
   { id: 'mark-out', icon: 'mark-out', label: 'Mark Out', tooltip: 'Mark Out (O)' },
   { id: 'split', icon: 'vertical', label: 'Split', tooltip: 'Split at playhead', editableOnly: true },
   { id: 'clear-in', icon: 'clear-selection', label: 'Clear In', tooltip: 'Clear selection (Delete)' },
-  { id: 'forward', icon: 'forward', label: 'Next', tooltip: 'Next clip' },
+  { id: 'forward', icon: 'forward', label: 'Next', tooltip: 'Next clip (⌘→)' },
 ];
 
 function framesToTimecode(frames, fps = FPS) {
@@ -108,6 +108,7 @@ function PlaybackModule({
   onHighlightSelect,
   selectedHighlightId: selectedHighlightIdProp,
   onPreviousClip,
+  onNextClip,
   editableTimeline = false,
   onSegmentTrim,
   onSegmentTrimDragStart,
@@ -713,6 +714,20 @@ function PlaybackModule({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [onPreviousClip]);
 
+  // Cmd/Ctrl + Right Arrow → Next clip (Interview Selects)
+  useEffect(() => {
+    if (typeof onNextClip !== 'function') return;
+    const handleKeyDown = (e) => {
+      if (e.target.closest('input, textarea, [contenteditable="true"]')) return;
+      if ((e.metaKey || e.ctrlKey) && e.key === 'ArrowRight') {
+        e.preventDefault();
+        onNextClip();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onNextClip]);
+
   // Cmd/Ctrl + Z → Undo; Cmd/Ctrl + Shift + Z → Redo (skip when focus is in editable field)
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -863,7 +878,9 @@ function PlaybackModule({
       return;
     }
     if (id === 'forward') {
-      if (effectiveSegment != null && isControlled && onSeek) {
+      if (typeof onNextClip === 'function') {
+        onNextClip();
+      } else if (effectiveSegment != null && isControlled && onSeek) {
         onSeek(segmentEndSec);
       } else if (editableTimeline && currentSequenceSegment) {
         const segEnd = currentSequenceSegment.startFrame + (currentSequenceSegment.durationFrames ?? 0);
