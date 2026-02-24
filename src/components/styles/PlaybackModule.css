@@ -586,7 +586,7 @@
   margin-left: calc(-1 * var(--stroke-width-md) / 2);
   background-color: var(--color-primary-500);
   pointer-events: none;
-  z-index: 1;
+  z-index: 4;
 }
 
 /* Selection overlay: spans full width (in–out) and full height (notches + video + audio) */
@@ -597,7 +597,7 @@
   background-color: var(--color-primary-200);
   opacity: 0.25;
   pointer-events: none;
-  z-index: 0;
+  z-index: 3;
 }
 
 /* Multiple highlight regions (from per-clip highlights). Consider adding --color-highlight-selection-bg to design-system.json. */

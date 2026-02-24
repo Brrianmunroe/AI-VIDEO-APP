@@ -18,8 +18,8 @@ const TOOLBAR_BUTTONS = [
   { id: 'undo', icon: 'undo', label: 'Undo', tooltip: 'Undo (⌘Z)' },
   { id: 'redo', icon: 'redo', label: 'Redo', tooltip: 'Redo (⌘⇧Z)' },
   { id: 'play', icon: 'play', label: 'Play', tooltip: 'Play' },
-  { id: 'mark-in', icon: 'mark-in', label: 'Mark In', tooltip: 'Mark In' },
-  { id: 'mark-out', icon: 'mark-out', label: 'Mark Out', tooltip: 'Mark Out' },
+  { id: 'mark-in', icon: 'mark-in', label: 'Mark In', tooltip: 'Mark In (I)' },
+  { id: 'mark-out', icon: 'mark-out', label: 'Mark Out', tooltip: 'Mark Out (O)' },
   { id: 'split', icon: 'vertical', label: 'Split', tooltip: 'Split at playhead', editableOnly: true },
   { id: 'clear-in', icon: 'clear-selection', label: 'Clear In', tooltip: 'Clear selection' },
   { id: 'forward', icon: 'forward', label: 'Next', tooltip: 'Next clip' },
@@ -721,6 +721,54 @@ function PlaybackModule({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [onUndo, onRedo, canUndo, canRedo]);
 
+  // I → Mark In; O → Mark Out (document-level hotkeys). Works regardless of order: I then O, or O then I.
+  const handleMarkIn = useCallback(() => {
+    setInPointFrame(playheadFrame);
+    setOutPointFrame((prev) => (prev != null && prev < playheadFrame ? null : prev));
+    if (outPointFrame != null && typeof onAddHighlightFromInOut === 'function') {
+      const inSec = playheadFrame / FPS;
+      const outSec = outPointFrame / FPS;
+      if (outSec > inSec) {
+        onAddHighlightFromInOut(inSec, outSec);
+        setInPointFrame(null);
+        setOutPointFrame(null);
+      }
+    }
+  }, [playheadFrame, outPointFrame, onAddHighlightFromInOut]);
+
+  const handleMarkOut = useCallback(() => {
+    setOutPointFrame(playheadFrame);
+    setInPointFrame((prev) => (prev != null && prev > playheadFrame ? null : prev));
+    if (inPointFrame != null && typeof onAddHighlightFromInOut === 'function') {
+      const inSec = inPointFrame / FPS;
+      const outSec = playheadFrame / FPS;
+      if (outSec > inSec) {
+        onAddHighlightFromInOut(inSec, outSec);
+        setInPointFrame(null);
+        setOutPointFrame(null);
+      }
+    }
+  }, [playheadFrame, inPointFrame, onAddHighlightFromInOut]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.target?.closest?.('input, textarea, [contenteditable="true"]')) return;
+      const key = e.key;
+      if (key === 'i' || key === 'I') {
+        e.preventDefault();
+        handleMarkIn();
+        return;
+      }
+      if (key === 'o' || key === 'O') {
+        e.preventDefault();
+        handleMarkOut();
+        return;
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleMarkIn, handleMarkOut]);
+
   const handleToolbarClick = (id) => {
     if (id === 'undo') {
       if (typeof onUndo === 'function') onUndo();
@@ -746,22 +794,11 @@ function PlaybackModule({
       return;
     }
     if (id === 'mark-in') {
-      setInPointFrame(playheadFrame);
-      if (outPointFrame != null && outPointFrame < playheadFrame) setOutPointFrame(null);
+      handleMarkIn();
       return;
     }
     if (id === 'mark-out') {
-      setOutPointFrame(playheadFrame);
-      if (inPointFrame != null && inPointFrame > playheadFrame) setInPointFrame(null);
-      if (inPointFrame != null && typeof onAddHighlightFromInOut === 'function') {
-        const inSec = inPointFrame / FPS;
-        const outSec = playheadFrame / FPS;
-        if (outSec > inSec) {
-          onAddHighlightFromInOut(inSec, outSec);
-          setInPointFrame(null);
-          setOutPointFrame(null);
-        }
-      }
+      handleMarkOut();
       return;
     }
     if (id === 'clear-in') {
@@ -1154,21 +1191,21 @@ function PlaybackModule({
                     />
                   </div>
                 ))}
-              {highlightRegions.length === 0 && hasInOut && shadeWidthPx != null && shadeLeftPx != null && (
+              {hasInOut && shadeWidthPx != null && shadeLeftPx != null && (
                 <div
                   className="playback-module__inout-shade"
                   style={{ left: shadeLeftPx, width: shadeWidthPx }}
                   aria-hidden="true"
                 />
               )}
-              {highlightRegions.length === 0 && inLeftPx != null && (
+              {inLeftPx != null && (
                 <div
                   className="playback-module__in-marker"
                   style={{ left: inLeftPx }}
                   aria-hidden="true"
                 />
               )}
-              {highlightRegions.length === 0 && outLeftPx != null && (
+              {outLeftPx != null && (
                 <div
                   className="playback-module__out-marker"
                   style={{ left: outLeftPx }}
