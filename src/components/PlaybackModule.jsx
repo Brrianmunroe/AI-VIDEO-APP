@@ -674,14 +674,17 @@ function PlaybackModule({
     }
   }, [isControlled, isPlayingState, onPlayStateChange, onSeek, playbackRangeSec, currentTimeSec]);
 
-  const handlePlayKeyDown = useCallback(
-    (e) => {
+  // Spacebar → Play/pause (document-level so it works without focusing the play button or video)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.target?.closest?.('input, textarea, [contenteditable="true"]')) return;
       if (e.key !== ' ' || e.repeat) return;
       e.preventDefault();
       handleTogglePlay();
-    },
-    [handleTogglePlay]
-  );
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleTogglePlay]);
 
   // Cmd/Ctrl + Left Arrow → Previous clip (Interview Selects; document-level so it works when focus is elsewhere)
   useEffect(() => {
@@ -892,8 +895,6 @@ function PlaybackModule({
       className={`playback-module ${className}`.trim()}
       role="region"
       aria-label="Playback"
-      tabIndex={0}
-      onKeyDown={handlePlayKeyDown}
     >
       <div className="playback-module__player-section">
         <div className="playback-module__player">
@@ -905,9 +906,8 @@ function PlaybackModule({
                 handleTogglePlay();
               }}
               role="button"
-              tabIndex={0}
-              onKeyDown={handlePlayKeyDown}
               aria-label={isPlayingState ? 'Pause' : 'Play'}
+              title={isPlayingState ? 'Pause (Space)' : 'Play (Space)'}
             >
               <video
                 ref={videoRef}
@@ -938,17 +938,17 @@ function PlaybackModule({
               return (
                 <div key={id} className="playback-module__toolbar-btn-wrap">
                   <span className="playback-module__toolbar-tooltip" role="tooltip">
-                    {tooltip}
+                    {id === 'play' ? (isPlayingState ? 'Pause (Space)' : 'Play (Space)') : tooltip}
                   </span>
                   <button
                     type="button"
                     className="playback-module__toolbar-btn"
                     onClick={() => handleToolbarClick(id)}
-                    aria-label={label}
+                    aria-label={id === 'play' ? (isPlayingState ? 'Pause (Space)' : 'Play (Space)') : label}
                     disabled={isDisabled}
                   >
                     <Icon
-                      type={icon}
+                      type={id === 'play' ? (isPlayingState ? 'pause' : 'play') : icon}
                       size="md"
                       state={id === 'play' && isPlayingState ? 'selected' : isDisabled ? 'disabled' : 'primary'}
                     />
