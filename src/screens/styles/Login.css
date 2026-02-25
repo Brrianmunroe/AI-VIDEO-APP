@@ -1,41 +1,41 @@
 /* Login screen — design system tokens only */
 
 .login {
-  min-height: 100%;
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: var(--spacing-xl);
+  box-sizing: border-box;
   background-color: var(--color-surface-page-surface-default);
 }
 
 .login__card {
   width: 100%;
-  max-width: 400px;
-  padding: var(--spacing-2xl);
+  min-width: 280px;
+  max-width: 480px;
+  max-height: calc(100vh - 2 * var(--spacing-xl));
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: var(--spacing-xl);
   background-color: var(--color-surface-page-surface-default);
   border: var(--stroke-width-md) solid var(--color-border-border-default);
   border-radius: var(--radius-md);
 }
 
-.login__title {
+.login__heading {
   font-size: var(--font-size-heading-02);
   font-weight: var(--font-weight-heading-02);
   line-height: var(--line-height-heading-02);
   color: var(--color-text-heading);
-  margin: 0 0 var(--spacing-xs);
-}
-
-.login__subtitle {
-  font-size: var(--font-size-body);
-  color: var(--color-text-placeholder);
-  margin: 0 0 var(--spacing-xl);
+  text-align: center;
+  margin: 0 0 var(--spacing-lg);
 }
 
 .login__form {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
+  gap: var(--spacing-md);
 }
 
 .login__form .text-input {
@@ -58,7 +58,7 @@
 .login__divider {
   display: flex;
   align-items: center;
-  margin: var(--spacing-xl) 0;
+  margin: var(--spacing-lg) 0;
 }
 
 .login__divider::before,

@@ -19,6 +19,21 @@
     "server:start": "cd server && npm start"
   },
   "build": {
+    "directories": {
+      "output": "release"
+    },
+    "icon": "build/icon.png",
+    "mac": {
+      "icon": "build/icon.png",
+      "category": "public.app-category.video"
+    },
+    "files": [
+      "dist",
+      "electron",
+      "package.json",
+      "node_modules",
+      "resources"
+    ],
     "extraResources": [
       {
         "from": "resources/python",

@@ -154,6 +154,9 @@ export async function callLLMViaBackend({ baseUrl, token, modelId, systemPrompt,
       errMsg = errBody || `Server error (${response.status})`;
     }
     if (response.status === 401) {
+      if (errMsg?.toLowerCase?.().includes('invalid')) {
+        throw new Error('Invalid token. The JWT secret in Railway may not match Supabase. In Supabase: Project Settings → API → JWT Settings → copy the JWT Secret (not the anon key). Paste it as SUPABASE_JWT_SECRET in Railway Variables.');
+      }
       throw new Error('Session expired. Please sign in again.');
     }
     throw new Error(errMsg);

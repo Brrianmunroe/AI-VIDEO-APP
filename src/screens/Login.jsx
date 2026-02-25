@@ -46,8 +46,7 @@ export default function Login() {
   return (
     <div className="login">
       <div className="login__card">
-        <h1 className="login__title">AI Video Editing</h1>
-        <p className="login__subtitle">{isSignUp ? 'Create an account' : 'Sign in to continue'}</p>
+        <h2 className="login__heading">{isSignUp ? 'Create an account' : 'Sign in to continue'}</h2>
 
         <form className="login__form" onSubmit={handleSubmit}>
           <TextInput

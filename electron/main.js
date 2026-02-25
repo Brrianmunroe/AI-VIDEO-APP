@@ -98,11 +98,40 @@ function createWindow() {
     // Open DevTools in development
     mainWindow.webContents.openDevTools();
   } else {
-    // In production, load from built files
-    const indexPath = join(__dirname, '../dist/index.html');
-    if (existsSync(indexPath)) {
-      mainWindow.loadFile(indexPath);
-    }
+    // In production, load from built files. Try paths that work when packaged (asar) and when unpacked.
+    // Use process.resourcesPath when packaged (e.g. .../Contents/Resources); avoid existsSync for asar paths.
+    const resourcesPath = process.resourcesPath;
+    const appPath = app.getAppPath();
+    const candidates = [
+      join(resourcesPath, 'app.asar', 'dist', 'index.html'), // packaged (asar) – resourcesPath is Contents/Resources
+      join(appPath, 'dist', 'index.html'),
+      join(__dirname, '..', 'dist', 'index.html'),
+    ];
+    let candidateIndex = 0;
+    const tryNext = () => {
+      if (candidateIndex >= candidates.length) {
+        console.error('[Main] Could not load index.html. Tried:', candidates);
+        mainWindow.loadURL(
+          'data:text/html;charset=utf-8,' +
+            encodeURIComponent(
+              '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Error</title></head><body style="background:#021016;color:#F9FDFF;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><p>App failed to load. Check the console for details.</p></body></html>'
+            )
+        );
+        return;
+      }
+      const indexPath = candidates[candidateIndex++];
+      const onFail = () => {
+        mainWindow.webContents.removeListener('did-finish-load', onSuccess);
+        tryNext();
+      };
+      const onSuccess = () => {
+        mainWindow.webContents.removeListener('did-fail-load', onFail);
+      };
+      mainWindow.webContents.once('did-fail-load', onFail);
+      mainWindow.webContents.once('did-finish-load', onSuccess);
+      mainWindow.loadFile(indexPath).catch(() => tryNext());
+    };
+    tryNext();
   }
 
   // Emitted when the window is closed
