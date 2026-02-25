@@ -118,7 +118,7 @@ function ProjectManagement({ onOpenProject }) {
                 </svg>
               </div>
               <h3 className="card-title">Create New Project</h3>
-              <p className="card-subtitle">Quickly cut Interview and B-Roll selects</p>
+              <p className="card-subtitle">Quickly cut interview Selects</p>
             </div>
           </div>
           
@@ -128,7 +128,7 @@ function ProjectManagement({ onOpenProject }) {
                 <Icon type="upload" size="lg" state="disabled" />
               </div>
               <h3 className="card-title">Upload Footage</h3>
-              <p className="card-subtitle">Start a new video editing project</p>
+              <p className="card-subtitle">Semantic search your footage.</p>
             </div>
             <span className="coming-soon-badge">Coming Soon</span>
           </div>
