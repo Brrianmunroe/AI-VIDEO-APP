@@ -111,3 +111,63 @@ export async function callLLM({ provider = 'openai', modelId, systemPrompt, user
   }
   return text;
 }
+
+/**
+ * Call the LLM via our backend proxy (keys stay on server).
+ * @param {{ baseUrl: string, token: string, modelId?: string, systemPrompt: string, userPayload: string|object, responseFormat?: object }} options
+ * @returns {Promise<string>} Raw response text
+ */
+export async function callLLMViaBackend({ baseUrl, token, modelId, systemPrompt, userPayload, responseFormat }) {
+  const url = `${baseUrl.replace(/\/$/, '')}/api/generate-selects`;
+  const userContent = typeof userPayload === 'string' ? userPayload : JSON.stringify(userPayload, null, 0);
+
+  let response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        modelId,
+        systemPrompt,
+        userContent,
+        responseFormat,
+      }),
+    });
+  } catch (err) {
+    const msg = err?.message || String(err);
+    if (msg.includes('fetch') || msg.includes('ECONNREFUSED') || msg.includes('network') || msg.includes('Failed')) {
+      throw new Error('Cannot connect to the server. Make sure it\'s running (npm run server) or check your connection.');
+    }
+    throw new Error(msg);
+  }
+
+  const errBody = await response.text();
+  if (!response.ok) {
+    let errMsg;
+    try {
+      const parsed = JSON.parse(errBody);
+      errMsg = parsed?.error || response.statusText;
+    } catch (_) {
+      errMsg = errBody || `Server error (${response.status})`;
+    }
+    if (response.status === 401) {
+      throw new Error('Session expired. Please sign in again.');
+    }
+    throw new Error(errMsg);
+  }
+
+  let data;
+  try {
+    data = JSON.parse(errBody);
+  } catch (_) {
+    throw new Error('Invalid response from server');
+  }
+  const text = data?.content;
+  if (text == null) {
+    throw new Error('No response from server. Try again.');
+  }
+  return text;
+}

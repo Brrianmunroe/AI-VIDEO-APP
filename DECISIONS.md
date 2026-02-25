@@ -4,6 +4,37 @@ This file captures **case-study-worthy** decisions: major scope cuts, platform b
 
 ---
 
+## Decision: Backend auth with Supabase + Node.js proxy
+- **Date:** 2026-02-24
+- **Context:** Need to distribute app for user testing without bundling API keys. Users must have access to AI features (Generate Selects, Deepgram transcription) while keys stay secure.
+- **Options considered:**
+  - A) Users bring their own keys (in-app settings)
+  - B) Backend proxy with custom auth (signup, login, password storage)
+  - C) Backend proxy with Supabase Auth (email+password, Google SSO)
+- **Decision:** **Option C** — Supabase Auth for login; our own Node.js backend holds API keys and proxies to OpenAI/Deepgram. Users sign in via email+password or Google; app receives JWT; backend verifies JWT before proxying requests.
+- **Why (tradeoffs):**
+  - Pros: No key bundling; Supabase handles auth complexity (passwords, OAuth); backend stays thin; free tiers for Supabase + Railway.
+  - Cons: Requires hosted backend; dependency on Supabase.
+- **Impact on MVP:** New `server/` folder with Express; auth middleware validates Supabase JWT; Login screen in app; app gated behind auth; token stored and passed to backend when proxy endpoints are called.
+- **Follow-ups:** Add /generate-selects and /transcribe proxy endpoints; switch Electron main process to call backend instead of direct APIs.
+
+---
+
+## Decision: Monorepo, Node.js backend, Railway hosting
+- **Date:** 2026-02-24
+- **Context:** Where does the backend live? What tech? Where to host?
+- **Options considered:**
+  - A) Same repo (`server/`), Node.js, Railway
+  - B) Separate repo, Python, other hosting
+- **Decision:** **Option A** — Backend in `server/` folder; Node.js (matches Electron stack); deploy to Railway (free tier, simple setup).
+- **Why (tradeoffs):**
+  - Pros: One repo; same language; thin proxy doesn't need Python's ML ecosystem; Railway is easy to deploy.
+  - Cons: None for case study scope.
+- **Impact on MVP:** `server/` scaffold; Railway deploy config when ready.
+- **Follow-ups:** Deploy to Railway; add env vars (Supabase JWT secret, OpenAI, Deepgram keys).
+
+---
+
 ## Decision: Single story-context text box + duration-driven highlight constraints
 - **Date:** 2026-02-24
 - **Context:** Context Brief modal had three text areas (Story, Style, Instructions); desired video length was a native select with limited options; Skip did not trigger AI or show loading.

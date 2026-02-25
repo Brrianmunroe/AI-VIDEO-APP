@@ -33,4 +33,19 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.sidebar__signout {
+  background: none;
+  border: none;
+  font-size: var(--font-size-caption);
+  color: var(--color-text-placeholder);
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  transition: color 0.15s ease;
+}
+
+.sidebar__signout:hover {
+  color: var(--color-icon-hover);
 }

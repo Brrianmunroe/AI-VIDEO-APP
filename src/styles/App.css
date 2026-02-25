@@ -7,6 +7,13 @@
   overflow: hidden;
 }
 
+.app--loading .app-main {
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-body);
+  color: var(--color-text-placeholder);
+}
+
 /* Single main content area for all screens — same width and padding so nav looks identical everywhere */
 /* No top padding so breadcrumb/header can sit at the top; screens add their own content padding */
 .app-main {
@@ -23,6 +30,7 @@
 /* Error boundary fallback when a screen throws */
 .app-error-fallback {
   flex: 1;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;

@@ -5,7 +5,7 @@
 
 import * as mediaService from './mediaService.js';
 import * as transcriptionService from './transcriptionService.js';
-import { callLLM } from './llmClient.js';
+import { callLLM, callLLMViaBackend } from './llmClient.js';
 
 const LINE_GAP_THRESHOLD_SEC = 0.5;
 const MAX_WORDS_PER_LINE = 14;
@@ -228,6 +228,8 @@ export async function generateSelectsForProject({
   storyContext,
   desiredDurationSec = 120,
   onProgress,
+  backendUrl,
+  authToken,
 }) {
   const report = (stepIndex, step, progress, label) => {
     if (typeof onProgress === 'function') onProgress({ stepIndex, step, progress, label });
@@ -320,12 +322,22 @@ export async function generateSelectsForProject({
   report(2, 'analyzing', 38, 'Analyzing with AI');
   let rawText;
   try {
-    rawText = await callLLM({
-      provider: 'openai',
-      systemPrompt: SYSTEM_PROMPT,
-      userPayload: userContent,
-      responseFormat: HIGHLIGHTS_RESPONSE_FORMAT,
-    });
+    if (backendUrl?.trim() && authToken?.trim()) {
+      rawText = await callLLMViaBackend({
+        baseUrl: backendUrl.trim(),
+        token: authToken.trim(),
+        systemPrompt: SYSTEM_PROMPT,
+        userPayload: userContent,
+        responseFormat: HIGHLIGHTS_RESPONSE_FORMAT,
+      });
+    } else {
+      rawText = await callLLM({
+        provider: 'openai',
+        systemPrompt: SYSTEM_PROMPT,
+        userPayload: userContent,
+        responseFormat: HIGHLIGHTS_RESPONSE_FORMAT,
+      });
+    }
   } catch (err) {
     const msg = err?.message || String(err);
     console.error('[aiService] LLM call failed:', msg);

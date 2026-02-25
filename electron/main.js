@@ -24,6 +24,9 @@ protocol.registerSchemesAsPrivileged([
 // Keep a global reference of the window object
 let mainWindow;
 
+// Auth token (set by renderer after Supabase login; used when calling backend)
+let authToken = null;
+
 function createWindow() {
   // Create the browser window
   const preloadPath = join(__dirname, 'preload.js');
@@ -253,6 +256,19 @@ app.on('before-quit', () => {
 // IPC handlers
 ipcMain.handle('app:getVersion', () => {
   return app.getVersion();
+});
+
+// Auth IPC handlers (token for backend proxy calls)
+ipcMain.handle('auth:setToken', (_event, token) => {
+  authToken = token;
+});
+
+ipcMain.handle('auth:clearToken', () => {
+  authToken = null;
+});
+
+ipcMain.handle('auth:getToken', () => {
+  return authToken;
 });
 
 // Project IPC handlers
@@ -519,6 +535,8 @@ ipcMain.handle('ai:generateSelects', async (event, payload) => {
       storyContext: payload?.storyContext ?? '',
       desiredDurationSec: payload?.desiredDurationSec ?? 120,
       onProgress,
+      backendUrl: (await import('./config.js')).getApiUrl() || null,
+      authToken: authToken?.trim() || null,
     });
     return result;
   } catch (err) {

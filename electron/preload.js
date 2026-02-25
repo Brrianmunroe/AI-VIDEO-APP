@@ -14,6 +14,13 @@ try {
   contextBridge.exposeInMainWorld('electronAPI', {
   // App info
   getVersion: () => ipcRenderer.invoke('app:getVersion'),
+
+  // Auth (store token for backend calls)
+  auth: {
+    setToken: (token) => ipcRenderer.invoke('auth:setToken', token),
+    clearToken: () => ipcRenderer.invoke('auth:clearToken'),
+    getToken: () => ipcRenderer.invoke('auth:getToken'),
+  },
   
   // Project operations
   projects: {

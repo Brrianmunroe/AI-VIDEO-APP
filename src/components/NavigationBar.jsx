@@ -13,7 +13,7 @@ import './styles/NavigationBar.css';
  * @param {string} activeItem - Currently active nav item id
  * @param {function} onNavigate - Called with nav item id when clicked
  */
-function NavigationBar({ activeItem = 'home', onNavigate }) {
+function NavigationBar({ activeItem = 'home', onNavigate, onSignOut }) {
   const topItems = [
     { id: 'home', label: 'Home' },
     { id: 'projects', label: 'Projects' },
@@ -39,6 +39,16 @@ function NavigationBar({ activeItem = 'home', onNavigate }) {
         ))}
       </div>
       <div className="sidebar__bottom">
+        {onSignOut && (
+          <button
+            type="button"
+            className="sidebar__signout"
+            onClick={onSignOut}
+            title="Sign out"
+          >
+            Sign out
+          </button>
+        )}
         <NavBarButton
           type="settings"
           label="Settings"

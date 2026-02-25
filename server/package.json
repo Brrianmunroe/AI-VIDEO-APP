@@ -1,0 +1,17 @@
+{
+  "name": "ai-video-editing-server",
+  "version": "0.1.0",
+  "description": "Backend API for AI Video Editing app - auth, OpenAI and Deepgram proxy",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2"
+  }
+}

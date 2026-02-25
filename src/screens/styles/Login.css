@@ -1,0 +1,95 @@
+/* Login screen — design system tokens only */
+
+.login {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xl);
+  background-color: var(--color-surface-page-surface-default);
+}
+
+.login__card {
+  width: 100%;
+  max-width: 400px;
+  padding: var(--spacing-2xl);
+  background-color: var(--color-surface-page-surface-default);
+  border: var(--stroke-width-md) solid var(--color-border-border-default);
+  border-radius: var(--radius-md);
+}
+
+.login__title {
+  font-size: var(--font-size-heading-02);
+  font-weight: var(--font-weight-heading-02);
+  line-height: var(--line-height-heading-02);
+  color: var(--color-text-heading);
+  margin: 0 0 var(--spacing-xs);
+}
+
+.login__subtitle {
+  font-size: var(--font-size-body);
+  color: var(--color-text-placeholder);
+  margin: 0 0 var(--spacing-xl);
+}
+
+.login__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.login__form .text-input {
+  margin: 0;
+}
+
+.login__error {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-placeholder);
+  margin: 0;
+  padding: var(--spacing-sm);
+  background-color: color-mix(in srgb, var(--color-primary-950) 30%, transparent);
+  border-radius: var(--radius-sm);
+}
+
+.login__submit {
+  margin-top: var(--spacing-sm);
+}
+
+.login__divider {
+  display: flex;
+  align-items: center;
+  margin: var(--spacing-xl) 0;
+}
+
+.login__divider::before,
+.login__divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background-color: var(--color-border-border-default);
+}
+
+.login__divider span {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-placeholder);
+  padding: 0 var(--spacing-md);
+}
+
+.login__google {
+  width: 100%;
+}
+
+.login__toggle {
+  background: none;
+  border: none;
+  font-size: var(--font-size-caption);
+  color: var(--color-text-action);
+  cursor: pointer;
+  padding: var(--spacing-sm) 0;
+  margin-top: var(--spacing-md);
+  transition: color 0.15s ease;
+}
+
+.login__toggle:hover {
+  color: var(--color-icon-hover);
+}
