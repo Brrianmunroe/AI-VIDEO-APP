@@ -210,21 +210,26 @@
   padding: var(--spacing-md);
 }
 
-/* Footer: separate container underneath transcript (in flex flow) */
+/* Footer: separate container underneath transcript (in flex flow).
+   Padding gives room for focus ring (outline + outline-offset) so it isn't clipped. */
 .transcript-panel__footer {
   flex-shrink: 0;
-  padding: var(--spacing-md) 0 0 0;
+  padding: var(--spacing-md) var(--spacing-sm) var(--spacing-sm);
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
   gap: var(--spacing-md);
   justify-content: flex-end;
-  align-items: flex-start;
+  align-items: stretch;
   background-color: var(--color-blue-950);
+  box-sizing: border-box;
 }
 
 .transcript-panel__footer > * {
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* Single primary button when all clips decided */
@@ -233,8 +238,10 @@
 }
 
 .transcript-panel__footer--single .transcript-panel__continue-btn {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
   width: 100%;
+  max-width: 100%;
 }
 
 /* Inline speaker label (double-click to edit) */
@@ -414,11 +421,6 @@
   background-color: var(--color-surface-secondary-button-surface-hover);
 }
 
-.transcript-panel__word--clickable:focus-visible {
-  outline: 2px solid var(--color-border-border-focused);
-  outline-offset: 2px;
-}
-
 .transcript-panel__text mark {
   background-color: var(--color-primary-400);
   color: var(--color-text-transcript-highlighted);
@@ -499,9 +501,4 @@
 
 .transcript-panel__handle--out {
   margin-right: 0;
-}
-
-.transcript-panel__handle:focus-visible {
-  outline: 2px solid var(--color-border-border-focused);
-  outline-offset: 2px;
 }

@@ -48,7 +48,6 @@
 }
 
 .btn--primary:focus-visible {
-  outline: none;
   border-color: var(--color-border-border-focused);
   border-width: var(--stroke-width-lg);
 }
@@ -71,7 +70,6 @@
 }
 
 .btn--secondary:focus-visible {
-  outline: none;
   border-color: var(--color-border-border-focused);
   border-width: var(--stroke-width-lg);
 }
@@ -93,7 +91,6 @@
 }
 
 .btn--ghost:focus-visible {
-  outline: none;
   border-color: var(--color-border-border-focused);
   border-width: var(--stroke-width-lg);
 }

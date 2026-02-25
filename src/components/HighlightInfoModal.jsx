@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import Icon from './Icon';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import './styles/HighlightInfoModal.css';
 
 const FALLBACK = 'No explanation available for this highlight.';
@@ -11,6 +12,9 @@ const FALLBACK = 'No explanation available for this highlight.';
  * @param {{ clipName?: string, ordinal?: number, reason?: string, suggestions?: string }} highlight
  */
 function HighlightInfoModal({ isOpen, onClose, highlight }) {
+  const containerRef = useRef(null);
+  useFocusTrap(containerRef, isOpen);
+
   if (!isOpen) return null;
 
   const reason = highlight?.reason?.trim() ?? '';
@@ -29,6 +33,7 @@ function HighlightInfoModal({ isOpen, onClose, highlight }) {
         aria-hidden="true"
       />
       <div
+        ref={containerRef}
         className="highlight-info-modal-container"
         role="dialog"
         aria-modal="true"

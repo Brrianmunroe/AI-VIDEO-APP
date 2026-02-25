@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Button from './Button';
 import Icon from './Icon';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import './styles/ExportTimelineModal.css';
 
 const PLATFORMS = [
@@ -12,6 +13,8 @@ const PLATFORMS = [
 function ExportTimelineModal({ isOpen, onClose, onExport, videoClips = [], durationFrames = 0 }) {
   const [selectedPlatform, setSelectedPlatform] = useState('premiere');
   const [isExporting, setIsExporting] = useState(false);
+  const containerRef = useRef(null);
+  useFocusTrap(containerRef, isOpen);
 
   if (!isOpen) return null;
 
@@ -35,6 +38,7 @@ function ExportTimelineModal({ isOpen, onClose, onExport, videoClips = [], durat
     <>
       <div className="export-modal-backdrop" onClick={handleCancel} aria-hidden="true" />
       <div
+        ref={containerRef}
         className="export-modal-container"
         role="dialog"
         aria-modal="true"
@@ -63,10 +67,18 @@ function ExportTimelineModal({ isOpen, onClose, onExport, videoClips = [], durat
             {PLATFORMS.map((platform) => {
               const isSelected = selectedPlatform === platform.id;
               const isDisabled = platform.id !== 'premiere';
+              const handleOptionKeyDown = (e) => {
+                if (platform.id !== 'premiere' || isExporting) return;
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleExport();
+                }
+              };
               return (
                 <label
                   key={platform.id}
                   className={`export-platform-option ${isSelected ? 'export-platform-option--selected' : ''} ${isDisabled ? 'export-platform-option--disabled' : ''}`}
+                  onKeyDown={handleOptionKeyDown}
                 >
                   <input
                     type="radio"

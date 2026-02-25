@@ -45,7 +45,6 @@
   border: var(--stroke-width-md) solid var(--color-border-border-default);
   background-color: var(--color-surface-page-surface-default);
   color: var(--color-text-heading);
-  outline: none;
   transition: border-color 0.15s ease, color 0.15s ease;
   width: 100%;
 }

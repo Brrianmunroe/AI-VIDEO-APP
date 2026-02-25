@@ -17,6 +17,7 @@ import './styles/HighlightContainer.css';
  * @param {boolean} disabled - Whether the item is disabled
  * @param {string} status - 'pending' | 'accepted' (accepted shows "Accepted" in success green)
  * @param {function} onClick - Click handler
+ * @param {function} onFocus - Focus handler (e.g. to select this row when tabbing to it)
  * @param {function} onInfoClick - Click handler for info icon
  * @param {boolean} [showInfoButton=true] - When false, hide the info icon (e.g. for rows with no highlight)
  * @param {boolean} [isDeleting=false] - When true, shows delete animation
@@ -32,6 +33,7 @@ function HighlightContainer({
   status = 'pending',
   isDeleting = false,
   onClick,
+  onFocus,
   onInfoClick,
   showInfoButton = true,
   className = '',
@@ -54,6 +56,7 @@ function HighlightContainer({
     <div
       className={classes}
       onClick={!disabled && !isDeleting ? onClick : undefined}
+      onFocus={onFocus}
       role="button"
       tabIndex={disabled ? -1 : 0}
       aria-disabled={disabled}

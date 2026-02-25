@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Button from './Button';
 import TextInput from './TextInput';
 import DropDown from './DropDown';
 import Icon from './Icon';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import './styles/CreateProjectModal.css';
 
 function CreateProjectModal({ isOpen, onClose, onCreate }) {
   const [projectName, setProjectName] = useState('');
   const [location, setLocation] = useState('');
   const [isSelectingFolder, setIsSelectingFolder] = useState(false);
+  const containerRef = useRef(null);
+  useFocusTrap(containerRef, isOpen);
 
   useEffect(() => {
     // Set default location when modal opens
@@ -80,9 +83,16 @@ function CreateProjectModal({ isOpen, onClose, onCreate }) {
   return (
     <>
       <div className="modal-backdrop" onClick={handleCancel} />
-      <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={containerRef}
+        className="modal-container"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-project-modal-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
-          <h2 className="modal-title">New Project</h2>
+          <h2 id="create-project-modal-title" className="modal-title">New Project</h2>
           <button className="modal-close" onClick={handleCancel} aria-label="Close">
             <Icon type="close" size="sm" state="primary" />
           </button>

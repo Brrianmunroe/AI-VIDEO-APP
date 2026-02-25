@@ -6,6 +6,11 @@
   box-sizing: border-box;
 }
 
+:focus-visible {
+  outline: var(--stroke-width-lg) solid var(--color-border-border-focused);
+  outline-offset: 2px;
+}
+
 body {
   font-family: var(--font-family-body);
   background-color: var(--color-background-primary);

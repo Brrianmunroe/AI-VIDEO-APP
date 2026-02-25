@@ -173,11 +173,6 @@
   color: var(--color-icon-hover);
 }
 
-.playback-module__toolbar-btn:focus-visible {
-  outline: var(--stroke-width-lg) solid var(--color-border-border-focused);
-  outline-offset: var(--spacing-xxs);
-}
-
 .playback-module__toolbar-btn svg {
   width: var(--icon-size-md);
   height: var(--icon-size-md);
@@ -721,11 +716,6 @@
 .playback-module__zoom-btn:hover {
   background-color: var(--color-surface-secondary-button-surface-hover);
   color: var(--color-icon-hover);
-}
-
-.playback-module__zoom-btn:focus-visible {
-  outline: var(--stroke-width-lg) solid var(--color-border-border-focused);
-  outline-offset: var(--spacing-xxs);
 }
 
 .playback-module__zoom-label {

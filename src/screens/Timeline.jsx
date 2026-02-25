@@ -4,6 +4,7 @@ import TranscriptPanel from '../components/TranscriptPanel';
 import PlaybackModule from '../components/PlaybackModule';
 import Button from '../components/Button';
 import HighlightInfoModal from '../components/HighlightInfoModal';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import './styles/Timeline.css';
 
 /** Generate a unique id for a highlight (e.g. for React keys and updates). */
@@ -573,6 +574,10 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
     setShowNoHighlightsModal(false);
   }, []);
 
+  const noHighlightsModalRef = useRef(null);
+  const noHighlightsModalOpen = showNoHighlightsModal && acceptedClipsWithNoHighlights.length > 0;
+  useFocusTrap(noHighlightsModalRef, noHighlightsModalOpen);
+
   const selectedClip = selectsList.find((s) => s.id === selectedSelectId);
   const videoUrl = selectedSelectId ? `media://local/${selectedSelectId}` : null;
 
@@ -894,6 +899,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
             aria-hidden="true"
           />
           <div
+            ref={noHighlightsModalRef}
             className="timeline-no-highlights-modal"
             role="dialog"
             aria-modal="true"

@@ -39,6 +39,12 @@ function NavigationBar({ activeItem = 'home', onNavigate, onSignOut }) {
         ))}
       </div>
       <div className="sidebar__bottom">
+        <NavBarButton
+          type="settings"
+          label="Settings"
+          active={activeItem === 'settings'}
+          onClick={() => handleClick('settings')}
+        />
         {onSignOut && (
           <button
             type="button"
@@ -49,12 +55,6 @@ function NavigationBar({ activeItem = 'home', onNavigate, onSignOut }) {
             Sign out
           </button>
         )}
-        <NavBarButton
-          type="settings"
-          label="Settings"
-          active={activeItem === 'settings'}
-          onClick={() => handleClick('settings')}
-        />
       </div>
     </nav>
   );

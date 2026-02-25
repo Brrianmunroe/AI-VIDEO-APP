@@ -30,6 +30,7 @@ function DropDown({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [optionsStyle, setOptionsStyle] = useState({});
+  const [focusedIndex, setFocusedIndex] = useState(-1);
   const ref = useRef(null);
   const optionsRef = useRef(null);
 
@@ -52,12 +53,25 @@ function DropDown({
     }
   }, [isOpen]);
 
+  // When open, move focus into the list (selected option or first)
+  useEffect(() => {
+    if (!isOpen || !optionsRef.current) return;
+    const opts = optionsRef.current.querySelectorAll('.dropdown__option');
+    const selectedIdx = options.findIndex((o) => o.value === value);
+    const idx = selectedIdx >= 0 ? selectedIdx : 0;
+    setFocusedIndex(idx);
+    opts[idx]?.focus();
+  }, [isOpen, options, value]);
+
   // Close on outside click; account for portal (options may be outside ref)
   useEffect(() => {
     function handleClickOutside(e) {
       const inTrigger = ref.current?.contains(e.target);
       const inOptions = optionsRef.current?.contains(e.target);
-      if (!inTrigger && !inOptions) setIsOpen(false);
+      if (!inTrigger && !inOptions) {
+        setIsOpen(false);
+        ref.current?.querySelector('.dropdown__trigger')?.focus();
+      }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -81,6 +95,42 @@ function DropDown({
   const handleSelect = (optionValue) => {
     onChange?.(optionValue);
     setIsOpen(false);
+    setFocusedIndex(-1);
+    ref.current?.querySelector('.dropdown__trigger')?.focus();
+  };
+
+  const handleOptionKeyDown = (e, optionValue, index) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleSelect(optionValue);
+      return;
+    }
+    if (e.key === 'ArrowDown' && index < options.length - 1) {
+      e.preventDefault();
+      setFocusedIndex(index + 1);
+      optionsRef.current?.querySelectorAll('.dropdown__option')[index + 1]?.focus();
+      return;
+    }
+    if (e.key === 'ArrowUp' && index > 0) {
+      e.preventDefault();
+      setFocusedIndex(index - 1);
+      optionsRef.current?.querySelectorAll('.dropdown__option')[index - 1]?.focus();
+      return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setIsOpen(false);
+      setFocusedIndex(-1);
+      ref.current?.querySelector('.dropdown__trigger')?.focus();
+    }
+  };
+
+  const handleOptionsFocusOut = (e) => {
+    const next = e.relatedTarget;
+    if (next && !optionsRef.current?.contains(next) && !ref.current?.contains(next)) {
+      setIsOpen(false);
+      setFocusedIndex(-1);
+    }
   };
 
   const wrapperClasses = [
@@ -96,14 +146,17 @@ function DropDown({
       className="dropdown__options dropdown__options--portal"
       role="listbox"
       style={optionsStyle}
+      onFocusOut={handleOptionsFocusOut}
     >
-      {options.map((option) => (
+      {options.map((option, index) => (
         <li
           key={option.value}
           className={`dropdown__option ${option.value === value ? 'dropdown__option--selected' : ''}`}
-          onClick={() => handleSelect(option.value)}
           role="option"
+          tabIndex={0}
           aria-selected={option.value === value}
+          onClick={() => handleSelect(option.value)}
+          onKeyDown={(e) => handleOptionKeyDown(e, option.value, index)}
         >
           {option.label}
         </li>

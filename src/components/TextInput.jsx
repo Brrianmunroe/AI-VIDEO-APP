@@ -24,6 +24,7 @@ function TextInput({
   ...rest
 }) {
   const [isFocused, setIsFocused] = useState(false);
+  const id = React.useId();
 
   const wrapperClasses = [
     'text-input',
@@ -34,8 +35,9 @@ function TextInput({
 
   return (
     <div className={wrapperClasses}>
-      {label && <label className="text-input__label">{label}</label>}
+      {label && <label className="text-input__label" htmlFor={id}>{label}</label>}
       <input
+        id={id}
         className="text-input__field"
         type="text"
         placeholder={placeholder}

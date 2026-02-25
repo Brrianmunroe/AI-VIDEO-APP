@@ -98,6 +98,12 @@
   border-color: var(--color-border-border-focused);
 }
 
+/* Visible focus ring on the whole card when the radio inside is focused (radio is visually hidden) */
+.export-platform-option:focus-within:not(.export-platform-option--disabled) {
+  outline: var(--stroke-width-lg) solid var(--color-border-border-focused);
+  outline-offset: 2px;
+}
+
 .export-platform-option--selected {
   border-color: var(--color-border-border-selected);
   background-color: var(--color-surface-secondary-button-surface-hover);

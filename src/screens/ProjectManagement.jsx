@@ -98,7 +98,19 @@ function ProjectManagement({ onOpenProject }) {
     <div className="project-management">
       <div className="project-management-header">
         <div className="action-cards">
-          <div className="action-card create-project" onClick={() => setIsModalOpen(true)}>
+          <div
+            className="action-card create-project"
+            role="button"
+            tabIndex={0}
+            aria-label="Create new project"
+            onClick={() => setIsModalOpen(true)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setIsModalOpen(true);
+              }
+            }}
+          >
             <div className="action-card-content">
               <div className="card-icon" aria-hidden="true">
                 <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -144,7 +156,16 @@ function ProjectManagement({ onOpenProject }) {
                 <tr
                   key={project.id}
                   className="project-row"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Open project ${project.name}`}
                   onClick={() => handleProjectClick(project)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleProjectClick(project);
+                    }
+                  }}
                   onContextMenu={(e) => {
                     e.preventDefault();
                     // Right-click menu could be added here

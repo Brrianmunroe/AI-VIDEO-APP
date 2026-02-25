@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Button from './Button';
 import Icon from './Icon';
 import DropDown from './DropDown';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import './styles/GenerateSelectsModal.css';
 
 const DURATION_OPTIONS = [
@@ -19,6 +20,8 @@ const DURATION_OPTIONS = [
 function GenerateSelectsModal({ isOpen, onClose, onCreate, onSkip }) {
   const [storyContext, setStoryContext] = useState('');
   const [desiredDurationSec, setDesiredDurationSec] = useState(120);
+  const containerRef = useRef(null);
+  useFocusTrap(containerRef, isOpen);
 
   // Reset form when modal closes
   useEffect(() => {
@@ -50,10 +53,17 @@ function GenerateSelectsModal({ isOpen, onClose, onCreate, onSkip }) {
   return (
     <>
       <div className="modal-backdrop" onClick={handleCancel} />
-      <div className="modal-container modal-container--scrollable" onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={containerRef}
+        className="modal-container modal-container--scrollable"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="generate-selects-modal-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
           <div className="modal-header__row">
-            <h2 className="modal-title">Context Brief</h2>
+            <h2 id="generate-selects-modal-title" className="modal-title">Context Brief</h2>
             <button className="modal-close" onClick={handleCancel} aria-label="Close">
               <Icon type="close" size="sm" state="primary" />
             </button>
@@ -65,8 +75,9 @@ function GenerateSelectsModal({ isOpen, onClose, onCreate, onSkip }) {
 
         <div className="modal-body modal-body--scrollable">
           <div className="form-field" onClick={(e) => e.stopPropagation()}>
-            <label className="form-field__label">Story Context</label>
+            <label className="form-field__label" htmlFor="generate-selects-story-context">Story Context</label>
             <textarea
+              id="generate-selects-story-context"
               className="form-field__textarea"
               placeholder="What this piece is about, key messages, pace, style, audience, and any specific instructions..."
               value={storyContext}

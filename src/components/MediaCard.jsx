@@ -104,6 +104,14 @@ function MediaCard({
     onDelete(id);
   };
 
+  const handleCardKeyDown = (e) => {
+    if (disabled || !onClick) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onClick();
+    }
+  };
+
   const classes = [
     'media-card',
     `media-card--${type}`,
@@ -118,10 +126,12 @@ function MediaCard({
     <div className="media-card-wrapper">
       <div
         className={classes}
-        onClick={!disabled ? onClick : undefined}
         role="button"
         tabIndex={disabled ? -1 : 0}
         aria-disabled={disabled}
+        aria-label={type === 'add-media' ? 'Add footage' : undefined}
+        onClick={!disabled ? onClick : undefined}
+        onKeyDown={handleCardKeyDown}
       >
         {/* Video type: shows thumbnail with filmstrip icon + duration (bottom-left icon, bottom-right duration, 12px inset) */}
         {type === 'video' && (

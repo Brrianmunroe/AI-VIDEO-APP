@@ -492,6 +492,15 @@ function TranscriptPanel({
                                 onSelectClip?.(row.clipId);
                               }
                             }}
+                            onFocus={() => {
+                              if (typeof onRowClick === 'function') {
+                                onRowClick(row, index, { type: 'focus' });
+                              } else if (typeof onSelectClipAndSeek === 'function') {
+                                onSelectClipAndSeek(row.clipId, row.in, row.highlightId);
+                              } else {
+                                onSelectClip?.(row.clipId);
+                              }
+                            }}
                             showInfoButton={row.highlightId != null}
                             onInfoClick={() => onSelectInfo?.(row)}
                           />

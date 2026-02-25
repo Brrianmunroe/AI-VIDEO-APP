@@ -34,7 +34,6 @@
 
 /* === Focus === */
 .highlight:focus-visible {
-  outline: none;
   border-color: var(--color-border-border-focused);
   border-width: var(--stroke-width-lg);
 }

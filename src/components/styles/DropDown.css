@@ -40,7 +40,6 @@
   background-color: var(--color-surface-page-surface-default);
   color: var(--color-text-heading);
   cursor: pointer;
-  outline: none;
   text-align: left;
   transition: border-color 0.15s ease;
 }
