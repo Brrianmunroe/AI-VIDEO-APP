@@ -1012,6 +1012,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
             onRedo={handleRedo}
             canUndo={canUndo}
             canRedo={canRedo}
+            toolbarOrder={['back', 'undo', 'redo', 'play', 'mark-in', 'mark-out', 'clear-in', 'forward']}
           />
         </div>
       </div>

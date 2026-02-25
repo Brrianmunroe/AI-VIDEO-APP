@@ -61,11 +61,7 @@
   color: var(--color-icon-selected);
 }
 
-/* === Focus === */
-.nav-btn:focus-visible {
-  border-color: var(--color-border-border-focused);
-  border-width: var(--stroke-width-lg);
-}
+/* Focus: use global :focus-visible ring only (no extra border here) */
 
 /* === Disabled === */
 .nav-btn:disabled,

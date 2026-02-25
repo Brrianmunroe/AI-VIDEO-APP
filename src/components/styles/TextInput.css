@@ -58,10 +58,12 @@
   border-color: var(--color-border-border-focused);
 }
 
-/* === Focus === */
+/* === Focus (selected state: white border, no offset outline) === */
 .text-input--focused .text-input__field,
 .text-input__field:focus {
+  outline: none;
   border-color: var(--color-border-border-selected);
+  border-width: var(--stroke-width-md);
   color: var(--color-text-selected);
 }
 

@@ -75,6 +75,13 @@
   box-shadow: 0 4px 12px rgba(17, 159, 220, 0.2);
 }
 
+.action-card.create-project:hover {
+  background-color: var(--color-blue-800, #074058);
+  border-color: var(--color-border-border-default);
+  transform: none;
+  box-shadow: none;
+}
+
 .action-card.disabled {
   opacity: 0.6;
   cursor: not-allowed;

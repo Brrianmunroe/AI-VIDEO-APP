@@ -125,8 +125,10 @@ function PlaybackModule({
   canUndo = false,
   canRedo = false,
   hideToolbarButtons: hideToolbarButtonsProp = [],
+  toolbarOrder: toolbarOrderProp,
 }) {
   const hideToolbarButtons = Array.isArray(hideToolbarButtonsProp) ? hideToolbarButtonsProp : [];
+  const toolbarOrder = Array.isArray(toolbarOrderProp) ? toolbarOrderProp : null;
   const highlightRanges = Array.isArray(highlightRangesProp) ? highlightRangesProp : [];
   const isControlled = videoUrl != null && typeof onSeek === 'function';
   const [internalPlaying, setInternalPlaying] = useState(false);
@@ -1018,11 +1020,24 @@ function PlaybackModule({
         <div className="playback-module__toolbar" role="toolbar" aria-label="Playback controls">
           <div className="playback-module__toolbar-spacer playback-module__toolbar-spacer--left" aria-hidden="true" />
           <div className="playback-module__toolbar-controls">
-            {TOOLBAR_BUTTONS.filter((b) => {
-              if (hideToolbarButtons.includes(b.id)) return false;
-              if (b.editableOnly && !editableTimeline) return false;
-              return true;
-            }).map(({ id, icon, label, tooltip }) => {
+            {(() => {
+              const filtered = TOOLBAR_BUTTONS.filter((b) => {
+                if (hideToolbarButtons.includes(b.id)) return false;
+                if (b.editableOnly && !editableTimeline) return false;
+                return true;
+              });
+              const ordered = toolbarOrder
+                ? [...filtered].sort((a, b) => {
+                    const i = toolbarOrder.indexOf(a.id);
+                    const j = toolbarOrder.indexOf(b.id);
+                    if (i === -1 && j === -1) return 0;
+                    if (i === -1) return 1;
+                    if (j === -1) return -1;
+                    return i - j;
+                  })
+                : filtered;
+              return ordered;
+            })().map(({ id, icon, label, tooltip }) => {
               const isUndo = id === 'undo';
               const isRedo = id === 'redo';
               const isDisabled = (isUndo && !canUndo) || (isRedo && !canRedo);

@@ -214,6 +214,7 @@ function TranscriptPanel({
   const prevActiveLineIndexRef = useRef(-1);
   const selectedRowRef = useRef(null);
   const transcriptContentRef = useRef(null);
+  const rowMouseDownRef = useRef(false);
   const [draggingHandle, setDraggingHandle] = useState(null);
   const [deletingHighlightIds, setDeletingHighlightIds] = useState(new Set());
 
@@ -474,6 +475,8 @@ function TranscriptPanel({
                           key={row.highlightId != null ? `${row.clipId}-${row.highlightId}` : `${row.clipId}-no-highlights`}
                           ref={isPrimary ? selectedRowRef : undefined}
                           className={`transcript-panel__highlight-row${isDeleting ? ' transcript-panel__highlight-row--deleting' : ''}`}
+                          onMouseDown={() => { rowMouseDownRef.current = true; }}
+                          onMouseUp={() => { rowMouseDownRef.current = false; }}
                         >
                           <HighlightContainer
                             thumbnail={row.thumbnail}
@@ -493,6 +496,10 @@ function TranscriptPanel({
                               }
                             }}
                             onFocus={() => {
+                              if (rowMouseDownRef.current) {
+                                rowMouseDownRef.current = false;
+                                return;
+                              }
                               if (typeof onRowClick === 'function') {
                                 onRowClick(row, index, { type: 'focus' });
                               } else if (typeof onSelectClipAndSeek === 'function') {
@@ -841,7 +848,7 @@ function TranscriptPanel({
                   }
                 >
                   {hasMultiSelection
-                    ? `Accept Highlight(s) [${selectedCount}]`
+                    ? `Accept Highlights [${selectedCount}]`
                     : selectedHighlightId != null
                       ? 'Accept Highlight'
                       : 'Accept All'}

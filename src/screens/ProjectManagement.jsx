@@ -118,7 +118,7 @@ function ProjectManagement({ onOpenProject }) {
                 </svg>
               </div>
               <h3 className="card-title">Create New Project</h3>
-              <p className="card-subtitle">Quickly cut interview Selects</p>
+              <p className="card-subtitle">Quickly cut interview selects.</p>
             </div>
           </div>
           
