@@ -1183,7 +1183,7 @@ function PlaybackModule({
                       {showVideo && displayVideoUrl ? (
                         <div
                           className="playback-module__clip playback-module__clip--audio playback-module__waveform-clip"
-                          style={{ left: 0, width: singleClipWaveformWidthPx }}
+                          style={{ left: 0, width: singleClipWaveformWidthPx, minWidth: singleClipWaveformWidthPx }}
                         >
                           <AudioWaveform
                             mediaId={currentSequenceSegment?.sourceMediaId ?? selectedMediaId}

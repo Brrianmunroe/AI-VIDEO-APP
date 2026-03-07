@@ -4,10 +4,21 @@
  */
 
 .audio-waveform {
-  display: block;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
   flex-shrink: 0;
   background-color: var(--color-surface-page-surface-default);
-  overflow: hidden;
+  overflow: visible;
+}
+
+/* Each tile canvas: must not shrink so full timeline width renders */
+.audio-waveform__tile {
+  flex-shrink: 0;
+  display: block;
+  vertical-align: middle;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
 }
 
 .audio-waveform__canvas {
