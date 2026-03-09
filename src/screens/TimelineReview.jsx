@@ -257,6 +257,7 @@ function TimelineReview({ project, onBack, acceptedClips = [] }) {
           onRedo={redo}
           canUndo={canUndo}
           canRedo={canRedo}
+          toolbarPlayBetweenUndoRedo={true}
           toolbarExtra={
             <Button variant="primary" onClick={handleExportToTimeline}>
               Export to timeline

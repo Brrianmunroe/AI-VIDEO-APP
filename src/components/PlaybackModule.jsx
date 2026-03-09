@@ -105,6 +105,7 @@ function PlaybackModule({
   onHighlightDragStart,
   onHighlightDragEnd,
   onRemoveHighlight,
+  onRequestRemoveHighlight,
   onHighlightSelect,
   selectedHighlightId: selectedHighlightIdProp,
   onPreviousClip,
@@ -125,6 +126,7 @@ function PlaybackModule({
   canUndo = false,
   canRedo = false,
   hideToolbarButtons: hideToolbarButtonsProp = [],
+  toolbarPlayBetweenUndoRedo = false,
 }) {
   const hideToolbarButtons = Array.isArray(hideToolbarButtonsProp) ? hideToolbarButtonsProp : [];
   const highlightRanges = Array.isArray(highlightRangesProp) ? highlightRangesProp : [];
@@ -800,19 +802,20 @@ function PlaybackModule({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleMarkIn, handleMarkOut, hideToolbarButtons]);
 
-  // Delete/Backspace → Clear selected highlight on timeline
+  // Delete/Backspace → Clear selected highlight on timeline (with same slide-up animation as transcript)
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.target?.closest?.('input, textarea, [contenteditable="true"]')) return;
       if ((e.key !== 'Delete' && e.key !== 'Backspace') || selectedHighlightId == null) return;
-      if (typeof onRemoveHighlight !== 'function') return;
+      const remove = typeof onRequestRemoveHighlight === 'function' ? onRequestRemoveHighlight : onRemoveHighlight;
+      if (typeof remove !== 'function') return;
       e.preventDefault();
-      onRemoveHighlight(selectedHighlightId);
-      setSelectedHighlightId(null);
+      remove(selectedHighlightId);
+      if (typeof onRequestRemoveHighlight !== 'function') setSelectedHighlightId(null);
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedHighlightId, onRemoveHighlight]);
+  }, [selectedHighlightId, onRequestRemoveHighlight, onRemoveHighlight]);
 
   const handleToolbarClick = (id) => {
     if (id === 'undo') {
@@ -849,9 +852,10 @@ function PlaybackModule({
     if (id === 'clear-in') {
       if (editableTimeline && selectedSegmentId != null && typeof onDeleteSegment === 'function') {
         onDeleteSegment();
-      } else if (selectedHighlightId != null && typeof onRemoveHighlight === 'function') {
-        onRemoveHighlight(selectedHighlightId);
-        setSelectedHighlightId(null);
+      } else if (selectedHighlightId != null && (typeof onRequestRemoveHighlight === 'function' || typeof onRemoveHighlight === 'function')) {
+        const remove = typeof onRequestRemoveHighlight === 'function' ? onRequestRemoveHighlight : onRemoveHighlight;
+        remove(selectedHighlightId);
+        if (typeof onRequestRemoveHighlight !== 'function') setSelectedHighlightId(null);
       } else {
         setInPointFrame(null);
         setOutPointFrame(null);
@@ -896,6 +900,19 @@ function PlaybackModule({
       return;
     }
   };
+
+  /** On Timeline Review: play button between undo and redo. On Interview Selects: default order (undo, redo, play). */
+  const toolbarButtonsOrdered = React.useMemo(() => {
+    if (!toolbarPlayBetweenUndoRedo) return TOOLBAR_BUTTONS;
+    const idx = (id) => TOOLBAR_BUTTONS.findIndex((b) => b.id === id);
+    const undoIdx = idx('undo');
+    const redoIdx = idx('redo');
+    const playIdx = idx('play');
+    if (undoIdx < 0 || redoIdx < 0 || playIdx < 0) return TOOLBAR_BUTTONS;
+    const before = TOOLBAR_BUTTONS.slice(0, undoIdx);
+    const after = TOOLBAR_BUTTONS.slice(redoIdx + 1);
+    return [...before, TOOLBAR_BUTTONS[undoIdx], TOOLBAR_BUTTONS[playIdx], TOOLBAR_BUTTONS[redoIdx], ...after];
+  }, [toolbarPlayBetweenUndoRedo]);
 
   const rulerTicks = getRulerTicks(durationFrames, effectivePixelsPerFrame);
   const playheadLeftPx = frameToPx(playheadFrame);
@@ -1018,7 +1035,7 @@ function PlaybackModule({
         <div className="playback-module__toolbar" role="toolbar" aria-label="Playback controls">
           <div className="playback-module__toolbar-spacer playback-module__toolbar-spacer--left" aria-hidden="true" />
           <div className="playback-module__toolbar-controls">
-            {TOOLBAR_BUTTONS.filter((b) => {
+            {toolbarButtonsOrdered.filter((b) => {
               if (hideToolbarButtons.includes(b.id)) return false;
               if (b.editableOnly && !editableTimeline) return false;
               return true;
@@ -1071,8 +1088,12 @@ function PlaybackModule({
             className="playback-module__timeline-scroll-content"
             style={{ width: stripWidthPx, minWidth: stripWidthPx }}
           >
+            <div
+              className="playback-module__ruler-row-spacer"
+              aria-hidden="true"
+            />
             <div className="playback-module__ruler-row">
-              <div className="playback-module__ruler-row-spacer" aria-hidden="true" />
+              <div className="playback-module__ruler-row-spacer-layout" aria-hidden="true" />
               <TimelineRuler
                 contentWidthPx={contentWidthPx}
                 pixelsPerFrame={effectivePixelsPerFrame}
@@ -1085,6 +1106,10 @@ function PlaybackModule({
               className="playback-module__timeline-strip"
               style={{ width: stripWidthPx, minWidth: stripWidthPx }}
             >
+              <div
+                className="playback-module__left-column-overlay"
+                aria-hidden="true"
+              />
               <div className="playback-module__timeline-labels">
                 <div className="playback-module__track-label">Video</div>
                 <div className="playback-module__track-label">Audio</div>
@@ -1289,9 +1314,9 @@ function PlaybackModule({
                 <span className="playback-module__playhead-triangle" aria-hidden="true" />
               </div>
             </div>
+            </div>
           </div>
         </div>
-      </div>
         <div
           className="playback-module__zoom"
           role="group"

@@ -526,6 +526,24 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
     [selectedSelectId, selectsList, updateSelectHighlights]
   );
 
+  const HIGHLIGHT_DELETE_ANIMATION_MS = 220;
+  const [deletingHighlightIds, setDeletingHighlightIds] = useState(new Set());
+  const handleRequestRemoveHighlight = useCallback(
+    (highlightId) => {
+      if (highlightId == null) return;
+      setDeletingHighlightIds((prev) => new Set(prev).add(highlightId));
+      setTimeout(() => {
+        handleRemoveHighlight(highlightId);
+        setDeletingHighlightIds((prev) => {
+          const next = new Set(prev);
+          next.delete(highlightId);
+          return next;
+        });
+      }, HIGHLIGHT_DELETE_ANIMATION_MS);
+    },
+    [handleRemoveHighlight]
+  );
+
   const allDecided =
     selectsList.length > 0 &&
     selectsList.every((s) => {
@@ -958,6 +976,8 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
             onSelectClipAndSeek={handleSelectClipAndSeek}
             onRowClick={handleRowClick}
             onRemoveHighlight={handleRemoveHighlight}
+            onRequestRemoveHighlight={handleRequestRemoveHighlight}
+            deletingHighlightIds={deletingHighlightIds}
             onSelectInfo={handleSelectInfo}
             onDelete={handleDelete}
             onAccept={handleAccept}
@@ -997,6 +1017,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
             onHighlightDragStart={handleHighlightDragStart}
             onHighlightDragEnd={handleHighlightDragEnd}
             onRemoveHighlight={handleRemoveHighlight}
+            onRequestRemoveHighlight={handleRequestRemoveHighlight}
             onHighlightSelect={setSelectedHighlightId}
             selectedHighlightId={selectedHighlightId}
             onPreviousClip={orderedHighlightRows.length > 0 ? handlePreviousClip : undefined}

@@ -189,16 +189,18 @@
   -webkit-user-select: none;
 }
 
-/* Wrapper for each highlight row; collapsing this creates the slide-up effect */
+/* Wrapper for each highlight row. Delete animates from measured height to 0 for a smooth slide. */
 .transcript-panel__highlight-row {
-  max-height: 100px;
   overflow: hidden;
-  transition: max-height 0.28s ease-out, margin-bottom 0.28s ease-out;
+  transition:
+    height 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    margin-bottom 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-
 .transcript-panel__highlight-row--deleting {
-  max-height: 0 !important;
+  height: 0 !important;
+  opacity: 0;
   margin-bottom: calc(-1 * var(--spacing-md));
 }
 
@@ -436,7 +438,7 @@
    Vertical padding only; no horizontal padding so when run wraps to start of a line, second line
    aligns with margin. Margin-right adds space before following content. */
 .transcript-panel__highlight-run {
-  background-color: rgba(255, 255, 255, 0.5);
+  background-color: var(--color-primary-0);
   color: var(--color-blue-950);
   border-radius: var(--radius-sm);
   padding: var(--spacing-xxs) 0;

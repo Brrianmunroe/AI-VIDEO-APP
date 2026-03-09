@@ -231,8 +231,15 @@
   overflow-y: hidden;
 }
 
-/* Scroll content: ruler row (sticky) + strip; both scroll horizontally together */
-/* Z-order (top to bottom): 4=labels+spacer+overlay, 3=playhead, 2=media+notches+timings, 1=blank tracks */
+/* Scroll content: ruler row + strip; both scroll horizontally together */
+/*
+ * Z-order (in scroll-content's stacking context):
+ *   999 = ruler-row-spacer (highest — covers everything in left 64px)
+ *    10 = timeline-labels + left-column-overlay
+ *     5 = timeline-strip (playhead lives here at 3, visible above ruler)
+ *     4 = ::after thin band
+ *   auto = ruler-row (NO z-index — so spacer escapes its stacking context)
+ */
 .playback-module__timeline-scroll-content {
   position: relative;
   display: flex;
@@ -253,6 +260,22 @@
   pointer-events: none;
 }
 
+/* Spacer: direct child of scroll-content so its z-index competes with the strip;
+   sticky left+top so it stays at top-left; negative margin-bottom collapses its vertical space */
+.playback-module__ruler-row-spacer {
+  flex-shrink: 0;
+  width: 64px;
+  min-width: 64px;
+  height: var(--timeline-ruler-row-height);
+  margin-bottom: calc(-1 * var(--timeline-ruler-row-height));
+  border: none;
+  background-color: var(--color-primary-950);
+  position: sticky;
+  left: 0;
+  top: 0;
+  z-index: 999;
+}
+
 .playback-module__ruler-row {
   flex-shrink: 0;
   display: flex;
@@ -263,21 +286,19 @@
   background-color: var(--color-primary-950);
 }
 
-/* Top layer: spacer (ruler left column) */
-.playback-module__ruler-row-spacer {
+/* Layout-only spacer inside ruler-row (reserves the 64px column for the ruler) */
+.playback-module__ruler-row-spacer-layout {
   flex-shrink: 0;
   width: 64px;
   min-width: 64px;
   border: none;
-  background-color: var(--color-primary-950);
-  position: sticky;
-  left: 0;
-  z-index: 4;
+  background-color: transparent;
 }
 
+/* z-index 5 so playhead (triangle + rod) is above ruler-row (2), triangle visible above ruler notches */
 .playback-module__timeline-strip {
   position: relative;
-  z-index: 2;
+  z-index: 5;
   display: flex;
   flex-direction: row;
   flex: 1;
@@ -287,11 +308,23 @@
   overflow: visible;
 }
 
-/* Top layer: Video and Audio track labels */
+/* Full-height left column overlay: hides scrolling timeline content as it passes underneath; below labels so Video/Audio text stays visible */
+.playback-module__left-column-overlay {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 64px;
+  height: 100%;
+  background-color: var(--color-surface-card-surface-default);
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* Top layer: Video and Audio track labels; above overlay and playhead so playhead falls behind when overlapping */
 .playback-module__timeline-labels {
   position: sticky;
   left: 0;
-  z-index: 4;
+  z-index: 10;
   flex-shrink: 0;
   width: 64px;
   display: flex;
@@ -323,8 +356,10 @@
   border-bottom: none;
 }
 
+/* z-index below labels/spacer so playhead draws behind the left column when it overlaps */
 .playback-module__timeline-content {
   position: relative;
+  z-index: 0;
   flex-shrink: 0;
   flex-grow: 0;
   display: flex;

@@ -7,7 +7,7 @@ import './styles/NavigationBar.css';
  * 
  * Matches the Figma "Sidebar" component (node 403:2122).
  * Vertical sidebar composed of NavBarButtons:
- *   Top: Home, Projects, Footage, Search
+ *   Top: Home, Projects
  *   Bottom: Settings
  * 
  * @param {string} activeItem - Currently active nav item id
@@ -17,8 +17,6 @@ function NavigationBar({ activeItem = 'home', onNavigate }) {
   const topItems = [
     { id: 'home', label: 'Home' },
     { id: 'projects', label: 'Projects' },
-    { id: 'footage', label: 'Footage' },
-    { id: 'search', label: 'Search' },
   ];
 
   const handleClick = (itemId) => {

@@ -123,6 +123,8 @@ function TranscriptPanel({
   onSelectClipAndSeek,
   onRowClick,
   onRemoveHighlight,
+  onRequestRemoveHighlight,
+  deletingHighlightIds: deletingHighlightIdsProp,
   onSelectInfo,
   className = '',
   onDelete,
@@ -215,7 +217,16 @@ function TranscriptPanel({
   const selectedRowRef = useRef(null);
   const transcriptContentRef = useRef(null);
   const [draggingHandle, setDraggingHandle] = useState(null);
-  const [deletingHighlightIds, setDeletingHighlightIds] = useState(new Set());
+  const [deletingHighlightIdsInternal, setDeletingHighlightIdsInternal] = useState(new Set());
+  const deletingHighlightIds =
+    deletingHighlightIdsProp != null
+      ? deletingHighlightIdsProp instanceof Set
+        ? deletingHighlightIdsProp
+        : new Set(deletingHighlightIdsProp)
+      : deletingHighlightIdsInternal;
+  const [deletingRowHeights, setDeletingRowHeights] = useState({});
+  const [deletingRowAnimating, setDeletingRowAnimating] = useState(new Set());
+  const deletingRowRefs = useRef(new Map());
 
   const filteredLines = useMemo(() => {
     if (!search.trim()) return transcriptList;
@@ -278,22 +289,84 @@ function TranscriptPanel({
     });
   }, [activeTab, selectedSelectId, selectedHighlightId]);
 
-  const HIGHLIGHT_DELETE_ANIMATION_MS = 280;
+  // Measure row heights when they enter deleting state, then next frame add --deleting so transition runs from height→0
+  useLayoutEffect(() => {
+    const refs = deletingRowRefs.current;
+    if (refs.size === 0) return;
+    const newHeights = {};
+    refs.forEach((el, key) => {
+      if (el && el.offsetHeight) newHeights[key] = el.offsetHeight;
+    });
+    if (Object.keys(newHeights).length === 0) return;
+    setDeletingRowHeights((prev) => ({ ...prev, ...newHeights }));
+    const keysToAnimate = Object.keys(newHeights);
+    const raf = requestAnimationFrame(() => {
+      setDeletingRowAnimating((prev) => {
+        const next = new Set(prev);
+        keysToAnimate.forEach((k) => next.add(k));
+        return next;
+      });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [deletingHighlightIds]);
+
+  // Clear measured heights and animating when rows leave deleting set
+  useEffect(() => {
+    setDeletingRowHeights((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      Object.keys(next).forEach((key) => {
+        const row = visibleHighlightRows.find(
+          (r) =>
+            (r.highlightId != null && key === `${r.clipId}-${r.highlightId}`) ||
+            (r.highlightId == null && key === `${r.clipId}-no-highlights`)
+        );
+        if (!row || (row.highlightId != null && !deletingHighlightIds.has(row.highlightId))) {
+          delete next[key];
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+    setDeletingRowAnimating((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+      next.forEach((key) => {
+        const row = visibleHighlightRows.find(
+          (r) =>
+            (r.highlightId != null && key === `${r.clipId}-${r.highlightId}`) ||
+            (r.highlightId == null && key === `${r.clipId}-no-highlights`)
+        );
+        if (!row || (row.highlightId != null && !deletingHighlightIds.has(row.highlightId))) {
+          next.delete(key);
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [deletingHighlightIds, visibleHighlightRows]);
+
+  const HIGHLIGHT_DELETE_ANIMATION_MS = 220;
 
   const handleRequestDeleteHighlight = useCallback(
     (highlightId) => {
-      if (highlightId == null || typeof onRemoveHighlight !== 'function') return;
-      setDeletingHighlightIds((prev) => new Set(prev).add(highlightId));
+      if (highlightId == null) return;
+      if (typeof onRequestRemoveHighlight === 'function') {
+        onRequestRemoveHighlight(highlightId);
+        return;
+      }
+      if (typeof onRemoveHighlight !== 'function') return;
+      setDeletingHighlightIdsInternal((prev) => new Set(prev).add(highlightId));
       setTimeout(() => {
         onRemoveHighlight(highlightId);
-        setDeletingHighlightIds((prev) => {
+        setDeletingHighlightIdsInternal((prev) => {
           const next = new Set(prev);
           next.delete(highlightId);
           return next;
         });
       }, HIGHLIGHT_DELETE_ANIMATION_MS);
     },
-    [onRemoveHighlight]
+    [onRequestRemoveHighlight, onRemoveHighlight]
   );
 
   // Delete/Backspace: remove selected highlight (works from any tab when a highlight is selected)
@@ -461,7 +534,11 @@ function TranscriptPanel({
                 ) : (
                   <div className="transcript-panel__selects-list">
                     {visibleHighlightRows.map((row, index) => {
+                      const rowKey = row.highlightId != null ? `${row.clipId}-${row.highlightId}` : `${row.clipId}-no-highlights`;
                       const isDeleting = row.highlightId != null && deletingHighlightIds.has(row.highlightId);
+                      const measuredHeight = deletingRowHeights[rowKey];
+                      const isAnimating = deletingRowAnimating.has(rowKey);
+                      const isDeletingWithHeight = isDeleting && measuredHeight != null;
                       const isPrimary =
                         selectedSelectId === row.clipId &&
                         (row.highlightId == null ? selectedHighlightId == null : selectedHighlightId === row.highlightId);
@@ -471,9 +548,14 @@ function TranscriptPanel({
                           : isPrimary;
                       return (
                         <div
-                          key={row.highlightId != null ? `${row.clipId}-${row.highlightId}` : `${row.clipId}-no-highlights`}
-                          ref={isPrimary ? selectedRowRef : undefined}
-                          className={`transcript-panel__highlight-row${isDeleting ? ' transcript-panel__highlight-row--deleting' : ''}`}
+                          key={rowKey}
+                          ref={(el) => {
+                            if (isPrimary) selectedRowRef.current = el;
+                            if (isDeleting && el) deletingRowRefs.current.set(rowKey, el);
+                            if (!isDeleting) deletingRowRefs.current.delete(rowKey);
+                          }}
+                          className={`transcript-panel__highlight-row${isAnimating ? ' transcript-panel__highlight-row--deleting' : ''}`}
+                          style={isDeletingWithHeight ? { height: measuredHeight } : undefined}
                         >
                           <HighlightContainer
                             thumbnail={row.thumbnail}
