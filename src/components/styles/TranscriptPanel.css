@@ -184,24 +184,26 @@
 .transcript-panel__selects-list {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
   user-select: none;
   -webkit-user-select: none;
 }
 
-/* Wrapper for each highlight row. Delete animates from measured height to 0 for a smooth slide. */
+/* Each row owns its own bottom spacing so it can be smoothly transitioned to 0 on delete. */
 .transcript-panel__highlight-row {
   overflow: hidden;
+  margin-bottom: var(--spacing-md);
   transition:
-    height 0.22s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1),
-    margin-bottom 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    height 0.7s cubic-bezier(0.25, 0.1, 0.25, 1),
+    margin-bottom 0.7s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.transcript-panel__highlight-row:last-child {
+  margin-bottom: 0;
 }
 
 .transcript-panel__highlight-row--deleting {
   height: 0 !important;
-  opacity: 0;
-  margin-bottom: calc(-1 * var(--spacing-md));
+  margin-bottom: 0;
 }
 
 .transcript-panel__placeholder {

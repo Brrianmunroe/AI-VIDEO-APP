@@ -526,7 +526,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
     [selectedSelectId, selectsList, updateSelectHighlights]
   );
 
-  const HIGHLIGHT_DELETE_ANIMATION_MS = 220;
+  const HIGHLIGHT_DELETE_ANIMATION_MS = 750;
   const [deletingHighlightIds, setDeletingHighlightIds] = useState(new Set());
   const handleRequestRemoveHighlight = useCallback(
     (highlightId) => {

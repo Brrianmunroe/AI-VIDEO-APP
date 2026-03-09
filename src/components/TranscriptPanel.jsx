@@ -346,7 +346,7 @@ function TranscriptPanel({
     });
   }, [deletingHighlightIds, visibleHighlightRows]);
 
-  const HIGHLIGHT_DELETE_ANIMATION_MS = 220;
+  const HIGHLIGHT_DELETE_ANIMATION_MS = 750;
 
   const handleRequestDeleteHighlight = useCallback(
     (highlightId) => {
