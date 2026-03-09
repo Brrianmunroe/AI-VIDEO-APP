@@ -239,6 +239,19 @@
   width: 100%;
 }
 
+/* Secondary Delete button: primary-500 blue stroke */
+.transcript-panel__delete-btn {
+  border-color: var(--color-primary-500);
+}
+
+.transcript-panel__delete-btn:hover:not(:disabled) {
+  border-color: var(--color-primary-500);
+}
+
+.transcript-panel__delete-btn:focus-visible {
+  border-color: var(--color-primary-500);
+}
+
 /* Inline speaker label (double-click to edit) */
 .transcript-panel__speaker-chip {
   background: none;

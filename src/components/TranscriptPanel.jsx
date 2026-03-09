@@ -873,6 +873,7 @@ function TranscriptPanel({
               <>
                 <Button
                   variant="secondary"
+                  className="transcript-panel__delete-btn"
                   onClick={() => {
                     if (hasMultiSelection && typeof onDeleteSelection === 'function') {
                       onDeleteSelection(selectedRowIndices);
