@@ -915,7 +915,7 @@ function TranscriptPanel({
                   }
                 >
                   {hasMultiSelection
-                    ? `Accept Highlight(s) [${selectedCount}]`
+                    ? `Accept Highlight [${selectedCount}]`
                     : selectedHighlightId != null
                       ? 'Accept Highlight'
                       : 'Accept All'}

@@ -5,7 +5,7 @@ import './styles/HighlightInfoModal.css';
 const FALLBACK = 'No explanation available for this highlight.';
 
 /**
- * Modal that shows "Why we selected this" and "How you might use it" for a highlight.
+ * Modal that shows "Reasoning" and "How you might use it" for a highlight.
  * @param {boolean} isOpen
  * @param {function} onClose
  * @param {{ clipName?: string, ordinal?: number, reason?: string, suggestions?: string }} highlight
@@ -52,7 +52,7 @@ function HighlightInfoModal({ isOpen, onClose, highlight }) {
           {hasAny ? (
             <>
               <section className="highlight-info-modal-section">
-                <h3 className="highlight-info-modal-label">Why we selected this</h3>
+                <h3 className="highlight-info-modal-label">Reasoning</h3>
                 <p className="highlight-info-modal-text">
                   {reason || FALLBACK}
                 </p>
