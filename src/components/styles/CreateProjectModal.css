@@ -11,6 +11,7 @@
   z-index: 1000;
 }
 
+/* === Unified modal layout: 32px padding; header row; 8px then description (body, grey); 16px then form (label + 8px + control) === */
 .modal-container {
   position: fixed;
   top: 50%;
@@ -23,13 +24,20 @@
   /* Design system has no max-width token for modals; consider adding --size-modal-max-width */
   max-width: 500px;
   z-index: 1001;
+  padding: var(--spacing-lg);
 }
 
 .modal-header {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0;
+}
+
+.modal-header__row {
+  display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-lg);
 }
 
 .modal-title {
@@ -37,6 +45,15 @@
   font-weight: var(--font-weight-heading-03);
   color: var(--color-text-heading);
   margin: 0;
+}
+
+.modal-description {
+  margin-top: var(--spacing-sm);
+  padding: 0;
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  font-weight: var(--font-weight-body);
+  color: var(--color-grey-500);
 }
 
 .modal-close {
@@ -63,23 +80,37 @@
 }
 
 .modal-body {
-  padding: var(--spacing-lg);
+  margin-top: var(--spacing-md);
+  padding: 0;
+}
+
+.modal-body .text-input {
+  gap: var(--spacing-sm);
+}
+
+.modal-body .text-input__label {
+  color: var(--color-grey-500);
 }
 
 .form-field {
-  margin-top: var(--spacing-lg);
+  margin-top: var(--spacing-md);
+}
+
+.form-field:first-child {
+  margin-top: 0;
 }
 
 .form-field:last-child {
   margin-bottom: 0;
 }
 
-.form-field label {
+.form-field label,
+.form-field .form-field__label {
   display: block;
   font-size: var(--font-size-label);
   font-weight: var(--font-weight-label);
-  color: var(--color-text-label);
-  margin-bottom: var(--spacing-xs);
+  color: var(--color-grey-500);
+  margin-bottom: var(--spacing-sm);
 }
 
 .form-field input {
@@ -147,6 +178,7 @@
   display: flex;
   justify-content: flex-end;
   gap: var(--spacing-md);
-  padding: var(--spacing-lg);
+  padding: 0;
+  margin-top: var(--spacing-lg);
 }
 

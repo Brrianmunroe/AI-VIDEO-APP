@@ -1,8 +1,11 @@
-/* === Scrollable modal container === */
+/* === Scrollable modal container (Context Brief: 32px padding, unified layout) === */
 .modal-container--scrollable {
   max-height: 90vh;
   display: flex;
   flex-direction: column;
+  padding: var(--spacing-lg);
+  background-color: var(--color-blue-950);
+  border: var(--stroke-width-md) solid var(--color-blue-800);
 }
 
 .modal-body--scrollable {
@@ -16,13 +19,36 @@
   margin-top: 0;
 }
 
-/* === Context Brief header: title row + description inside same container === */
+/* === Context Brief: match Figma Context Window (node 220:5) === */
 .modal-container--scrollable .modal-header {
   flex-direction: column;
   align-items: stretch;
-  padding-bottom: var(--spacing-md);
+  padding: 0;
   border: none;
   border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.modal-container--scrollable .modal-footer {
+  padding: 0;
+  margin-top: var(--spacing-lg);
+  flex-shrink: 0;
+}
+
+.modal-container--scrollable .modal-body--scrollable {
+  padding: 0;
+}
+
+.modal-container--scrollable .modal-title {
+  color: var(--color-blue-0);
+}
+
+.modal-container--scrollable .modal-close {
+  color: var(--color-grey-500);
+}
+
+.modal-container--scrollable .modal-close:hover {
+  color: var(--color-blue-0);
 }
 
 .modal-container--scrollable .modal-header__row {
@@ -31,13 +57,51 @@
   align-items: center;
 }
 
-.modal-container--scrollable .modal-description {
+/* Unified: description 8px below title, body text, grey */
+.modal-container--scrollable .modal-description,
+.modal-container--scrollable .modal-description--context-brief {
   margin-top: var(--spacing-sm);
   padding: 0;
   font-size: var(--font-size-body);
   line-height: var(--line-height-body);
   font-weight: var(--font-weight-body);
+  color: var(--color-grey-500);
+}
+
+/* Unified: 16px between description and form */
+.modal-body--context-brief {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: var(--spacing-md);
+  padding: 0;
+}
+
+/* Unified: label + 8px gap + control */
+.form-field--context-brief {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin: 0;
+}
+
+.form-field__label--context-brief {
+  font-size: var(--font-size-label);
+  line-height: var(--line-height-label);
+  font-weight: var(--font-weight-label);
+  color: var(--color-grey-500);
+}
+
+.form-field__textarea--context-brief {
+  min-height: 128px;
+  padding: var(--spacing-md);
+  background-color: var(--color-blue-950);
+  border: var(--stroke-width-md) solid var(--color-blue-800);
   color: var(--color-text-heading);
+}
+
+.form-field__textarea--context-brief::placeholder {
+  color: var(--color-grey-500);
 }
 
 /* === Textarea styling === */

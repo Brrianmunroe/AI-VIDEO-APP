@@ -901,7 +901,7 @@ function PlaybackModule({
     }
   };
 
-  /** On Timeline Review: play button between undo and redo. On Interview Selects: default order (undo, redo, play). */
+  /** On Timeline Review: single play button between undo and redo (no duplicate after redo). */
   const toolbarButtonsOrdered = React.useMemo(() => {
     if (!toolbarPlayBetweenUndoRedo) return TOOLBAR_BUTTONS;
     const idx = (id) => TOOLBAR_BUTTONS.findIndex((b) => b.id === id);
@@ -910,7 +910,7 @@ function PlaybackModule({
     const playIdx = idx('play');
     if (undoIdx < 0 || redoIdx < 0 || playIdx < 0) return TOOLBAR_BUTTONS;
     const before = TOOLBAR_BUTTONS.slice(0, undoIdx);
-    const after = TOOLBAR_BUTTONS.slice(redoIdx + 1);
+    const after = TOOLBAR_BUTTONS.slice(redoIdx + 1).filter((b) => b.id !== 'play');
     return [...before, TOOLBAR_BUTTONS[undoIdx], TOOLBAR_BUTTONS[playIdx], TOOLBAR_BUTTONS[redoIdx], ...after];
   }, [toolbarPlayBetweenUndoRedo]);
 

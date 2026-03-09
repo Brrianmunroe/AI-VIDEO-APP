@@ -12,6 +12,7 @@
   z-index: 1000;
 }
 
+/* Unified modal layout: 32px padding; header row; 8px then description (body, grey); 16px then content */
 .export-modal-container {
   position: fixed;
   top: 50%;
@@ -23,13 +24,20 @@
   width: 90%;
   max-width: 500px;
   z-index: 1001;
+  padding: var(--spacing-lg);
 }
 
 .export-modal-header {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0;
+}
+
+.export-modal-header__row {
+  display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-lg);
 }
 
 .export-modal-title {
@@ -37,6 +45,15 @@
   font-weight: var(--font-weight-heading-03);
   color: var(--color-text-heading);
   margin: 0;
+}
+
+.export-modal-description {
+  margin-top: var(--spacing-sm);
+  padding: 0;
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  font-weight: var(--font-weight-body);
+  color: var(--color-grey-500);
 }
 
 .export-modal-close {
@@ -63,15 +80,8 @@
 }
 
 .export-modal-body {
-  padding: 0 var(--spacing-lg) var(--spacing-lg);
-}
-
-.export-modal-description {
-  font-size: var(--font-size-body);
-  font-weight: var(--font-weight-body);
-  line-height: var(--line-height-body);
-  color: var(--color-text-heading);
-  margin: 0 0 var(--spacing-md);
+  margin-top: var(--spacing-md);
+  padding: 0;
 }
 
 .export-platform-list {
@@ -136,5 +146,6 @@
   display: flex;
   justify-content: flex-end;
   gap: var(--spacing-md);
-  padding: var(--spacing-lg);
+  padding: 0;
+  margin-top: var(--spacing-lg);
 }

@@ -42,23 +42,25 @@ function ExportTimelineModal({ isOpen, onClose, onExport, videoClips = [], durat
         onClick={(e) => e.stopPropagation()}
       >
         <div className="export-modal-header">
-          <h2 id="export-modal-title" className="export-modal-title">
-            Export timeline
-          </h2>
-          <button
-            className="export-modal-close"
-            onClick={handleCancel}
-            aria-label="Close"
-            type="button"
-          >
-            <Icon type="close" size="sm" state="primary" />
-          </button>
-        </div>
-
-        <div className="export-modal-body">
+          <div className="export-modal-header__row">
+            <h2 id="export-modal-title" className="export-modal-title">
+              Export timeline
+            </h2>
+            <button
+              className="export-modal-close"
+              onClick={handleCancel}
+              aria-label="Close"
+              type="button"
+            >
+              <Icon type="close" size="sm" state="primary" />
+            </button>
+          </div>
           <p className="export-modal-description">
             Choose where to export your timeline. The sequence will include your approved selects in order.
           </p>
+        </div>
+
+        <div className="export-modal-body">
           <fieldset className="export-platform-list" aria-label="Export platform">
             {PLATFORMS.map((platform) => {
               const isSelected = selectedPlatform === platform.id;

@@ -135,7 +135,7 @@ function ImportMedia({ project, onBack, onNavigateToTimeline }) {
     const promise = window.electronAPI.ai.generateSelects({
       projectId: project.id,
       storyContext: context.storyContext ?? '',
-      desiredDurationSec: context.desiredDurationSec ?? 120,
+      desiredDurationSec: 120,
     });
     setGenerateSelectsPromise(promise);
     setShowGenerateSelectsLoading(true);
@@ -159,7 +159,7 @@ function ImportMedia({ project, onBack, onNavigateToTimeline }) {
     const promise = window.electronAPI.ai.generateSelects({
       projectId: project.id,
       storyContext: '',
-      desiredDurationSec: context.desiredDurationSec ?? 120,
+      desiredDurationSec: 120,
     });
     setGenerateSelectsPromise(promise);
     setShowGenerateSelectsLoading(true);

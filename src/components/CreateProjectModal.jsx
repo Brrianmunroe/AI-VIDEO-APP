@@ -82,10 +82,15 @@ function CreateProjectModal({ isOpen, onClose, onCreate }) {
       <div className="modal-backdrop" onClick={handleCancel} />
       <div className="modal-container" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2 className="modal-title">New Project</h2>
-          <button className="modal-close" onClick={handleCancel} aria-label="Close">
-            <Icon type="close" size="sm" state="primary" />
-          </button>
+          <div className="modal-header__row">
+            <h2 className="modal-title">New Project</h2>
+            <button className="modal-close" onClick={handleCancel} aria-label="Close">
+              <Icon type="close" size="sm" state="primary" />
+            </button>
+          </div>
+          <p className="modal-description">
+            Name your project and choose where to save it.
+          </p>
         </div>
 
         <div className="modal-body">
