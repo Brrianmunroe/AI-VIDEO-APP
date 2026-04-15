@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Design Documentation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;700;900&family=Space+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="src/styles/tokens.css">
+    <link rel="stylesheet" href="src/components/styles/Button.css">
+    <link rel="stylesheet" href="src/components/styles/Icon.css">
+    <link rel="stylesheet" href="src/components/styles/TextInput.css">
+    <link rel="stylesheet" href="src/components/styles/DropDown.css">
+    <link rel="stylesheet" href="src/components/styles/MediaCard.css">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: var(--font-family-body);
+            background: var(--color-surface-page-surface-default);
+            color: var(--color-text-heading);
+            padding: var(--spacing-lg);
+            line-height: 1.6;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        .page-title {
+            font-size: var(--font-size-heading-01);
+            font-weight: var(--font-weight-heading-01);
+            line-height: var(--line-height-heading-01);
+            margin-bottom: var(--spacing-xs);
+        }
+        .page-subtitle {
+            font-size: var(--font-size-heading-03);
+            color: var(--color-text-action);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .section { margin-bottom: var(--spacing-lg); }
+        .section-title {
+            font-size: var(--font-size-heading-02);
+            font-weight: var(--font-weight-heading-02);
+            margin-bottom: var(--spacing-md);
+            padding-bottom: var(--spacing-sm);
+            border-bottom: 1px solid var(--color-border-border-default);
+            line-height: 1.3;
+        }
+        .section-subtitle {
+            font-size: var(--font-size-heading-03);
+            font-weight: var(--font-weight-heading-03);
+            margin-top: var(--spacing-md);
+            margin-bottom: var(--spacing-sm);
+            color: var(--color-text-action);
+        }
+
+        .doc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: var(--spacing-md);
+        }
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-sm);
+        }
+        .swatch {
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            border: 1px solid var(--color-border-border-default);
+        }
+        .swatch-color { height: 56px; }
+        .swatch-info {
+            padding: var(--spacing-xs) var(--spacing-sm);
+            background: var(--color-surface-secondary-button-surface-hover);
+            font-family: var(--font-family-numbers);
+            font-size: 10px;
+            line-height: 1.3;
+        }
+        .swatch-name { font-weight: 700; }
+        .swatch-var { opacity: 0.8; word-break: break-all; }
+
+        .token-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: var(--spacing-sm);
+        }
+        .token-card {
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            border: 1px solid var(--color-border-border-default);
+        }
+        .token-preview {
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            font-family: var(--font-family-numbers);
+        }
+        .token-info {
+            padding: var(--spacing-xs) var(--spacing-sm);
+            background: var(--color-surface-secondary-button-surface-hover);
+            font-family: var(--font-family-numbers);
+            font-size: 10px;
+            line-height: 1.3;
+        }
+        .token-name { font-weight: 700; }
+        .token-var { opacity: 0.8; word-break: break-all; }
+
+        .type-row {
+            display: flex;
+            align-items: baseline;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-xs);
+            padding: var(--spacing-sm) var(--spacing-md);
+            background: var(--color-surface-secondary-button-surface-hover);
+            border-radius: var(--radius-lg);
+            border-left: 3px solid var(--color-border-border-focused);
+        }
+        .type-sample { flex: 1; }
+        .type-meta {
+            font-size: 10px;
+            font-family: var(--font-family-numbers);
+            color: var(--color-text-action);
+        }
+
+        .demo-row {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            margin-bottom: var(--spacing-xs);
+            padding: var(--spacing-sm) var(--spacing-md);
+            background: var(--color-surface-secondary-button-surface-hover);
+            border-radius: var(--radius-lg);
+        }
+        .demo-label {
+            font-family: var(--font-family-numbers);
+            font-size: 11px;
+            min-width: 140px;
+            color: var(--color-text-action);
+        }
+        .demo-bar {
+            height: 24px;
+            background: var(--color-surface-primary-button-surface-default);
+            border-radius: var(--radius-md);
+        }
+
+        .radius-row, .stroke-row {
+            display: flex;
+            gap: var(--spacing-md);
+            flex-wrap: wrap;
+        }
+        .radius-box {
+            width: 64px;
+            height: 64px;
+            background: var(--color-surface-primary-button-surface-default);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-family: var(--font-family-numbers);
+            text-align: center;
+            color: var(--color-text-on-button);
+            font-weight: 700;
+            line-height: 1.3;
+        }
+        .stroke-box {
+            width: 80px;
+            height: 40px;
+            background: transparent;
+            border-style: solid;
+            border-color: var(--color-border-border-focused);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-family: var(--font-family-numbers);
+            color: var(--color-border-border-focused);
+            text-align: center;
+            border-radius: var(--radius-md);
+        }
+
+        .icon-demo-row {
+            display: flex;
+            gap: var(--spacing-lg);
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+        .icon-demo-item { text-align: center; }
+        .icon-demo-box {
+            background: var(--color-surface-primary-button-surface-default);
+            border-radius: var(--radius-md);
+            margin: 0 auto var(--spacing-xs);
+        }
+        .icon-demo-label {
+            font-family: var(--font-family-numbers);
+            font-size: 10px;
+            color: var(--color-text-action);
+        }
+
+        .comp-showcase {
+            padding: var(--spacing-md);
+            background: var(--color-surface-secondary-button-surface-hover);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--color-border-border-default);
+        }
+        .comp-showcase h3 {
+            font-size: var(--font-size-heading-04);
+            margin-bottom: var(--spacing-sm);
+            color: var(--color-text-action);
+        }
+        .comp-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-md);
+            align-items: center;
+            margin-bottom: var(--spacing-md);
+        }
+        .comp-row:last-child { margin-bottom: 0; }
+        .comp-block { max-width: 280px; }
+
+        .usage-hint {
+            font-size: var(--font-size-caption);
+            color: var(--color-text-placeholder);
+            margin-top: var(--spacing-md);
+        }
+        .usage-hint code {
+            font-family: var(--font-family-numbers);
+            background: var(--color-surface-secondary-button-surface-hover);
+            padding: 2px 6px;
+            border-radius: var(--radius-md);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <h1 class="page-title">Design Documentation</h1>
+        <p class="page-subtitle">Mapped and alias tokens, iconography, and components. No brand (base) color palettes.</p>
+
+        <div class="doc-grid">
+            <!-- Semantic: Primary + Status (compact) -->
+            <div class="section">
+                <h2 class="section-title">Semantic Colors &mdash; Primary</h2>
+                <div class="color-grid">
+                    <div class="swatch"><div class="swatch-color" style="background:#F9FDFF"></div><div class="swatch-info"><div class="swatch-name">primary-0</div><div class="swatch-var">#F9FDFF</div></div></div>
+                    <div class="swatch"><div class="swatch-color" style="background:#119FDC"></div><div class="swatch-info"><div class="swatch-name">primary-500</div><div class="swatch-var">#119FDC</div></div></div>
+                    <div class="swatch"><div class="swatch-color" style="background:#021016"></div><div class="swatch-info"><div class="swatch-name">primary-950</div><div class="swatch-var">#021016</div></div></div>
+                </div>
+                <h3 class="section-subtitle">Status</h3>
+                <div class="color-grid">
+                    <div class="swatch"><div class="swatch-color" style="background:#3EB9C0"></div><div class="swatch-info"><div class="swatch-name">info-500</div></div></div>
+                    <div class="swatch"><div class="swatch-color" style="background:#EAA81A"></div><div class="swatch-info"><div class="swatch-name">warning-500</div></div></div>
+                    <div class="swatch"><div class="swatch-color" style="background:#E65F47"></div><div class="swatch-info"><div class="swatch-name">error-500</div></div></div>
+                    <div class="swatch"><div class="swatch-color" style="background:#9E9E9E"></div><div class="swatch-info"><div class="swatch-name">neutral-500</div></div></div>
+                    <div class="swatch"><div class="swatch-color" style="background:#47E6B1"></div><div class="swatch-info"><div class="swatch-name">success-500</div></div></div>
+                </div>
+            </div>
+
+            <!-- Iconography: sizes + icon colors -->
+            <div class="section">
+                <h2 class="section-title">Iconography</h2>
+                <h3 class="section-subtitle">Icon sizes</h3>
+                <div class="icon-demo-row">
+                    <div class="icon-demo-item">
+                        <div class="icon-demo-box" style="width:16px; height:16px;"></div>
+                        <div class="icon-demo-label">sm &mdash; 16px</div>
+                    </div>
+                    <div class="icon-demo-item">
+                        <div class="icon-demo-box" style="width:24px; height:24px;"></div>
+                        <div class="icon-demo-label">md &mdash; 24px</div>
+                    </div>
+                    <div class="icon-demo-item">
+                        <div class="icon-demo-box" style="width:44px; height:44px;"></div>
+                        <div class="icon-demo-label">lg &mdash; 44px</div>
+                    </div>
+                </div>
+                <h3 class="section-subtitle">Semantic icon colors</h3>
+                <div class="token-grid">
+                    <div class="token-card"><div class="token-preview" style="background:#074058; color:#9E9E9E;">&#9679;</div><div class="token-info"><div class="token-name">icon-primary</div></div></div>
+                    <div class="token-card"><div class="token-preview" style="background:#074058; color:#119FDC;">&#9679;</div><div class="token-info"><div class="token-name">icon-secondary</div></div></div>
+                    <div class="token-card"><div class="token-preview" style="background:#074058; color:#70C6EA;">&#9679;</div><div class="token-info"><div class="token-name">icon-hover</div></div></div>
+                    <div class="token-card"><div class="token-preview" style="background:#074058; color:#F9FDFF;">&#9679;</div><div class="token-info"><div class="token-name">icon-selected</div></div></div>
+                    <div class="token-card"><div class="token-preview" style="background:#074058; color:#696969;">&#9679;</div><div class="token-info"><div class="token-name">icon-disabled</div></div></div>
+                </div>
+            </div>
+
+            <!-- Border radius -->
+            <div class="section">
+                <h2 class="section-title">Border Radius</h2>
+                <div class="radius-row">
+                    <div class="radius-box" style="border-radius:0;">none</div>
+                    <div class="radius-box" style="border-radius:1px;">sm</div>
+                    <div class="radius-box" style="border-radius:4px;">md</div>
+                    <div class="radius-box" style="border-radius:8px;">lg</div>
+                    <div class="radius-box" style="border-radius:100px;">round</div>
+                </div>
+            </div>
+
+            <!-- Spacing -->
+            <div class="section">
+                <h2 class="section-title">Spacing</h2>
+                <div class="demo-row"><span class="demo-label">xs 4px</span><div class="demo-bar" style="width:4px;"></div></div>
+                <div class="demo-row"><span class="demo-label">sm 8px</span><div class="demo-bar" style="width:8px;"></div></div>
+                <div class="demo-row"><span class="demo-label">md 16px</span><div class="demo-bar" style="width:16px;"></div></div>
+                <div class="demo-row"><span class="demo-label">lg 32px</span><div class="demo-bar" style="width:32px;"></div></div>
+                <div class="demo-row"><span class="demo-label">xl 64px</span><div class="demo-bar" style="width:64px;"></div></div>
+                <div class="demo-row"><span class="demo-label">2xl 96px</span><div class="demo-bar" style="width:96px;"></div></div>
+            </div>
+
+            <!-- Stroke width -->
+            <div class="section">
+                <h2 class="section-title">Stroke Width</h2>
+                <div class="stroke-row">
+                    <div class="stroke-box" style="border-width:0;">none</div>
+                    <div class="stroke-box" style="border-width:0.5px;">sm</div>
+                    <div class="stroke-box" style="border-width:1px;">md</div>
+                    <div class="stroke-box" style="border-width:2px;">lg</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Semantic text colors -->
+        <div class="section">
+            <h2 class="section-title">Semantic Text Colors</h2>
+            <div class="token-grid">
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#F9FDFF;">heading</div><div class="token-info"><div class="token-name">text-heading</div><div class="token-var">--color-text-heading</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#9E9E9E;">placeholder</div><div class="token-info"><div class="token-name">text-placeholder</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#119FDC;">action</div><div class="token-info"><div class="token-name">text-action</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#119FDC; color:#021016;">on-button</div><div class="token-info"><div class="token-name">text-on-button</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#696969;">disabled</div><div class="token-info"><div class="token-name">text-disabled</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#47E6B1;">success</div><div class="token-info"><div class="token-name">text-success</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#EAA81A;">warning</div><div class="token-info"><div class="token-name">text-warning</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#E65F47;">error</div><div class="token-info"><div class="token-name">text-error</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#3EB9C0;">info</div><div class="token-info"><div class="token-name">text-info</div></div></div>
+            </div>
+        </div>
+
+        <!-- Semantic surface colors -->
+        <div class="section">
+            <h2 class="section-title">Semantic Surface Colors</h2>
+            <div class="token-grid">
+                <div class="token-card"><div class="token-preview" style="background:#021016; color:#F9FDFF; border:1px solid #074058;">page</div><div class="token-info"><div class="token-name">page-surface-default</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#119FDC; color:#021016;">primary btn</div><div class="token-info"><div class="token-name">primary-button-default</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#074058; color:#F9FDFF;">secondary hover</div><div class="token-info"><div class="token-name">secondary-button-hover</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#47E6B1; color:#021016;">success</div><div class="token-info"><div class="token-name">surface-success</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#696969; color:#F9FDFF;">disabled</div><div class="token-info"><div class="token-name">surface-disabled</div></div></div>
+            </div>
+        </div>
+
+        <!-- Semantic border colors -->
+        <div class="section">
+            <h2 class="section-title">Semantic Border Colors</h2>
+            <div class="token-grid">
+                <div class="token-card"><div class="token-preview" style="background:#021016; border:3px solid #074058;">default</div><div class="token-info"><div class="token-name">border-default</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#021016; border:3px solid #F9FDFF;">selected</div><div class="token-info"><div class="token-name">border-selected</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#021016; border:3px solid #119FDC;">focused</div><div class="token-info"><div class="token-name">border-focused</div></div></div>
+                <div class="token-card"><div class="token-preview" style="background:#021016; border:3px solid #696969;">disabled</div><div class="token-info"><div class="token-name">border-disabled</div></div></div>
+            </div>
+        </div>
+
+        <!-- Typography (compact) -->
+        <div class="section">
+            <h2 class="section-title">Typography</h2>
+            <div class="type-row"><div class="type-sample" style="font-size:var(--font-size-heading-01); font-weight:var(--font-weight-heading-01); line-height:var(--line-height-heading-01);">Heading 01</div><span class="type-meta">--font-size-heading-01</span></div>
+            <div class="type-row"><div class="type-sample" style="font-size:var(--font-size-heading-03); font-weight:var(--font-weight-heading-03);">Heading 03</div><span class="type-meta">--font-size-heading-03</span></div>
+            <div class="type-row"><div class="type-sample" style="font-size:var(--font-size-body); font-weight:var(--font-weight-body);">Body text</div><span class="type-meta">--font-size-body</span></div>
+            <div class="type-row"><div class="type-sample" style="font-size:var(--font-size-label);">Label</div><span class="type-meta">--font-size-label</span></div>
+            <div class="type-row"><div class="type-sample" style="font-family:var(--font-family-numbers); font-size:var(--font-size-number-sm);">00:01:23:15</div><span class="type-meta">--font-size-number-sm</span></div>
+        </div>
+
+        <!-- ===================== COMPONENTS ===================== -->
+        <div class="section">
+            <h2 class="section-title">Components</h2>
+
+            <div class="comp-showcase">
+                <h3>Button</h3>
+                <div class="comp-row">
+                    <button type="button" class="btn btn--primary">Primary</button>
+                    <button type="button" class="btn btn--secondary">Secondary</button>
+                    <button type="button" class="btn btn--ghost">Ghost</button>
+                    <button type="button" class="btn btn--primary" disabled>Disabled</button>
+                </div>
+            </div>
+
+            <div class="comp-showcase" style="margin-top: var(--spacing-md);">
+                <h3>Icon &mdash; sizes and states</h3>
+                <div class="comp-row">
+                    <svg class="icon icon--primary icon--sm" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 20.0199V3.98011C5 3.21153 5.85748 2.74296 6.51854 3.1503L19.5335 11.1702C20.1555 11.5534 20.1555 12.4465 19.5335 12.8298L6.51854 20.8497C5.85748 21.257 5 20.7885 5 20.0199Z" fill="currentColor"/></svg>
+                    <svg class="icon icon--primary icon--md" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 20.0199V3.98011C5 3.21153 5.85748 2.74296 6.51854 3.1503L19.5335 11.1702C20.1555 11.5534 20.1555 12.4465 19.5335 12.8298L6.51854 20.8497C5.85748 21.257 5 20.7885 5 20.0199Z" fill="currentColor"/></svg>
+                    <svg class="icon icon--primary icon--lg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 20.0199V3.98011C5 3.21153 5.85748 2.74296 6.51854 3.1503L19.5335 11.1702C20.1555 11.5534 20.1555 12.4465 19.5335 12.8298L6.51854 20.8497C5.85748 21.257 5 20.7885 5 20.0199Z" fill="currentColor"/></svg>
+                </div>
+                <div class="comp-row">
+                    <span style="color: var(--color-text-placeholder); font-size: 11px;">States: </span>
+                    <svg class="icon icon--primary icon--md" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 20.0199V3.98011C5 3.21153 5.85748 2.74296 6.51854 3.1503L19.5335 11.1702C20.1555 11.5534 20.1555 12.4465 19.5335 12.8298L6.51854 20.8497C5.85748 21.257 5 20.7885 5 20.0199Z" fill="currentColor"/></svg> primary
+                    <svg class="icon icon--secondary icon--md" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 20.0199V3.98011C5 3.21153 5.85748 2.74296 6.51854 3.1503L19.5335 11.1702C20.1555 11.5534 20.1555 12.4465 19.5335 12.8298L6.51854 20.8497C5.85748 21.257 5 20.7885 5 20.0199Z" fill="currentColor"/></svg> secondary
+                    <svg class="icon icon--hover icon--md" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 20.0199V3.98011C5 3.21153 5.85748 2.74296 6.51854 3.1503L19.5335 11.1702C20.1555 11.5534 20.1555 12.4465 19.5335 12.8298L6.51854 20.8497C5.85748 21.257 5 20.7885 5 20.0199Z" fill="currentColor"/></svg> hover
+                    <svg class="icon icon--selected icon--md" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 20.0199V3.98011C5 3.21153 5.85748 2.74296 6.51854 3.1503L19.5335 11.1702C20.1555 11.5534 20.1555 12.4465 19.5335 12.8298L6.51854 20.8497C5.85748 21.257 5 20.7885 5 20.0199Z" fill="currentColor"/></svg> selected
+                    <svg class="icon icon--disabled icon--md" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 20.0199V3.98011C5 3.21153 5.85748 2.74296 6.51854 3.1503L19.5335 11.1702C20.1555 11.5534 20.1555 12.4465 19.5335 12.8298L6.51854 20.8497C5.85748 21.257 5 20.7885 5 20.0199Z" fill="currentColor"/></svg> disabled
+                </div>
+            </div>
+
+            <div class="comp-showcase" style="margin-top: var(--spacing-md);">
+                <h3>TextInput</h3>
+                <div class="comp-block">
+                    <div class="text-input">
+                        <label class="text-input__label">Label</label>
+                        <input class="text-input__field" type="text" placeholder="Placeholder" value="" readonly />
+                    </div>
+                </div>
+            </div>
+
+            <div class="comp-showcase" style="margin-top: var(--spacing-md);">
+                <h3>DropDown (closed)</h3>
+                <div class="comp-block">
+                    <div class="dropdown">
+                        <label class="dropdown__label">Option</label>
+                        <button type="button" class="dropdown__trigger" aria-expanded="false">
+                            <span class="dropdown__value dropdown__value--placeholder">Default</span>
+                            <svg class="icon icon--secondary icon--sm dropdown__chevron" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M6 9L12 15L18 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="comp-showcase" style="margin-top: var(--spacing-md);">
+                <h3>MediaCard (add-media)</h3>
+                <div class="comp-block" style="max-width: 200px;">
+                    <div class="media-card-wrapper">
+                        <div class="media-card media-card--add-media">
+                            <div class="media-card__add">
+                                <svg class="media-card__add-icon" width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                    <path d="M7.33333 5.5H36.6667C37.6792 5.5 38.5 6.32082 38.5 7.33333V36.6667C38.5 37.6792 37.6792 38.5 36.6667 38.5H7.33333C6.32082 38.5 5.5 37.6792 5.5 36.6667V7.33333C5.5 6.32082 6.32082 5.5 7.33333 5.5ZM20.1667 20.1667H12.8333V23.8333H20.1667V31.1667H23.8333V23.8333H31.1667V20.1667H23.8333V12.8333H20.1667V20.1667Z" fill="var(--color-icon-primary)" stroke="none"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="media-card__clip-name">Add media</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <p class="usage-hint">Use <code>src/styles/tokens.css</code> and component styles in <code>src/components/styles/</code>. Reference variables with <code>var(--color-text-heading)</code>, <code>var(--spacing-md)</code>, etc.</p>
+
+    </div>
+</body>
+</html>

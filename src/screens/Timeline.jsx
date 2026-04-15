@@ -402,60 +402,6 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
     }
   }, [pushUndo]);
 
-  const handleAccept = useCallback(
-    (clipId, highlightId) => {
-      pushUndo();
-      if (clipId == null) {
-        // Accept all pending clips (and all their highlights)
-        const toAccept = selectsList.filter((s) => s.status === 'pending');
-        setSelects((prev) =>
-          prev.map((s) => {
-            if (s.status !== 'pending') return s;
-            const h = Array.isArray(s.highlights) ? s.highlights : [];
-            const nextH = h.length > 0 ? h.map((x) => ({ ...x, status: 'accepted' })) : h;
-            return { ...s, status: 'accepted', highlights: nextH };
-          })
-        );
-        toAccept.forEach((clip) => {
-          const h = Array.isArray(clip.highlights) ? clip.highlights : [];
-          const nextH = h.length > 0 ? h.map((x) => ({ ...x, status: 'accepted' })) : h;
-          if (window.electronAPI?.media?.updateHighlights) {
-            window.electronAPI.media.updateHighlights(clip.id, nextH.length > 0 ? nextH : clip.highlights || []).catch(() => {});
-          }
-        });
-        return;
-      }
-      if (highlightId != null) {
-        // Accept only the selected highlight
-        const clip = selectsList.find((s) => s.id === clipId);
-        const current = Array.isArray(clip?.highlights) ? clip.highlights : [];
-        const next = current.map((h) =>
-          h.id === highlightId ? { ...h, status: 'accepted' } : h
-        );
-        updateSelectHighlights(clipId, next, { skipUndo: true });
-        return;
-      }
-      // Accept the selected clip (whole clip: clip status + all its highlights)
-      const clip = selectsList.find((s) => s.id === clipId);
-      const current = Array.isArray(clip?.highlights) ? clip.highlights : [];
-      const nextHighlights =
-        current.length > 0
-          ? current.map((h) => ({ ...h, status: 'accepted' }))
-          : current;
-      setSelects((prev) =>
-        prev.map((s) =>
-          s.id === clipId
-            ? { ...s, status: 'accepted', highlights: nextHighlights }
-            : s
-        )
-      );
-      if (clip && window.electronAPI?.media?.updateHighlights) {
-        window.electronAPI.media.updateHighlights(clipId, nextHighlights).catch(() => {});
-      }
-    },
-    [selectsList, updateSelectHighlights, pushUndo]
-  );
-
   const handleDelete = useCallback((clipId, options = {}) => {
     if (!options.skipUndo) pushUndo();
     setSelects((prev) =>
@@ -528,22 +474,6 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
 
   const HIGHLIGHT_DELETE_ANIMATION_MS = 750;
   const [deletingHighlightIds, setDeletingHighlightIds] = useState(new Set());
-  const handleRequestRemoveHighlight = useCallback(
-    (highlightId) => {
-      if (highlightId == null) return;
-      setDeletingHighlightIds((prev) => new Set(prev).add(highlightId));
-      setTimeout(() => {
-        handleRemoveHighlight(highlightId);
-        setDeletingHighlightIds((prev) => {
-          const next = new Set(prev);
-          next.delete(highlightId);
-          return next;
-        });
-      }, HIGHLIGHT_DELETE_ANIMATION_MS);
-    },
-    [handleRemoveHighlight]
-  );
-
   const allDecided =
     selectsList.length > 0 &&
     selectsList.every((s) => {
@@ -639,6 +569,106 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
       lastClickedRowIndexRef.current = rowIndex;
     }
   }, []);
+
+  const handleAccept = useCallback(
+    (clipId, highlightId) => {
+      pushUndo();
+      if (clipId == null) {
+        // Accept all pending clips (and all their highlights)
+        const toAccept = selectsList.filter((s) => s.status === 'pending');
+        setSelects((prev) =>
+          prev.map((s) => {
+            if (s.status !== 'pending') return s;
+            const h = Array.isArray(s.highlights) ? s.highlights : [];
+            const nextH = h.length > 0 ? h.map((x) => ({ ...x, status: 'accepted' })) : h;
+            return { ...s, status: 'accepted', highlights: nextH };
+          })
+        );
+        toAccept.forEach((clip) => {
+          const h = Array.isArray(clip.highlights) ? clip.highlights : [];
+          const nextH = h.length > 0 ? h.map((x) => ({ ...x, status: 'accepted' })) : h;
+          if (window.electronAPI?.media?.updateHighlights) {
+            window.electronAPI.media.updateHighlights(clip.id, nextH.length > 0 ? nextH : clip.highlights || []).catch(() => {});
+          }
+        });
+        return;
+      }
+      if (highlightId != null) {
+        // Accept only the selected highlight
+        const clip = selectsList.find((s) => s.id === clipId);
+        const current = Array.isArray(clip?.highlights) ? clip.highlights : [];
+        const next = current.map((h) =>
+          h.id === highlightId ? { ...h, status: 'accepted' } : h
+        );
+        updateSelectHighlights(clipId, next, { skipUndo: true });
+        // Auto-select the row below so user can keep working without clicking
+        const currentIndex = orderedHighlightRows.findIndex(
+          (r) => r.clipId === clipId && r.highlightId === highlightId
+        );
+        if (
+          currentIndex >= 0 &&
+          currentIndex + 1 < orderedHighlightRows.length
+        ) {
+          const nextRow = orderedHighlightRows[currentIndex + 1];
+          handleSelectClipAndSeek(
+            nextRow.clipId,
+            nextRow.in,
+            nextRow.highlightId ?? undefined,
+            currentIndex + 1
+          );
+        }
+        return;
+      }
+      // Accept the selected clip (whole clip: clip status + all its highlights)
+      const clip = selectsList.find((s) => s.id === clipId);
+      const current = Array.isArray(clip?.highlights) ? clip.highlights : [];
+      const nextHighlights =
+        current.length > 0
+          ? current.map((h) => ({ ...h, status: 'accepted' }))
+          : current;
+      setSelects((prev) =>
+        prev.map((s) =>
+          s.id === clipId
+            ? { ...s, status: 'accepted', highlights: nextHighlights }
+            : s
+        )
+      );
+      if (clip && window.electronAPI?.media?.updateHighlights) {
+        window.electronAPI.media.updateHighlights(clipId, nextHighlights).catch(() => {});
+      }
+    },
+    [selectsList, updateSelectHighlights, pushUndo, orderedHighlightRows, handleSelectClipAndSeek]
+  );
+
+  const handleRequestRemoveHighlight = useCallback(
+    (highlightId) => {
+      if (highlightId == null) return;
+      const currentIdx = orderedHighlightRows.findIndex((r) => r.highlightId === highlightId);
+      const nextRow =
+        currentIdx >= 0 && currentIdx + 1 < orderedHighlightRows.length
+          ? orderedHighlightRows[currentIdx + 1]
+          : null;
+      const nextRowNewIndex = nextRow != null ? currentIdx : null;
+      setDeletingHighlightIds((prev) => new Set(prev).add(highlightId));
+      setTimeout(() => {
+        handleRemoveHighlight(highlightId);
+        if (nextRow != null && typeof nextRowNewIndex === 'number') {
+          handleSelectClipAndSeek(
+            nextRow.clipId,
+            nextRow.in,
+            nextRow.highlightId ?? undefined,
+            nextRowNewIndex
+          );
+        }
+        setDeletingHighlightIds((prev) => {
+          const next = new Set(prev);
+          next.delete(highlightId);
+          return next;
+        });
+      }, HIGHLIGHT_DELETE_ANIMATION_MS);
+    },
+    [handleRemoveHighlight, orderedHighlightRows, handleSelectClipAndSeek]
+  );
 
   const handleRowClick = useCallback(
     (row, rowIndex, e) => {

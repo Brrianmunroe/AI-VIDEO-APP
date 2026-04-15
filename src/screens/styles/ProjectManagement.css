@@ -1,7 +1,7 @@
 .project-management {
   flex: 1;
   min-height: 100%;
-  padding-top: var(--spacing-xl, 32px);
+  padding-top: var(--spacing-lg);
   padding-left: var(--spacing-md);
   padding-right: var(--spacing-md);
   background-color: var(--color-blue-950, #021016);

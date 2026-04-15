@@ -4,6 +4,21 @@ This file captures **case-study-worthy** decisions: major scope cuts, platform b
 
 ---
 
+## Decision: Throttle playback time updates to parent (Interview Selects)
+- **Date:** 2026-03-09
+- **Context:** App felt sluggish during video playback on the Interview Selects (Timeline) screen.
+- **Options considered:**
+  - A) Leave as-is: requestAnimationFrame loop calls `onTimeUpdate` every frame (~60/sec), causing full Timeline + TranscriptPanel + PlaybackModule re-renders 60×/sec
+  - B) Throttle: only push time to parent at a lower rate (e.g. every 100 ms or when time delta ≥ 0.1 s)
+- **Decision:** **Option B** — Throttle in PlaybackModule: call `onTimeUpdate(t)` at most every 100 ms or when `t` has moved by ≥ 0.1 s. Playhead and scroll logic still run at full RAF rate inside PlaybackModule; only React state updates to the parent are throttled.
+- **Why (tradeoffs):**
+  - Pros: Far fewer re-renders (~10/sec instead of ~60/sec); UI stays responsive; playhead and transcript sync still look smooth.
+  - Cons: Displayed time can lag by up to ~0.1 s during playback (acceptable).
+- **Impact on MVP:** PlaybackModule.jsx: refs `lastReportedTimeRef` / `lastReportedAtRef` and throttle condition before `onTimeUpdate(t)` in the controlled-playback RAF loop.
+- **Follow-ups:** None.
+
+---
+
 ## Decision: Single story-context text box + duration-driven highlight constraints
 - **Date:** 2026-02-24
 - **Context:** Context Brief modal had three text areas (Story, Style, Instructions); desired video length was a native select with limited options; Skip did not trigger AI or show loading.
