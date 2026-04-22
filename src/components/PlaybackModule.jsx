@@ -587,6 +587,12 @@ function PlaybackModule({
     effectivePixelsPerFrame,
   ]);
 
+  // Throttle time updates to parent: avoid 60fps setState and re-renders of Timeline/TranscriptPanel.
+  const lastReportedTimeRef = useRef(-1);
+  const lastReportedAtRef = useRef(0);
+  const TIME_UPDATE_THROTTLE_SEC = 0.1;   // min interval between reported time (≈10/sec)
+  const TIME_UPDATE_THROTTLE_MS = 100;
+
   // High-frequency time updates while playing; stop at end of playback range (highlight or in/out)
   // Also scroll timeline viewport so playhead stays visible (instant scroll when it exits right)
   useEffect(() => {
@@ -602,7 +608,16 @@ function PlaybackModule({
         return;
       }
       const t = v.currentTime;
-      if (onTimeUpdate) onTimeUpdate(t);
+      if (onTimeUpdate) {
+        const now = performance.now();
+        const dt = t - lastReportedTimeRef.current;
+        const elapsed = now - lastReportedAtRef.current;
+        if (dt >= TIME_UPDATE_THROTTLE_SEC || elapsed >= TIME_UPDATE_THROTTLE_MS) {
+          lastReportedTimeRef.current = t;
+          lastReportedAtRef.current = now;
+          onTimeUpdate(t);
+        }
+      }
       if (range != null && t >= range.endSec - 0.05) {
         v.pause();
         v.currentTime = range.startSec;

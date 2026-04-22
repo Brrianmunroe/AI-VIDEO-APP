@@ -295,7 +295,7 @@ export function getTranscriptByMediaId(mediaId) {
  * Delete transcript for a media item (used before re-transcribing).
  * Cascades to selects table. Returns true if a row was deleted.
  */
-export function deleteTranscriptByMediaId(mediaId) {
+function deleteTranscriptByMediaId(mediaId) {
   const db = getDatabase();
   const result = db.prepare('DELETE FROM transcripts WHERE media_id = ?').run(mediaId);
   return result.changes > 0;
@@ -389,7 +389,7 @@ function insertEmptyTranscript(db, mediaId, reason = null) {
  * @returns {Promise<{ id: number, mediaId: number, text: string, words: Array }>}
  * @throws if media not found or Whisper/FFmpeg setup is missing (not for no-audio)
  */
-export async function runForMedia(mediaId) {
+async function runForMedia(mediaId) {
   const db = getDatabase();
   const media = db.prepare('SELECT id, file_path FROM media WHERE id = ?').get(mediaId);
   if (!media) {
