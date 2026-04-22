@@ -923,9 +923,9 @@ function TranscriptPanel({
                   }
                 >
                   {hasMultiSelection
-                    ? `Accept Highlight [${selectedCount}]`
+                    ? `Accept [${selectedCount}]`
                     : selectedHighlightId != null
-                      ? 'Accept Highlight'
+                      ? 'Accept'
                       : 'Accept All'}
                 </Button>
               </>

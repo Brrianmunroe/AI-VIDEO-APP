@@ -19,9 +19,22 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  gap: var(--spacing-md);
   background-color: var(--color-surface-page-surface-default);
   color: var(--color-text-heading);
+}
+
+.playback-module__panel-group {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.playback-module__panel {
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 /* === Player + toolbar container (single bordered frame) === */
@@ -519,17 +532,18 @@
   overflow: hidden;
 }
 
-/* Inner 40px filmstrip band (Figma node 300:350). `auto 40px` + repeat-x keeps each
-   thumbnail at its real aspect ratio — they tile horizontally as the clip grows on
-   zoom instead of stretching. Dark gradient overlay uses a tokenized CSS var. */
+/* Inner filmstrip band fills the clip height with a small blue padding top/bottom,
+   so as the timeline panel grows taller, the thumbnails grow with it. `auto 100%` +
+   repeat-x keeps each thumbnail at its real aspect ratio — they tile horizontally
+   as the clip grows on zoom instead of stretching. Dark gradient overlay uses a
+   tokenized CSS var. */
 .playback-module__clip-filmstrip {
   position: absolute;
   left: var(--spacing-xs);
   right: var(--spacing-xs);
-  top: 50%;
-  height: 40px;
-  transform: translateY(-50%);
-  background-size: auto 40px;
+  top: var(--spacing-md);
+  bottom: var(--spacing-md);
+  background-size: auto 100%;
   background-repeat: repeat-x;
   background-position: left center;
   pointer-events: none;

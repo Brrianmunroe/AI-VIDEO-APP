@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import ProjectHeader from '../components/ProjectHeader';
 import TranscriptPanel from '../components/TranscriptPanel';
 import PlaybackModule from '../components/PlaybackModule';
@@ -1284,7 +1285,12 @@ function Timeline({ project, onBack }) {
         </div>
       ) : (
       <div className="timeline__main">
-        <div className="timeline__transcript-column">
+        <PanelGroup
+          direction="horizontal"
+          autoSaveId="timeline.h"
+          className="timeline__panel-group"
+        >
+        <Panel defaultSize={40} minSize={25} maxSize={70} className="timeline__transcript-column">
           <TranscriptPanel
             selects={selectsList}
             selectedSelectId={selectedSelectId}
@@ -1321,8 +1327,9 @@ function Timeline({ project, onBack }) {
             onVersionChange={handleVersionChange}
             versionSwitchDisabled={isVersionSwitching || isRecutLoading}
           />
-        </div>
-        <div className="timeline__playback-column">
+        </Panel>
+        <PanelResizeHandle className="timeline__resize-handle timeline__resize-handle--vertical" />
+        <Panel defaultSize={60} minSize={35} className="timeline__playback-column">
           <PlaybackModule
             videoUrl={videoUrl}
             selectedMediaId={selectedSelectId}
@@ -1350,7 +1357,8 @@ function Timeline({ project, onBack }) {
             canUndo={canUndo}
             canRedo={canRedo}
           />
-        </div>
+        </Panel>
+        </PanelGroup>
       </div>
       )}
       <GenerateSelectsModal

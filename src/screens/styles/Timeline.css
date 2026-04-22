@@ -58,9 +58,16 @@
   padding: var(--spacing-md);
 }
 
-.timeline__transcript-column {
-  flex: 0 0 40%;
+.timeline__panel-group {
+  flex: 1;
+  min-height: 0;
   min-width: 0;
+  display: flex;
+  flex-direction: row;
+}
+
+.timeline__transcript-column {
+  min-width: 320px;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -72,11 +79,77 @@
 }
 
 .timeline__playback-column {
-  flex: 1;
-  min-width: 0;
+  min-width: 420px;
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* Resize handle: the full-length track is a hit target (grab anywhere along the
+   row/column), but visually almost invisible. A small primary-blue "node" sits in
+   the middle as the visual indicator. */
+.timeline__resize-handle {
+  position: relative;
+  background-color: transparent;
+  flex-shrink: 0;
+  transition: background-color 120ms ease;
+}
+
+.timeline__resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: var(--color-primary-500);
+  border-radius: var(--radius-pill, 999px);
+  opacity: 0.7;
+  transition: opacity 120ms ease, background-color 120ms ease, width 120ms ease, height 120ms ease;
+}
+
+.timeline__resize-handle:hover::after,
+.timeline__resize-handle[data-resize-handle-active]::after {
+  opacity: 1;
+  background-color: var(--color-primary-400, var(--color-primary-500));
+}
+
+/* Subtle full-track highlight only while actively dragging, to signal the drag axis */
+.timeline__resize-handle[data-resize-handle-active] {
+  background-color: color-mix(in srgb, var(--color-primary-500) 20%, transparent);
+}
+
+.timeline__resize-handle--vertical {
+  width: 8px;
+  margin: 0 var(--spacing-xs);
+  cursor: col-resize;
+}
+
+.timeline__resize-handle--vertical::after {
+  width: 4px;
+  height: 32px;
+}
+
+.timeline__resize-handle--vertical:hover::after,
+.timeline__resize-handle--vertical[data-resize-handle-active]::after {
+  width: 6px;
+  height: 40px;
+}
+
+.timeline__resize-handle--horizontal {
+  height: 8px;
+  margin: var(--spacing-xs) 0;
+  cursor: row-resize;
+}
+
+.timeline__resize-handle--horizontal::after {
+  width: 32px;
+  height: 4px;
+}
+
+.timeline__resize-handle--horizontal:hover::after,
+.timeline__resize-handle--horizontal[data-resize-handle-active]::after {
+  width: 40px;
+  height: 6px;
 }
 
 .timeline__playback-column .playback-module {
@@ -84,15 +157,18 @@
   min-height: 0;
 }
 
-/* Player section fits contents (16:9 player + toolbar), does not stretch */
+/* Inside a Panel, the player section fills its panel (which is sized by the user).
+   The player itself uses container queries (see PlaybackModule.css) to fit the largest
+   16:9 viewport within whatever space the panel provides. */
 .timeline__playback-column .playback-module__player-section {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .timeline__playback-column .playback-module__player {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
-  aspect-ratio: 16 / 9;
 }
 
 /* Placeholder when project missing or media loading */
