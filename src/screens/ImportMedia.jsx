@@ -132,11 +132,23 @@ function ImportMedia({ project, onBack, onNavigateToTimeline }) {
       return;
     }
     setIsGenerateSelectsModalOpen(false);
-    const promise = window.electronAPI.ai.generateSelects({
-      projectId: project.id,
-      storyContext: context.storyContext ?? '',
-      desiredDurationSec: 120,
-    });
+    const storyContext = context?.storyContext ?? '';
+    const desiredDurationSec = 120;
+    const promise = window.electronAPI.ai
+      .generateSelects({ projectId: project.id, storyContext, desiredDurationSec })
+      .then(async (result) => {
+        if (result?.success && window.electronAPI?.selects?.createVersion) {
+          try {
+            await window.electronAPI.selects.createVersion(project.id, {
+              storyContext,
+              desiredDurationSec,
+            });
+          } catch (err) {
+            console.warn('Failed to create initial selects version:', err?.message);
+          }
+        }
+        return result;
+      });
     setGenerateSelectsPromise(promise);
     setShowGenerateSelectsLoading(true);
   };
@@ -150,17 +162,29 @@ function ImportMedia({ project, onBack, onNavigateToTimeline }) {
     setGenerateSelectsPromise(null);
   };
 
-  const handleSkipGenerateSelects = (context = {}) => {
+  const handleSkipGenerateSelects = () => {
     if (!project || !window.electronAPI?.ai?.generateSelects) {
       console.error('AI generateSelects not available');
       return;
     }
     setIsGenerateSelectsModalOpen(false);
-    const promise = window.electronAPI.ai.generateSelects({
-      projectId: project.id,
-      storyContext: '',
-      desiredDurationSec: 120,
-    });
+    const storyContext = '';
+    const desiredDurationSec = 120;
+    const promise = window.electronAPI.ai
+      .generateSelects({ projectId: project.id, storyContext, desiredDurationSec })
+      .then(async (result) => {
+        if (result?.success && window.electronAPI?.selects?.createVersion) {
+          try {
+            await window.electronAPI.selects.createVersion(project.id, {
+              storyContext,
+              desiredDurationSec,
+            });
+          } catch (err) {
+            console.warn('Failed to create initial selects version:', err?.message);
+          }
+        }
+        return result;
+      });
     setGenerateSelectsPromise(promise);
     setShowGenerateSelectsLoading(true);
   };

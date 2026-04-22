@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect, useLayoutEffect, useCallba
 import Icon from './Icon';
 import Button from './Button';
 import HighlightContainer from './HighlightContainer';
+import DropDown from './DropDown';
 import './styles/TranscriptPanel.css';
 
 /** Check if word [wStart, wEnd] overlaps highlight [hIn, hOut]. */
@@ -94,7 +95,6 @@ function lineToWords(line) {
 const TABS = [
   { id: 'interview', label: 'Interview Selects' },
   { id: 'transcript', label: 'Transcript' },
-  { id: 'clipinfo', label: 'Clip info' },
 ];
 
 /** Get display name for speaker_id from labels or fallback "Speaker N" */
@@ -131,13 +131,17 @@ function TranscriptPanel({
   onAccept,
   onAcceptSelection,
   onDeleteSelection,
-  onProceedToReviewTimeline,
+  onExportToTimeline,
   allDecided = false,
   highlights: highlightsProp = [],
   onHighlightsChange,
   onHighlightDragStart,
   onHighlightDragEnd,
   onAddHighlightFromSelection,
+  selectsVersions = [],
+  activeVersionId = null,
+  onVersionChange,
+  versionSwitchDisabled = false,
 }) {
   const selects = Array.isArray(selectsProp) ? selectsProp : [];
   const transcriptList = Array.isArray(transcript) ? transcript : [];
@@ -481,23 +485,36 @@ function TranscriptPanel({
       <div className="transcript-panel__container">
         {/* Header: tabs + search (does not grow) */}
         <div className="transcript-panel__header">
-          <div className="transcript-panel__tabs" role="tablist" aria-label="Transcript container tabs">
-            {TABS.map((tab, index) => (
-              <React.Fragment key={tab.id}>
-                {index > 0 && <span className="transcript-panel__tab-sep" aria-hidden="true">|</span>}
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={activeTab === tab.id}
-                  aria-controls={`transcript-panel-tab-${tab.id}`}
-                  id={`tab-${tab.id}`}
-                  className={`transcript-panel__tab ${activeTab === tab.id ? 'transcript-panel__tab--active' : ''}`}
-                  onClick={() => setActiveTab(tab.id)}
-                >
-                  {tab.label}
-                </button>
-              </React.Fragment>
-            ))}
+          <div className="transcript-panel__tabs-row">
+            <div className="transcript-panel__tabs" role="tablist" aria-label="Transcript container tabs">
+              {TABS.map((tab, index) => (
+                <React.Fragment key={tab.id}>
+                  {index > 0 && <span className="transcript-panel__tab-sep" aria-hidden="true">|</span>}
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === tab.id}
+                    aria-controls={`transcript-panel-tab-${tab.id}`}
+                    id={`tab-${tab.id}`}
+                    className={`transcript-panel__tab ${activeTab === tab.id ? 'transcript-panel__tab--active' : ''}`}
+                    onClick={() => setActiveTab(tab.id)}
+                  >
+                    {tab.label}
+                  </button>
+                </React.Fragment>
+              ))}
+            </div>
+            {Array.isArray(selectsVersions) && selectsVersions.length > 0 && (
+              <div className="transcript-panel__version-switcher" aria-label="Selects version">
+                <DropDown
+                  placeholder="Version"
+                  value={activeVersionId ?? undefined}
+                  onChange={(value) => onVersionChange?.(value)}
+                  disabled={versionSwitchDisabled || selectsVersions.length < 1}
+                  options={selectsVersions.map((v) => ({ value: v.id, label: v.label || v.id }))}
+                />
+              </div>
+            )}
           </div>
           {activeTab === 'transcript' && (
             <div className="transcript-panel__search">
@@ -853,21 +870,12 @@ function TranscriptPanel({
               </div>
             </div>
           </div>
-          <div
-            id="transcript-panel-tab-clipinfo"
-            role="tabpanel"
-            aria-labelledby="tab-clipinfo"
-            hidden={activeTab !== 'clipinfo'}
-            className="transcript-panel__tab-panel"
-          >
-            <div className="transcript-panel__placeholder">Clip info content coming soon.</div>
-          </div>
 
           {/* Footer: when all clips accepted or deleted, one primary button; else Delete + Accept */}
           <div className={`transcript-panel__footer ${allDecided ? 'transcript-panel__footer--single' : ''}`}>
             {allDecided ? (
-              <Button variant="primary" onClick={onProceedToReviewTimeline} className="transcript-panel__continue-btn">
-                Proceed to review timeline
+              <Button variant="primary" onClick={onExportToTimeline} className="transcript-panel__continue-btn">
+                Export to timeline
               </Button>
             ) : (
               <>

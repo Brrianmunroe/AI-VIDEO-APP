@@ -17,8 +17,6 @@
   flex-shrink: 0;
   display: block;
   vertical-align: middle;
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
 }
 
 .audio-waveform__canvas {
@@ -26,8 +24,6 @@
   vertical-align: middle;
   position: sticky;
   left: 0;
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
 }
 
 .audio-waveform--loading,

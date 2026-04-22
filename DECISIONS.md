@@ -4,6 +4,21 @@ This file captures **case-study-worthy** decisions: major scope cuts, platform b
 
 ---
 
+## Decision: Remove Timeline Review page; export directly from Interview Selects
+- **Date:** 2026-04-22
+- **Context:** After accepting/deleting AI selects, users had to pass through a dedicated Timeline Review screen (trim/split/delete on an assembled timeline) before exporting FCPXML. The intermediate step added friction without enough value for the MVP flow.
+- **Options considered:**
+  - A) Keep Timeline Review as a pre-export confirmation + editing step
+  - B) Remove Timeline Review; on Interview Selects, once all selects are accepted/deleted, show "Export to timeline" which opens the Export Timeline modal directly
+- **Decision:** **Option B** — Deleted `TimelineReview.jsx` and its CSS. The Interview Selects footer button now reads "Export to timeline" and opens `ExportTimelineModal` directly. The FCPXML payload is built from accepted highlights in-place using the existing `buildTimelineFromAccepted` + `applyRipple` helpers (ported into `Timeline.jsx`). The success/error banner now lives on Interview Selects.
+- **Why (tradeoffs):**
+  - Pros: One fewer screen; faster path to export; less code surface (removes ~280 lines + CSS).
+  - Cons: Users lose per-segment trim / split / delete on the assembled timeline before export. Each accepted highlight's in/out (as set on Interview Selects) is used as-is.
+- **Impact on MVP:** `src/App.jsx` drops the `timeline-review` route; `src/screens/Timeline.jsx` inlines the export flow and renders the modal; `src/components/TranscriptPanel.jsx` renames `onProceedToReviewTimeline` → `onExportToTimeline` and updates the button label.
+- **Follow-ups:** If users need per-segment timeline edits again, reintroduce a trim/split/delete affordance either inside Interview Selects or as an optional pre-export step.
+
+---
+
 ## Decision: Throttle playback time updates to parent (Interview Selects)
 - **Date:** 2026-03-09
 - **Context:** App felt sluggish during video playback on the Interview Selects (Timeline) screen.

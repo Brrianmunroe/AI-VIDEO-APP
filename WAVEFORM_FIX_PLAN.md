@@ -3,6 +3,8 @@
 **Date:** 2026-02-20  
 **Scope:** Timeline Review page and shared PlaybackModule / AudioWaveform
 
+> **Note (2026-04-22):** The Timeline Review page has been removed (see DECISIONS.md). Export now happens directly from Interview Selects. Any `TimelineReview.jsx` / `TimelineReview.css` / `#/timeline-review` references below are historical.
+
 ---
 
 ## Diagnosis: How to Enable Debug Mode

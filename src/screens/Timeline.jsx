@@ -4,7 +4,59 @@ import TranscriptPanel from '../components/TranscriptPanel';
 import PlaybackModule from '../components/PlaybackModule';
 import Button from '../components/Button';
 import HighlightInfoModal from '../components/HighlightInfoModal';
+import ExportTimelineModal from '../components/ExportTimelineModal';
+import GenerateSelectsModal from '../components/GenerateSelectsModal';
+import GenerateSelectsLoading from '../components/GenerateSelectsLoading';
 import './styles/Timeline.css';
+
+const FPS = 24;
+
+/** Recompute startFrame for each segment in order and return total duration in frames. */
+function applyRipple(segments) {
+  if (!Array.isArray(segments) || segments.length === 0) {
+    return { segments: [], durationFrames: 0 };
+  }
+  let startFrame = 0;
+  const out = segments.map((seg) => {
+    const durationFrames = seg.durationFrames ?? Math.max(0, Math.round((Number(seg.sourceOutSec) - Number(seg.sourceInSec)) * FPS));
+    const next = { ...seg, startFrame, durationFrames };
+    startFrame += durationFrames;
+    return next;
+  });
+  return { segments: out, durationFrames: startFrame };
+}
+
+function buildTimelineFromAccepted(acceptedClips) {
+  if (!acceptedClips || acceptedClips.length === 0) {
+    return { videoClips: [], durationFrames: 0 };
+  }
+  let startFrame = 0;
+  const videoClips = [];
+
+  for (const c of acceptedClips) {
+    const highlights = Array.isArray(c.highlights) ? c.highlights : [];
+    if (highlights.length === 0) {
+      continue;
+    }
+    for (let i = 0; i < highlights.length; i++) {
+      const h = highlights[i];
+      const inSec = Math.max(0, Number(h.in) || 0);
+      const outSec = Math.max(inSec, Number(h.out) || 0);
+      const durationFrames = Math.max(0, Math.round((outSec - inSec) * FPS));
+      videoClips.push({
+        id: `${c.id}_h${i}`,
+        sourceMediaId: c.id,
+        startFrame,
+        durationFrames,
+        label: `${c.clipName || `Clip ${c.id}`} (${i + 1})`,
+        sourceInSec: inSec,
+        sourceOutSec: outSec,
+      });
+      startFrame += durationFrames;
+    }
+  }
+  return { videoClips, durationFrames: startFrame };
+}
 
 /** Generate a unique id for a highlight (e.g. for React keys and updates). */
 function generateHighlightId() {
@@ -150,7 +202,7 @@ function buildTranscriptLines(words) {
   return lines;
 }
 
-function Timeline({ project, onBack, onNavigateToTimelineReview }) {
+function Timeline({ project, onBack }) {
   const [selects, setSelects] = useState([]);
   const [selectedSelectId, setSelectedSelectId] = useState(null);
   const [selectedHighlightId, setSelectedHighlightId] = useState(null);
@@ -175,6 +227,22 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
   const [selectedRowIndices, setSelectedRowIndices] = useState(() => new Set());
   const selectsList = Array.isArray(selects) ? selects : [];
 
+  // Selects-version state (dropdown + re-cut)
+  const [selectsState, setSelectsState] = useState({
+    activeVersionId: null,
+    lastStoryContext: '',
+    lastDesiredDurationSec: 120,
+    versions: [],
+  });
+  const [isRecutModalOpen, setIsRecutModalOpen] = useState(false);
+  const [recutPromise, setRecutPromise] = useState(null);
+  const [isRecutLoading, setIsRecutLoading] = useState(false);
+  const [isVersionSwitching, setIsVersionSwitching] = useState(false);
+  const [selectsStateRefreshKey, setSelectsStateRefreshKey] = useState(0);
+  const syncActiveVersionTimeoutRef = useRef(null);
+  // Ref indirection so callbacks declared before `scheduleActiveVersionSync` can still trigger it.
+  const scheduleActiveVersionSyncRef = useRef(null);
+
   const pushUndo = useCallback(() => {
     const snapshot = { selects: deepClone(selects), speakerLabels: deepClone(speakerLabels) };
     undoStackRef.current = [...undoStackRef.current.slice(-(UNDO_MAX_HISTORY - 1)), snapshot];
@@ -188,6 +256,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
         const h = Array.isArray(s.highlights) ? s.highlights : [];
         window.electronAPI.media.updateHighlights(s.id, h).catch(() => {});
       });
+      scheduleActiveVersionSyncRef.current?.();
     }
     if (selectedSelectId && window.electronAPI?.transcription?.updateSpeakerLabels && typeof restoredSpeakerLabels === 'object') {
       window.electronAPI.transcription.updateSpeakerLabels(selectedSelectId, restoredSpeakerLabels).catch(() => {});
@@ -257,6 +326,23 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
     return () => { cancelled = true; };
   }, [project?.id, selectIdsKey]);
 
+  // Reload selects from the live `media.highlights` (which the active version mirrors into).
+  const reloadSelectsFromMedia = useCallback(async () => {
+    if (!project?.id || !window.electronAPI?.media?.getByProject) return;
+    try {
+      const result = await window.electronAPI.media.getByProject(project.id);
+      const data = Array.isArray(result?.data) ? result.data : [];
+      const valid = data.filter((m) => m != null && m.id != null);
+      const mapped = valid.map(mediaToSelect).filter(Boolean);
+      setSelects(mapped);
+      undoStackRef.current = [];
+      redoStackRef.current = [];
+      setUndoRedoVersion((v) => v + 1);
+    } catch (err) {
+      console.error('Failed to reload project media:', err);
+    }
+  }, [project?.id]);
+
   useEffect(() => {
     if (!project || typeof project.id === 'undefined' || !window.electronAPI?.media?.getByProject) {
       setSelects([]);
@@ -281,6 +367,29 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
     })();
     return () => { cancelled = true; };
   }, [project?.id]);
+
+  // Load versions state (for the dropdown + Re-cut prefill) when the project changes
+  // or after a re-cut / version switch completes.
+  useEffect(() => {
+    if (!project?.id || !window.electronAPI?.selects?.getState) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await window.electronAPI.selects.getState(project.id);
+        if (cancelled) return;
+        if (result?.success && result.data) {
+          setSelectsState(result.data);
+        }
+      } catch (err) {
+        console.warn('Failed to load selects state:', err?.message);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [project?.id, selectsStateRefreshKey]);
+
+  const bumpSelectsStateRefresh = useCallback(() => {
+    setSelectsStateRefreshKey((v) => v + 1);
+  }, []);
 
   // When selected clip changes: reset time/play, load transcript, derive videoUrl and duration
   useEffect(() => {
@@ -398,6 +507,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
       persistHighlightsTimeoutRef.current = setTimeout(() => {
         persistHighlightsTimeoutRef.current = null;
         window.electronAPI.media.updateHighlights(mediaId, normalized).catch(() => {});
+        scheduleActiveVersionSyncRef.current?.();
       }, 500);
     }
   }, [pushUndo]);
@@ -495,6 +605,8 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
 
   const [showNoHighlightsModal, setShowNoHighlightsModal] = useState(false);
   const [highlightInfoModal, setHighlightInfoModal] = useState(null);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [exportMessage, setExportMessage] = useState(null);
 
   useEffect(() => {
     if (showNoHighlightsModal && acceptedClipsWithNoHighlights.length === 0) {
@@ -502,14 +614,144 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
     }
   }, [showNoHighlightsModal, acceptedClipsWithNoHighlights.length]);
 
-  const handleProceedToReviewTimeline = useCallback(() => {
-    if (!allDecided || !onNavigateToTimelineReview) return;
+  const { segments: exportVideoClips, durationFrames: exportDurationFrames } = useMemo(() => {
+    const built = buildTimelineFromAccepted(acceptedClips);
+    return applyRipple(built.videoClips);
+  }, [acceptedClips]);
+
+  const handleExportToTimeline = useCallback(() => {
+    if (!allDecided) return;
     if (acceptedClipsWithNoHighlights.length > 0) {
       setShowNoHighlightsModal(true);
       return;
     }
-    onNavigateToTimelineReview(acceptedClips);
-  }, [allDecided, acceptedClips, acceptedClipsWithNoHighlights.length, onNavigateToTimelineReview]);
+    setExportModalOpen(true);
+  }, [allDecided, acceptedClipsWithNoHighlights.length]);
+
+  // --- Re-cut flow --------------------------------------------------------
+  const openRecutModal = useCallback(() => {
+    if (!project?.id) return;
+    setIsRecutModalOpen(true);
+  }, [project?.id]);
+
+  const handleRecutSubmit = useCallback(
+    ({ storyContext }) => {
+      if (!project?.id || !window.electronAPI?.ai?.generateSelects) {
+        console.error('AI generateSelects not available for re-cut');
+        return;
+      }
+      setIsRecutModalOpen(false);
+      const desiredDurationSec = selectsState?.lastDesiredDurationSec ?? 120;
+      const aiPromise = window.electronAPI.ai
+        .generateSelects({
+          projectId: project.id,
+          storyContext: storyContext ?? '',
+          desiredDurationSec,
+        })
+        .then(async (result) => {
+          if (result?.success && window.electronAPI?.selects?.createVersion) {
+            try {
+              const res = await window.electronAPI.selects.createVersion(project.id, {
+                storyContext: storyContext ?? '',
+                desiredDurationSec,
+              });
+              if (res?.success && res.data) {
+                setSelectsState(res.data);
+              }
+            } catch (err) {
+              console.warn('Failed to create selects version after re-cut:', err?.message);
+            }
+          }
+          return result;
+        });
+      setRecutPromise(aiPromise);
+      setIsRecutLoading(true);
+    },
+    [project?.id, selectsState?.lastDesiredDurationSec]
+  );
+
+  const handleRecutLoadingComplete = useCallback(async () => {
+    setIsRecutLoading(false);
+    setRecutPromise(null);
+    bumpSelectsStateRefresh();
+    await reloadSelectsFromMedia();
+  }, [bumpSelectsStateRefresh, reloadSelectsFromMedia]);
+
+  const handleRecutLoadingBack = useCallback(() => {
+    setIsRecutLoading(false);
+    setRecutPromise(null);
+  }, []);
+
+  // --- Version switching --------------------------------------------------
+  const handleVersionChange = useCallback(
+    async (versionId) => {
+      if (!project?.id || !versionId) return;
+      if (versionId === selectsState.activeVersionId) return;
+      if (!window.electronAPI?.selects?.setActiveVersion) return;
+      setIsVersionSwitching(true);
+      try {
+        const res = await window.electronAPI.selects.setActiveVersion(project.id, versionId);
+        if (res?.success && res.data) {
+          setSelectsState(res.data);
+        }
+        await reloadSelectsFromMedia();
+        setSelectedHighlightId(null);
+        setSelectedRowIndices(new Set());
+      } catch (err) {
+        console.warn('Failed to switch selects version:', err?.message);
+      } finally {
+        setIsVersionSwitching(false);
+      }
+    },
+    [project?.id, selectsState.activeVersionId, reloadSelectsFromMedia]
+  );
+
+  // Mirror live `media.highlights` into the active version's snapshot after manual edits
+  // (debounced). Called from persistence paths below.
+  const scheduleActiveVersionSync = useCallback(() => {
+    if (!project?.id || !window.electronAPI?.selects?.syncActiveFromMedia) return;
+    if (syncActiveVersionTimeoutRef.current) clearTimeout(syncActiveVersionTimeoutRef.current);
+    syncActiveVersionTimeoutRef.current = setTimeout(() => {
+      syncActiveVersionTimeoutRef.current = null;
+      window.electronAPI.selects
+        .syncActiveFromMedia(project.id)
+        .then((res) => {
+          if (res?.success && res.data) setSelectsState(res.data);
+        })
+        .catch(() => {});
+    }, 750);
+  }, [project?.id]);
+
+  useEffect(() => {
+    scheduleActiveVersionSyncRef.current = scheduleActiveVersionSync;
+  }, [scheduleActiveVersionSync]);
+
+  const handleExportConfirm = useCallback(async (platform, payload) => {
+    setExportMessage(null);
+    if (platform !== 'premiere') return;
+    const api = window.electronAPI?.export;
+    if (!api?.exportFCPXMLPackage) {
+      setExportMessage({ type: 'error', error: 'Export not available' });
+      return;
+    }
+    try {
+      const result = await api.exportFCPXMLPackage(project?.id, payload, project?.name);
+      if (result?.canceled) return;
+      if (result?.success && result?.path) {
+        setExportMessage({ type: 'success', path: result.path });
+      } else {
+        setExportMessage({ type: 'error', error: result?.error || 'Export failed' });
+      }
+    } catch (err) {
+      setExportMessage({ type: 'error', error: err?.message || String(err) });
+    }
+  }, [project?.id, project?.name]);
+
+  const handleOpenExportFolder = useCallback(() => {
+    if (exportMessage?.type === 'success' && exportMessage?.path && window.electronAPI?.export?.openFolder) {
+      window.electronAPI.export.openFolder(exportMessage.path);
+    }
+  }, [exportMessage]);
 
   const handleResolveNoHighlightsDelete = useCallback((clipId) => {
     handleDelete(clipId);
@@ -591,6 +833,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
             window.electronAPI.media.updateHighlights(clip.id, nextH.length > 0 ? nextH : clip.highlights || []).catch(() => {});
           }
         });
+        scheduleActiveVersionSyncRef.current?.();
         return;
       }
       if (highlightId != null) {
@@ -635,6 +878,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
       );
       if (clip && window.electronAPI?.media?.updateHighlights) {
         window.electronAPI.media.updateHighlights(clipId, nextHighlights).catch(() => {});
+        scheduleActiveVersionSyncRef.current?.();
       }
     },
     [selectsList, updateSelectHighlights, pushUndo, orderedHighlightRows, handleSelectClipAndSeek]
@@ -742,6 +986,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
           window.electronAPI?.media?.updateHighlights(clip.id, toPersist).catch(() => {});
         }
       });
+      scheduleActiveVersionSyncRef.current?.();
     },
     [orderedHighlightRows, selectsList, pushUndo]
   );
@@ -782,6 +1027,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
           window.electronAPI.media.updateHighlights(s.id, toPersist).catch(() => {});
         }
       });
+      scheduleActiveVersionSyncRef.current?.();
     },
     [orderedHighlightRows, selectsList, pushUndo]
   );
@@ -934,6 +1180,37 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
 
   return (
     <div className="timeline">
+      {exportMessage && (
+        <div
+          className={`timeline__export-banner timeline__export-banner--${exportMessage.type}`}
+          role="status"
+        >
+          {exportMessage.type === 'success' ? (
+            <>
+              <span className="timeline__export-banner-text">
+                Package saved. In Premiere: File → Import… and select Timeline.xml in that folder.
+              </span>
+              <Button variant="secondary" onClick={handleOpenExportFolder}>
+                Open folder
+              </Button>
+            </>
+          ) : (
+            <>
+              <span className="timeline__export-banner-text">
+                {exportMessage.error}
+              </span>
+            </>
+          )}
+          <button
+            type="button"
+            className="timeline__export-banner-dismiss"
+            onClick={() => setExportMessage(null)}
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
       {showNoHighlightsModal && acceptedClipsWithNoHighlights.length > 0 && (
         <>
           <div
@@ -994,7 +1271,18 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
         projectName={projectName}
         onBack={onBack}
         breadcrumbCurrent="Interview Selects"
+        onRecut={window.electronAPI?.ai?.generateSelects ? openRecutModal : undefined}
+        recutDisabled={isRecutLoading || isVersionSwitching || selectsList.length === 0}
       />
+      {isRecutLoading ? (
+        <div className="timeline__main timeline__main--loading">
+          <GenerateSelectsLoading
+            workPromise={recutPromise}
+            onComplete={handleRecutLoadingComplete}
+            onBack={handleRecutLoadingBack}
+          />
+        </div>
+      ) : (
       <div className="timeline__main">
         <div className="timeline__transcript-column">
           <TranscriptPanel
@@ -1013,7 +1301,7 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
             onAccept={handleAccept}
             onAcceptSelection={handleAcceptSelection}
             onDeleteSelection={handleDeleteSelection}
-            onProceedToReviewTimeline={handleProceedToReviewTimeline}
+            onExportToTimeline={handleExportToTimeline}
             allDecided={allDecided}
             transcript={Array.isArray(transcriptLines) ? transcriptLines : []}
             speakerLabels={speakerLabels}
@@ -1028,6 +1316,10 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
             onHighlightDragStart={handleHighlightDragStart}
             onHighlightDragEnd={handleHighlightDragEnd}
             onAddHighlightFromSelection={handleAddHighlightFromInOut}
+            selectsVersions={selectsState?.versions ?? []}
+            activeVersionId={selectsState?.activeVersionId ?? null}
+            onVersionChange={handleVersionChange}
+            versionSwitchDisabled={isVersionSwitching || isRecutLoading}
           />
         </div>
         <div className="timeline__playback-column">
@@ -1060,6 +1352,21 @@ function Timeline({ project, onBack, onNavigateToTimelineReview }) {
           />
         </div>
       </div>
+      )}
+      <GenerateSelectsModal
+        isOpen={isRecutModalOpen}
+        mode="recut"
+        initialStoryContext={selectsState?.lastStoryContext || ''}
+        onClose={() => setIsRecutModalOpen(false)}
+        onCreate={handleRecutSubmit}
+      />
+      <ExportTimelineModal
+        isOpen={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        onExport={handleExportConfirm}
+        videoClips={exportVideoClips}
+        durationFrames={exportDurationFrames}
+      />
     </div>
   );
 }

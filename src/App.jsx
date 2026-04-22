@@ -3,7 +3,6 @@ import NavigationBar from './components/NavigationBar';
 import ProjectManagement from './screens/ProjectManagement';
 import ImportMedia from './screens/ImportMedia';
 import Timeline from './screens/Timeline';
-import TimelineReview from './screens/TimelineReview';
 import Button from './components/Button';
 import './styles/App.css';
 
@@ -58,8 +57,7 @@ class ScreenErrorBoundary extends React.Component {
 
 function App() {
   const [currentProject, setCurrentProject] = useState(null);
-  const [importScreen, setImportScreen] = useState('import'); // 'import' | 'timeline' | 'timeline-review'
-  const [acceptedTimelineClips, setAcceptedTimelineClips] = useState([]);
+  const [importScreen, setImportScreen] = useState('import'); // 'import' | 'timeline'
 
   // In browser: open page from hash (e.g. #/import, #/timeline)
   useEffect(() => {
@@ -74,9 +72,9 @@ function App() {
     }
   }, []);
 
-  const handleOpenProject = (project) => {
+  const handleOpenProject = (project, destination = 'import') => {
     setCurrentProject(project);
-    setImportScreen('import');
+    setImportScreen(destination === 'timeline' ? 'timeline' : 'import');
   };
 
   const handleBackToProjects = () => {
@@ -95,15 +93,6 @@ function App() {
     setImportScreen('import');
   };
 
-  const handleNavigateToTimelineReview = (acceptedClips = []) => {
-    setAcceptedTimelineClips(acceptedClips);
-    setImportScreen('timeline-review');
-  };
-
-  const handleBackToTimeline = () => {
-    setImportScreen('timeline');
-  };
-
   const handleErrorBoundaryReset = () => {
     setImportScreen('import');
   };
@@ -120,17 +109,10 @@ function App() {
         <ScreenErrorBoundary onReset={handleErrorBoundaryReset}>
           {!currentProject ? (
             <ProjectManagement onOpenProject={handleOpenProject} />
-          ) : importScreen === 'timeline-review' ? (
-            <TimelineReview
-              project={currentProject}
-              onBack={handleBackToTimeline}
-              acceptedClips={acceptedTimelineClips}
-            />
           ) : importScreen === 'timeline' ? (
             <Timeline
               project={currentProject}
               onBack={handleBackToImport}
-              onNavigateToTimelineReview={handleNavigateToTimelineReview}
             />
           ) : (
             <ImportMedia
