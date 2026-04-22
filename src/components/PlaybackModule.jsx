@@ -38,17 +38,27 @@ function framesToTimecode(frames, fps = FPS) {
 /**
  * Premiere Pro-style ruler ticks: scale-adaptive labels.
  * Zoomed out: 10s, 30s, 1min. Medium: 1s, 5s. Zoomed in: 0.5s (no per-frame labels).
+ *
+ * `displayEndFrame` lets the ruler extend past `durationFrames` so the timestamp column
+ * keeps ticking to the edge of the visible viewport at low zoom (no blank gap to the
+ * right of the clip). Pass the same value as `durationFrames` to keep old behavior.
  */
-function getRulerTicks(durationFrames, pixelsPerFrame) {
+function getRulerTicks(durationFrames, pixelsPerFrame, displayEndFrame = durationFrames) {
   if (durationFrames <= 0) return [];
+  const end = Math.max(durationFrames, Math.floor(displayEndFrame) || 0);
+  const extended = end > durationFrames;
   const minFramesPerTick = Math.ceil(MIN_LABEL_SPACING_PX / pixelsPerFrame);
   const tickEveryFrames = NICE_INTERVALS_FRAMES.find((n) => n >= minFramesPerTick) ?? Math.max(1, minFramesPerTick);
   const ticks = [];
-  for (let f = 0; f <= durationFrames; f += tickEveryFrames) {
+  for (let f = 0; f <= end; f += tickEveryFrames) {
     ticks.push({ frame: f });
   }
-  if (ticks[ticks.length - 1]?.frame !== durationFrames) {
-    ticks.push({ frame: durationFrames });
+  /* Only pin a tick to the exact end frame in legacy (non-extended) mode so the real
+     clip-end timestamp stays labeled. When the ruler is extended past the clip to fill
+     the viewport at low zoom, the viewport edge isn't a meaningful timestamp and
+     forcing a tick there produces a jumbled label overlapping the last "nice" tick. */
+  if (!extended && ticks[ticks.length - 1]?.frame !== end) {
+    ticks.push({ frame: end });
   }
   return ticks;
 }
@@ -57,6 +67,8 @@ const MOCK_VIDEO_CLIPS = [{ id: 'v1', startFrame: 0, durationFrames: 1152, label
 const MOCK_AUDIO_CLIPS = [{ id: 'a1', startFrame: 0, durationFrames: 1152, label: 'Audio 1' }];
 
 const MAX_CONTENT_WIDTH_PX = 50000;
+const TIMELINE_END_GUTTER_MIN_PX = 120;
+const TIMELINE_END_GUTTER_VIEWPORT_RATIO = 0.5;
 
 /** Catches waveform render errors so the rest of the timeline stays usable. */
 class WaveformErrorBoundary extends React.Component {
@@ -153,6 +165,7 @@ function PlaybackModule({
   const [draggingHighlight, setDraggingHighlight] = useState(null);
   const [draggingSegmentHandle, setDraggingSegmentHandle] = useState(null);
   const [viewportContentWidthPx, setViewportContentWidthPx] = useState(0);
+  const [filmstripUrl, setFilmstripUrl] = useState(null);
 
   const videoRef = useRef(null);
   const viewportRef = useRef(null);
@@ -161,6 +174,26 @@ function PlaybackModule({
   const playheadFrameRef = useRef(0);
 
   const LABEL_COLUMN_PX = 64;
+
+  // Load a filmstrip sprite for the selected clip so the video track shows real frames
+  // from the media (like Premiere). Lazily generated server-side; fallback is solid clip color.
+  useEffect(() => {
+    if (!selectedMediaId || !window.electronAPI?.media?.getFilmstrip) {
+      setFilmstripUrl(null);
+      return;
+    }
+    let cancelled = false;
+    window.electronAPI.media.getFilmstrip(selectedMediaId)
+      .then((res) => {
+        if (cancelled) return;
+        if (res?.success && res.url) setFilmstripUrl(res.url);
+        else setFilmstripUrl(null);
+      })
+      .catch(() => {
+        if (!cancelled) setFilmstripUrl(null);
+      });
+    return () => { cancelled = true; };
+  }, [selectedMediaId]);
 
   // Measure timeline viewport so content can fill at least the container width
   useEffect(() => {
@@ -256,7 +289,14 @@ function PlaybackModule({
   const contentWidthFromDuration = Number.isFinite(durationFrames * pixelsPerFrame)
     ? Math.max(0, durationFrames * pixelsPerFrame)
     : 0;
-  const contentWidthPx = Math.max(viewportContentWidthPx, contentWidthFromDuration);
+  const timelineEndGutterPx = Math.max(
+    TIMELINE_END_GUTTER_MIN_PX,
+    Math.round(viewportContentWidthPx * TIMELINE_END_GUTTER_VIEWPORT_RATIO)
+  );
+  const contentWidthPx = Math.max(
+    viewportContentWidthPx + timelineEndGutterPx,
+    contentWidthFromDuration + timelineEndGutterPx
+  );
   const effectivePixelsPerFrame = pixelsPerFrame;
   const stripWidthPx = LABEL_COLUMN_PX + contentWidthPx;
   const waveformWidthPx = Math.min(MAX_CONTENT_WIDTH_PX, contentWidthPx);
@@ -719,6 +759,29 @@ function PlaybackModule({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleTogglePlay]);
 
+  // Left/Right arrow → nudge playhead 1 frame (Shift = 10 frames). Overrides the browser's
+  // default overflow-x scroll on the timeline container. Skips when focus is in a text field
+  // or when Cmd/Ctrl/Alt is held (those combos are already bound — e.g. Cmd+Arrow = prev/next clip).
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.target?.closest?.('input, textarea, [contenteditable="true"]')) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      e.preventDefault();
+      const step = e.shiftKey ? 10 : 1;
+      const direction = e.key === 'ArrowRight' ? 1 : -1;
+      const next = Math.max(0, Math.min(durationFrames, playheadFrame + step * direction));
+      if (next === playheadFrame) return;
+      if (typeof onSeek === 'function') {
+        onSeek(next / FPS);
+      } else {
+        setInternalPlayheadFrame(next);
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [durationFrames, playheadFrame, onSeek]);
+
   // Cmd/Ctrl + Left Arrow → Previous clip (Interview Selects; document-level so it works when focus is elsewhere)
   useEffect(() => {
     if (typeof onPreviousClip !== 'function') return;
@@ -929,7 +992,14 @@ function PlaybackModule({
     return [...before, TOOLBAR_BUTTONS[undoIdx], TOOLBAR_BUTTONS[playIdx], TOOLBAR_BUTTONS[redoIdx], ...after];
   }, [toolbarPlayBetweenUndoRedo]);
 
-  const rulerTicks = getRulerTicks(durationFrames, effectivePixelsPerFrame);
+  /* Extend ruler past the clip so at low zoom (25%) the notches fill to the right edge
+     of the viewport instead of leaving a blank gap. Tracks/clips/playhead are still
+     clamped to durationFrames; only the ruler reaches further. */
+  const rulerDisplayEndFrame = Math.max(
+    durationFrames,
+    Math.ceil((contentWidthPx || 0) / Math.max(effectivePixelsPerFrame, 0.0001))
+  );
+  const rulerTicks = getRulerTicks(durationFrames, effectivePixelsPerFrame, rulerDisplayEndFrame);
   const playheadLeftPx = frameToPx(playheadFrame);
   const inLeftPx = inPointFrame != null ? frameToPx(inPointFrame) : null;
   const outLeftPx = outPointFrame != null ? frameToPx(outPointFrame) : null;
@@ -957,7 +1027,7 @@ function PlaybackModule({
       return [{
         id: effectiveSegment.id,
         leftPx: 0,
-        widthPx: contentWidthPx,
+        widthPx: frameToPx(durationFrames),
         ordinal: 1,
         status: effectiveSegment.status,
       }];
@@ -1114,7 +1184,9 @@ function PlaybackModule({
                 pixelsPerFrame={effectivePixelsPerFrame}
                 frameToPx={frameToPx}
                 rulerTicks={rulerTicks}
+                endFrame={rulerDisplayEndFrame}
                 framesToTimecode={framesToTimecode}
+                onClick={handleTimelineClick}
               />
             </div>
             <div
@@ -1138,7 +1210,13 @@ function PlaybackModule({
               >
                 <div className="playback-module__track playback-module__track--video">
                 <div className="playback-module__track-content">
-                  {videoClips.map((clip) => (
+                  {videoClips.map((clip) => {
+                    /* Filmstrip only applies in controlled (Interview Selects) mode where one
+                       pseudo-clip represents the entire selected media. The strip sits inside
+                       the blue clip as a centered 40px band (see Figma node 300:349/300:350),
+                       so the blue primary-600 reads like a frame around the thumbnails. */
+                    const showFilmstrip = isControlled && filmstripUrl != null;
+                    return (
                     <div
                       key={clip.id}
                       className={`playback-module__clip playback-module__clip--video${editableTimeline && selectedSegmentId === clip.id ? ' playback-module__clip--selected' : ''}`}
@@ -1150,6 +1228,15 @@ function PlaybackModule({
                       role={editableTimeline ? 'button' : undefined}
                       aria-label={editableTimeline ? clip.label || `Segment ${clip.id}` : undefined}
                     >
+                      {showFilmstrip && (
+                        <div
+                          className="playback-module__clip-filmstrip"
+                          style={{
+                            backgroundImage: `linear-gradient(90deg, var(--playback-filmstrip-overlay), var(--playback-filmstrip-overlay)), url(${filmstripUrl})`,
+                          }}
+                          aria-hidden="true"
+                        />
+                      )}
                       {editableTimeline && clip.sourceMediaId != null && (
                         <>
                           <span
@@ -1187,7 +1274,8 @@ function PlaybackModule({
                         </>
                       )}
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               </div>
               <div className="playback-module__track playback-module__track--audio">

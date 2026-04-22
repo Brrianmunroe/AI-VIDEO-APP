@@ -57,6 +57,20 @@ function getThumbnailsDir() {
   return dir;
 }
 
+/** Filmstrips directory under userData; creates it if missing */
+function getFilmstripsDir() {
+  const dir = join(app.getPath('userData'), 'filmstrips');
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+  return dir;
+}
+
+/** Number of frames sampled across the video for the timeline filmstrip. */
+const FILMSTRIP_FRAME_COUNT = 20;
+/** Width of each sampled frame (px). Aspect-preserving scale keeps things small on disk. */
+const FILMSTRIP_FRAME_WIDTH = 160;
+
 /**
  * Extract a single frame from a video as JPEG at outputPath.
  * Uses -ss 00:00:01 to avoid black frame at start.
@@ -91,6 +105,48 @@ async function extractThumbnail(videoPath, outputPath) {
     }
   }
   console.warn('[media] Could not extract thumbnail for', videoPath.split(/[/\\]/).pop(), '(install ffmpeg for thumbnails)');
+  return false;
+}
+
+/**
+ * Extract a horizontal filmstrip sprite (N evenly-spaced frames tiled into one JPEG).
+ * Used as the background image on the timeline video track so the clip shows real
+ * frames from the media, similar to Premiere's clip preview.
+ *
+ * Uses the `tile` filter: `fps=N/D` samples N frames across D seconds, then
+ * `tile=Nx1` composes them into a single row.
+ */
+async function extractFilmstrip(videoPath, outputPath, durationSec) {
+  const outDir = join(outputPath, '..');
+  if (!existsSync(outDir)) {
+    mkdirSync(outDir, { recursive: true });
+  }
+  const safeDuration = Number.isFinite(durationSec) && durationSec > 0 ? durationSec : 1;
+  const filter = `fps=${FILMSTRIP_FRAME_COUNT}/${safeDuration},scale=${FILMSTRIP_FRAME_WIDTH}:-1,tile=${FILMSTRIP_FRAME_COUNT}x1`;
+  const args = [
+    '-y',
+    '-i', videoPath,
+    '-vf', filter,
+    '-frames:v', '1',
+    '-q:v', '3',
+    outputPath,
+  ];
+  const opts = { timeout: 60000, env: getFfmpegEnv() };
+
+  for (const ffmpegPath of getFfmpegCandidates()) {
+    try {
+      await execFileAsync(ffmpegPath, args, opts);
+      if (existsSync(outputPath)) {
+        return true;
+      }
+    } catch (err) {
+      if (ffmpegPath === 'ffmpeg' && err?.code === 'ENOENT') {
+        console.warn('[media] ffmpeg not in PATH; trying known install locations for filmstrip.');
+      }
+      continue;
+    }
+  }
+  console.warn('[media] Could not extract filmstrip for', videoPath.split(/[/\\]/).pop());
   return false;
 }
 
@@ -345,6 +401,14 @@ export function deleteMedia(mediaId) {
       console.warn('[media] Could not remove thumbnail file:', row.thumbnail_path, err?.message);
     }
   }
+  const filmstripPath = join(getFilmstripsDir(), `${id}.jpg`);
+  if (existsSync(filmstripPath)) {
+    try {
+      unlinkSync(filmstripPath);
+    } catch (err) {
+      console.warn('[media] Could not remove filmstrip file:', filmstripPath, err?.message);
+    }
+  }
   db.prepare('DELETE FROM media WHERE id = ?').run(id);
   return { success: true };
 }
@@ -358,6 +422,28 @@ export function getThumbnailPath(mediaId) {
   const row = db.prepare('SELECT thumbnail_path FROM media WHERE id = ?').get(mediaId);
   const path = row?.thumbnail_path || null;
   return path && existsSync(path) ? path : null;
+}
+
+/**
+ * Get (and lazily generate) the filmstrip sprite JPEG for a media item. The filmstrip is
+ * a horizontally-tiled strip of N frames used as the video track background on the timeline.
+ * Cached in `userData/filmstrips/{mediaId}.jpg`; (re)generates if missing.
+ * Returns null for non-video media or when ffmpeg is unavailable.
+ */
+export async function getFilmstripPath(mediaId) {
+  const id = Number(mediaId);
+  if (!Number.isFinite(id) || id < 1) return null;
+  const db = getDatabase();
+  const row = db.prepare('SELECT file_path, duration FROM media WHERE id = ?').get(id);
+  if (!row || !row.file_path) return null;
+  const isVideo = /\.(mp4|mov|avi|mkv|m4v)$/i.test(row.file_path);
+  if (!isVideo) return null;
+  if (!existsSync(row.file_path)) return null;
+  const dir = getFilmstripsDir();
+  const outPath = join(dir, `${id}.jpg`);
+  if (existsSync(outPath)) return outPath;
+  const ok = await extractFilmstrip(row.file_path, outPath, Number(row.duration) || 0);
+  return ok ? outPath : null;
 }
 
 /**
