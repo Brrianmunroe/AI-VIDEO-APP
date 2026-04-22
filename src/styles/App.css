@@ -3,7 +3,7 @@
   height: 100vh;
   display: flex;
   flex-direction: row;
-  background-color: var(--color-blue-950, #021016);
+  background-color: var(--color-blue-950);
   overflow: hidden;
 }
 
@@ -17,7 +17,7 @@
   flex-direction: column;
   overflow: auto;
   padding: 0;
-  color: var(--color-grey-0, #FFFFFF);
+  color: var(--color-grey-0);
 }
 
 /* Error boundary fallback when a screen throws */

@@ -101,7 +101,7 @@
 /* Portal variant: rendered in body, appears over modals */
 .dropdown__options--portal {
   z-index: 1002;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-md);
 }
 
 /* === Individual option === */
@@ -122,4 +122,18 @@
 .dropdown__option--selected {
   background-color: var(--color-surface-primary-button-surface-default);
   color: var(--color-text-on-button);
+}
+
+.dropdown__option--action {
+  border-top: var(--stroke-width-sm) solid var(--color-border-border-default);
+  color: var(--color-text-heading);
+}
+
+.dropdown__option--disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+.dropdown__option--disabled:hover {
+  background-color: transparent;
 }
