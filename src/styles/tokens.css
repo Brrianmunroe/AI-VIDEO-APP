@@ -170,7 +170,6 @@
   --font-weight-Black: 900;
   --font-weight-Bold: 700;
   --font-weight-Regular: 400;
-  --font-weight-SemiBold: 400;
   --font-weight-heading-01: 900;
   --font-weight-heading-02: 900;
   --font-weight-heading-03: 700;
@@ -198,7 +197,6 @@
   --spacing-xs: 4px;
   --spacing-sm: 8px;
   --spacing-md: 16px;
-  --spacing-md-lg: 24px;
   --spacing-lg: 32px;
   --spacing-xl: 64px;
   --spacing-2xl: 96px;
@@ -264,6 +262,11 @@
   --icon-size-sm: 16px;
   --icon-size-md: 24px;
   --icon-size-lg: 44px;
+
+  /* Shadow / Elevation */
+  --shadow-sm: 0 1px 2px color-mix(in srgb, var(--color-neutral-950) 20%, transparent);
+  --shadow-md: 0 4px 12px color-mix(in srgb, var(--color-neutral-950) 15%, transparent);
+  --shadow-focus-primary: 0 4px 12px color-mix(in srgb, var(--color-primary-500) 20%, transparent);
 
   /* Semantic Color Aliases (for backward compatibility) */
   --color-background-primary: var(--color-blue-950);

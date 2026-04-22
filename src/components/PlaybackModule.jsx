@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import Icon from './Icon';
 import AudioWaveform from './AudioWaveform';
 import TimelineRuler from './TimelineRuler';
@@ -1085,6 +1086,12 @@ function PlaybackModule({
       role="region"
       aria-label="Playback"
     >
+      <PanelGroup
+        direction="vertical"
+        autoSaveId="timeline.playback.v"
+        className="playback-module__panel-group"
+      >
+      <Panel defaultSize={55} minSize={25} className="playback-module__panel">
       <div className="playback-module__player-section">
         <div className="playback-module__player">
           {showVideo && (
@@ -1155,7 +1162,9 @@ function PlaybackModule({
           </div>
         </div>
       </div>
-
+      </Panel>
+      <PanelResizeHandle className="timeline__resize-handle timeline__resize-handle--horizontal" />
+      <Panel defaultSize={45} minSize={25} className="playback-module__panel">
       <div className="playback-module__timeline" role="application" aria-label="Video timeline">
         <div className="playback-module__time-display" aria-live="polite">
           <span className="playback-module__time-display-spacer" aria-hidden="true" />
@@ -1447,6 +1456,8 @@ function PlaybackModule({
           </button>
         </div>
       </div>
+      </Panel>
+      </PanelGroup>
     </div>
   );
 }
