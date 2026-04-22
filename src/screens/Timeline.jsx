@@ -1272,8 +1272,6 @@ function Timeline({ project, onBack }) {
         projectName={projectName}
         onBack={onBack}
         breadcrumbCurrent="Interview Selects"
-        onRecut={window.electronAPI?.ai?.generateSelects ? openRecutModal : undefined}
-        recutDisabled={isRecutLoading || isVersionSwitching || selectsList.length === 0}
       />
       {isRecutLoading ? (
         <div className="timeline__main timeline__main--loading">
@@ -1326,6 +1324,8 @@ function Timeline({ project, onBack }) {
             activeVersionId={selectsState?.activeVersionId ?? null}
             onVersionChange={handleVersionChange}
             versionSwitchDisabled={isVersionSwitching || isRecutLoading}
+            onRecut={window.electronAPI?.ai?.generateSelects ? openRecutModal : undefined}
+            recutDisabled={isRecutLoading || isVersionSwitching || selectsList.length === 0}
           />
         </Panel>
         <PanelResizeHandle className="timeline__resize-handle timeline__resize-handle--vertical" />

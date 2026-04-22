@@ -126,7 +126,7 @@
 
 .media-card__delete:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--color-border-border-focused);
+  box-shadow: 0 0 0 var(--stroke-width-lg) var(--color-border-border-focused);
 }
 
 /* === Overlay (video/audio: icon and timestamp on one line, spacing-sm from sides and bottom) === */

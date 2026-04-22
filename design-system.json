@@ -2601,6 +2601,16 @@
     }
   },
   "surface": {
+    "card-surface-default": {
+      "$extensions": {
+        "com.figma.scopes": [
+          "FRAME_FILL",
+          "SHAPE_FILL",
+          "EFFECT_COLOR"
+        ]
+      },
+      "$ref": "#/color/blue/900"
+    },
     "page-surface-default": {
       "$type": "color",
       "$value": {

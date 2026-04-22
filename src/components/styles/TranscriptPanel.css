@@ -69,7 +69,13 @@
 }
 
 .transcript-panel__version-switcher .dropdown {
-  min-width: 96px;
+  width: auto;
+  min-width: 120px;
+}
+
+.transcript-panel__version-switcher .dropdown__trigger {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  gap: var(--spacing-xs);
 }
 
 .transcript-panel__tab {
@@ -452,8 +458,8 @@
 }
 
 .transcript-panel__word--clickable:focus-visible {
-  outline: 2px solid var(--color-border-border-focused);
-  outline-offset: 2px;
+  outline: var(--stroke-width-lg) solid var(--color-border-border-focused);
+  outline-offset: var(--stroke-width-lg);
 }
 
 .transcript-panel__text mark {
@@ -539,6 +545,6 @@
 }
 
 .transcript-panel__handle:focus-visible {
-  outline: 2px solid var(--color-border-border-focused);
-  outline-offset: 2px;
+  outline: var(--stroke-width-lg) solid var(--color-border-border-focused);
+  outline-offset: var(--stroke-width-lg);
 }

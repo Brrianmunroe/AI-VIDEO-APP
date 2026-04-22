@@ -27,6 +27,7 @@ function DropDown({
   onChange,
   disabled = false,
   className = '',
+  footerAction,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [optionsStyle, setOptionsStyle] = useState({});
@@ -108,6 +109,22 @@ function DropDown({
           {option.label}
         </li>
       ))}
+      {footerAction && (
+        <li
+          className={`dropdown__option dropdown__option--action${
+            footerAction.disabled ? ' dropdown__option--disabled' : ''
+          }`}
+          onClick={() => {
+            if (footerAction.disabled) return;
+            footerAction.onClick?.();
+            setIsOpen(false);
+          }}
+          role="menuitem"
+          aria-disabled={footerAction.disabled || undefined}
+        >
+          {footerAction.label}
+        </li>
+      )}
     </ul>
   );
 

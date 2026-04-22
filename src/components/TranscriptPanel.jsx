@@ -97,6 +97,14 @@ const TABS = [
   { id: 'transcript', label: 'Transcript' },
 ];
 
+/** Format a version label for display: 'v1' -> 'Version 01', 'v12' -> 'Version 12'. */
+function formatVersionLabel(raw) {
+  if (raw == null) return '';
+  const match = String(raw).match(/^v(\d+)$/i);
+  if (!match) return String(raw);
+  return `Version ${match[1].padStart(2, '0')}`;
+}
+
 /** Get display name for speaker_id from labels or fallback "Speaker N" */
 function getSpeakerDisplayName(speakerId, speakerLabels) {
   const id = String(speakerId);
@@ -142,6 +150,8 @@ function TranscriptPanel({
   activeVersionId = null,
   onVersionChange,
   versionSwitchDisabled = false,
+  onRecut,
+  recutDisabled = false,
 }) {
   const selects = Array.isArray(selectsProp) ? selectsProp : [];
   const transcriptList = Array.isArray(transcript) ? transcript : [];
@@ -504,14 +514,22 @@ function TranscriptPanel({
                 </React.Fragment>
               ))}
             </div>
-            {Array.isArray(selectsVersions) && selectsVersions.length > 0 && (
+            {((Array.isArray(selectsVersions) && selectsVersions.length > 0) || onRecut) && (
               <div className="transcript-panel__version-switcher" aria-label="Selects version">
                 <DropDown
                   placeholder="Version"
                   value={activeVersionId ?? undefined}
                   onChange={(value) => onVersionChange?.(value)}
-                  disabled={versionSwitchDisabled || selectsVersions.length < 1}
-                  options={selectsVersions.map((v) => ({ value: v.id, label: v.label || v.id }))}
+                  disabled={versionSwitchDisabled || (selectsVersions.length < 1 && !onRecut)}
+                  options={selectsVersions.map((v) => ({
+                    value: v.id,
+                    label: formatVersionLabel(v.label || v.id),
+                  }))}
+                  footerAction={
+                    onRecut
+                      ? { label: 'Re-cut', onClick: onRecut, disabled: recutDisabled }
+                      : undefined
+                  }
                 />
               </div>
             )}

@@ -4,23 +4,23 @@
   padding-top: var(--spacing-lg);
   padding-left: var(--spacing-md);
   padding-right: var(--spacing-md);
-  background-color: var(--color-blue-950, #021016);
-  color: var(--color-grey-0, #FFFFFF);
+  background-color: var(--color-blue-950);
+  color: var(--color-grey-0);
 }
 
 .project-management-header {
-  margin-bottom: var(--spacing-xl, 32px);
+  margin-bottom: var(--spacing-xl);
 }
 
 .action-cards {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: var(--spacing-lg, 24px);
-  margin-bottom: var(--spacing-xl, 32px);
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
 }
 
 .action-card {
-  background-color: var(--color-blue-900, #02161E);
+  background-color: var(--color-blue-900);
   border: var(--stroke-width-md) solid var(--color-border-border-default);
   border-radius: var(--radius-sm);
   padding: var(--spacing-lg);
@@ -127,7 +127,7 @@
   height: 40px;
   mask-image: linear-gradient(to bottom right, white, rgba(255, 255, 255, 0.1));
   -webkit-mask-image: linear-gradient(to bottom right, white, rgba(255, 255, 255, 0.1));
-  border: 2px solid color-mix(in srgb, var(--color-blue-400) 42%, transparent);
+  border: var(--stroke-width-lg) solid color-mix(in srgb, var(--color-blue-400) 42%, transparent);
   background: radial-gradient(
     circle at center,
     transparent 48%,
@@ -171,7 +171,7 @@
   top: 50%;
   height: 1.5px;
   transform-origin: center center;
-  border-radius: 9999px;
+  border-radius: var(--radius-round);
   mix-blend-mode: screen;
   background: linear-gradient(
     to right,
@@ -365,7 +365,7 @@
   top: 50%;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  border: 2px solid color-mix(in srgb, var(--color-blue-400) 45%, transparent);
+  border: var(--stroke-width-lg) solid color-mix(in srgb, var(--color-blue-400) 45%, transparent);
   background: radial-gradient(
     circle at center,
     transparent 48%,
@@ -384,7 +384,7 @@
   top: 50%;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--color-blue-300) 28%, transparent);
+  border: var(--stroke-width-md) solid color-mix(in srgb, var(--color-blue-300) 28%, transparent);
   background: transparent;
   filter: blur(0px);
   mix-blend-mode: screen;
@@ -395,7 +395,7 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  border-radius: 9999px;
+  border-radius: var(--radius-round);
   mix-blend-mode: screen;
 }
 
@@ -423,7 +423,7 @@
   top: 48%;
   left: 50%;
   transform: translate(-50%, -50%) translate(0, -14px);
-  border-radius: 9999px;
+  border-radius: var(--radius-round);
   background: linear-gradient(
     to right,
     transparent 0%,
@@ -448,7 +448,7 @@
   top: 52%;
   left: 50%;
   transform: translate(-50%, -50%) translate(0, 14px);
-  border-radius: 9999px;
+  border-radius: var(--radius-round);
   background: linear-gradient(
     to right,
     transparent 0%,
@@ -751,15 +751,15 @@
 }
 
 .action-card:hover:not(.disabled) {
-  background-color: var(--color-blue-800, #074058);
+  background-color: var(--color-blue-800);
   border-color: var(--color-border-border-focused);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(17, 159, 220, 0.2);
+  box-shadow: var(--shadow-focus-primary);
 }
 
 /* Create project card: only lens flare on hover, no surface/transform/shadow */
 .action-card.create-project:hover:not(.disabled) {
-  background-color: var(--color-blue-900, #02161E);
+  background-color: var(--color-blue-900);
   border-color: var(--color-border-border-focused);
   transform: none;
   box-shadow: none;
@@ -773,18 +773,18 @@
 
 .coming-soon-badge {
   position: absolute;
-  top: var(--spacing-sm, 12px);
-  right: var(--spacing-sm, 12px);
-  background-color: var(--color-blue-700, #0A6084);
-  color: var(--color-grey-0, #FFFFFF);
-  padding: var(--spacing-xs, 4px) var(--spacing-sm, 12px);
-  border-radius: var(--border-radius-sm, 4px);
-  font-size: 12px;
-  font-weight: 500;
+  top: var(--spacing-sm);
+  right: var(--spacing-sm);
+  background-color: var(--color-blue-700);
+  color: var(--color-grey-0);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-label);
+  font-weight: var(--font-weight-label);
 }
 
 .card-icon {
-  font-size: 48px;
+  font-size: var(--font-size-heading-01);
   margin-bottom: var(--spacing-md);
 }
 
@@ -805,22 +805,22 @@
 }
 
 .recent-projects-section {
-  margin-top: var(--spacing-xl, 32px);
+  margin-top: var(--spacing-xl);
 }
 
 .section-title {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--color-grey-0, #FFFFFF);
-  margin: 0 0 var(--spacing-lg, 24px) 0;
+  font-size: var(--font-size-heading-03);
+  font-weight: var(--font-weight-heading-03);
+  color: var(--color-grey-0);
+  margin: 0 0 var(--spacing-lg) 0;
 }
 
 .loading-state,
 .empty-state {
   text-align: center;
-  padding: var(--spacing-xl, 32px);
-  color: var(--color-grey-400, #AEAEAE);
-  font-size: 14px;
+  padding: var(--spacing-xl);
+  color: var(--color-grey-400);
+  font-size: var(--font-size-body);
 }
 
 .projects-table-wrapper {
@@ -868,7 +868,7 @@
 }
 
 .project-row:hover {
-  background-color: var(--color-blue-800, #074058);
+  background-color: var(--color-blue-800);
 }
 
 .project-name-cell {
@@ -885,7 +885,7 @@
 }
 
 .project-icon {
-  font-size: 20px;
+  font-size: var(--font-size-heading-03);
 }
 
 .project-actions {
