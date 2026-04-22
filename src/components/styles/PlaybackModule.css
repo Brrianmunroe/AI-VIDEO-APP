@@ -2,9 +2,20 @@
  * PlaybackModule Component Styles
  * Uses design system tokens only (tokens.css).
  * Video player, toolbar, and Premiere-style timeline (video track, audio track, playhead).
+ *
+ * Scoped CSS custom properties for values Figma expresses as rgba()s that have no
+ * exact single-token equivalent. Both derive from existing tokens via color-mix()
+ * so the file stays 100% token-driven.
  */
 
 .playback-module {
+  /* Dark overlay on the video-track filmstrip (Figma: rgba(36,36,36,0.2)).
+     Sourced from --color-primary-950 so it tracks the palette. */
+  --playback-filmstrip-overlay: color-mix(in srgb, var(--color-primary-950) 20%, transparent);
+  /* Highlight / selection box fill (Figma: rgba(231,245,252,0.5)).
+     Sourced from --color-primary-0 so it tracks the palette. */
+  --playback-highlight-selection-fill: color-mix(in srgb, var(--color-primary-0) 50%, transparent);
+
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -349,7 +360,7 @@
   flex: 1 1 0;
   min-height: 0;
   border-right: none;
-  border-bottom: var(--stroke-width-sm) solid var(--color-border-border-default);
+  border-bottom: var(--stroke-width-sm) solid var(--color-primary-800);
 }
 
 .playback-module__timeline-labels .playback-module__track-label:last-child {
@@ -385,6 +396,7 @@
   font-size: var(--font-size-number-sm);
   color: var(--color-text-label);
   overflow: hidden;
+  cursor: pointer;
 }
 
 /* 8px gap between label band and notch band */
@@ -445,13 +457,14 @@
   z-index: 1;
 }
 
-/* Layer 1: blank tracks */
+/* Layer 1: blank tracks — Figma "Empty Video/Audio Track": primary-950 row with primary-800 hairline separators */
 .playback-module__timeline-content .playback-module__track {
   flex: 1 1 0;
   min-height: 48px;
   display: flex;
   overflow: visible;
-  border-bottom: var(--stroke-width-sm) solid var(--color-border-border-default);
+  background-color: var(--color-primary-950);
+  border-bottom: var(--stroke-width-sm) solid var(--color-primary-800);
   position: relative;
   z-index: 1;
 }
@@ -472,7 +485,7 @@
   min-width: 0;
   min-height: 48px;
   overflow: visible;
-  background-color: var(--color-surface-page-surface-default);
+  background-color: var(--color-primary-950);
   pointer-events: none; /* allow timeline clicks to hit parent for seek */
 }
 
@@ -488,22 +501,47 @@
   overflow: visible;
 }
 
+/* Full-bleed in the track row — no top/bottom inset, matching Figma where the clip
+   container spans the entire track height (video: node 300:349, audio: node 300:339). */
 .playback-module__clip {
   position: absolute;
-  top: var(--spacing-sm);
-  bottom: var(--spacing-sm);
-  border-radius: var(--radius-sm);
+  top: 0;
+  bottom: 0;
   min-width: 4px;
 }
 
+/* Video clip — Figma "Video Thumbnails" (node 300:349): primary-600 base, white hairline
+   border. The filmstrip lives in a centered inner band (see .playback-module__clip-filmstrip
+   below) so blue is visible top and bottom and the thumbnails never stretch with zoom. */
 .playback-module__clip--video {
-  background-color: var(--color-primary-800);
-  border: var(--stroke-width-md) solid var(--color-border-border-default);
+  background-color: var(--color-primary-600);
+  border: var(--stroke-width-sm) solid var(--color-primary-0);
+  overflow: hidden;
 }
 
+/* Inner 40px filmstrip band (Figma node 300:350). `auto 40px` + repeat-x keeps each
+   thumbnail at its real aspect ratio — they tile horizontally as the clip grows on
+   zoom instead of stretching. Dark gradient overlay uses a tokenized CSS var. */
+.playback-module__clip-filmstrip {
+  position: absolute;
+  left: var(--spacing-xs);
+  right: var(--spacing-xs);
+  top: 50%;
+  height: 40px;
+  transform: translateY(-50%);
+  background-size: auto 40px;
+  background-repeat: repeat-x;
+  background-position: left center;
+  pointer-events: none;
+}
+
+/* Audio clip — Figma "Audio Waveform": primary-900 base with white hairline frame.
+   Uses inset box-shadow (not border) so the hairline paints on top of the waveform
+   canvas and isn't clipped by the track's bottom separator. The top edge is omitted
+   so it doesn't double up with the video clip's bottom border at the track seam. */
 .playback-module__clip--audio {
-  background-color: var(--color-primary-700);
-  border: var(--stroke-width-md) solid var(--color-border-border-default);
+  background-color: var(--color-primary-900);
+  border: var(--stroke-width-sm) solid var(--color-primary-0);
 }
 
 .playback-module__waveform-clip {
@@ -565,7 +603,8 @@
   color: var(--color-text-placeholder);
 }
 
-/* Playhead: triangle + line. Layer 3: below labels/spacer, above media. */
+/* Playhead: triangle + line. Layer 3: below labels/spacer, above media.
+   Figma adds a soft drop-shadow (0 4px 4px primary-950) so the marker reads over imagery. */
 .playback-module__playhead {
   position: absolute;
   width: var(--spacing-md);
@@ -575,6 +614,7 @@
   align-items: center;
   pointer-events: auto;
   cursor: ew-resize;
+  filter: drop-shadow(0 4px 4px var(--color-primary-950));
 }
 
 .playback-module__playhead--line {
@@ -590,7 +630,7 @@
   min-height: 4px;
   margin-left: auto;
   margin-right: auto;
-  background-color: var(--color-grey-0);
+  background-color: var(--color-primary-0);
 }
 
 .playback-module__playhead--triangle {
@@ -611,7 +651,7 @@
   margin-right: auto;
   border-left: 6px solid transparent;
   border-right: 6px solid transparent;
-  border-top: var(--spacing-sm) solid var(--color-grey-0);
+  border-top: var(--spacing-sm) solid var(--color-primary-0);
 }
 
 /* In/Out markers and shaded region */
@@ -638,12 +678,15 @@
   z-index: 3;
 }
 
-/* Multiple highlight regions (from per-clip highlights). Consider adding --color-highlight-selection-bg to design-system.json. */
+/* Multiple highlight regions — Figma "Selection Box": translucent primary-0 fill
+   with solid white left/right rails (2px), no top/bottom border. */
 .playback-module__highlight-region {
   position: absolute;
   top: 0;
   bottom: 0;
-  background-color: rgba(255, 255, 255, 0.5);
+  background-color: var(--playback-highlight-selection-fill);
+  border-left: 2px solid var(--color-primary-0);
+  border-right: 2px solid var(--color-primary-0);
   pointer-events: auto;
   z-index: 2;
   display: flex;
@@ -652,6 +695,7 @@
   padding-left: var(--spacing-xxs);
   min-width: 0;
   cursor: default;
+  box-sizing: border-box;
 }
 
 .playback-module__highlight-region--selected {
@@ -676,9 +720,12 @@
   background-color: var(--color-success-600);
 }
 
-/* Segment-only view: no full-width overlay so ruler/video/waveform stay visible; handles still show at edges */
+/* Segment-only view: no full-width overlay so ruler/video/waveform stay visible; handles still show at edges.
+   Border removed here because segment handles already indicate in/out visually. */
 .playback-module__highlight-region--segment-mode {
   background-color: transparent;
+  border-left: none;
+  border-right: none;
   pointer-events: none;
 }
 

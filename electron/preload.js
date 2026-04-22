@@ -36,6 +36,7 @@ try {
     setMasterAudio: (mediaId, isMaster) => ipcRenderer.invoke('media:setMasterAudio', mediaId, isMaster),
     updateHighlights: (mediaId, highlights) => ipcRenderer.invoke('media:updateHighlights', mediaId, highlights),
     delete: (mediaId) => ipcRenderer.invoke('media:delete', mediaId),
+    getFilmstrip: (mediaId) => ipcRenderer.invoke('media:getFilmstrip', mediaId),
   },
 
   // Transcription

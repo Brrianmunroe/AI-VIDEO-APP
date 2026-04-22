@@ -15,9 +15,10 @@ import * as aiService from './services/aiService.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Register custom thumbnail and media protocols before app ready (required for protocol.handle)
+// Register custom thumbnail, filmstrip, and media protocols before app ready (required for protocol.handle)
 protocol.registerSchemesAsPrivileged([
   { scheme: 'thumbnail', privileges: { standard: true, secure: true, supportFetchAPI: true } },
+  { scheme: 'filmstrip', privileges: { standard: true, secure: true, supportFetchAPI: true } },
   { scheme: 'media', privileges: { standard: true, secure: true, supportFetchAPI: true } },
 ]);
 
@@ -139,6 +140,33 @@ app.whenReady().then(() => {
       });
     } catch (err) {
       console.warn('[Main] Thumbnail protocol error:', err?.message);
+      return new Response(null, { status: 500 });
+    }
+  });
+
+  // Serve filmstrip sprite images (lazy-generated per media; used as timeline video-track bg)
+  protocol.handle('filmstrip', async (request) => {
+    try {
+      const url = new URL(request.url);
+      const id = url.pathname.replace(/^\/+/, '').split('/')[0];
+      const mediaId = parseInt(id, 10);
+      if (!Number.isFinite(mediaId)) {
+        return new Response(null, { status: 404 });
+      }
+      const filmstripPath = await mediaService.getFilmstripPath(mediaId);
+      if (!filmstripPath) {
+        return new Response(null, { status: 404 });
+      }
+      const body = readFileSync(filmstripPath);
+      return new Response(body, {
+        status: 200,
+        headers: {
+          'Content-Type': 'image/jpeg',
+          'Cache-Control': 'public, max-age=31536000, immutable',
+        },
+      });
+    } catch (err) {
+      console.warn('[Main] Filmstrip protocol error:', err?.message);
       return new Response(null, { status: 500 });
     }
   });
@@ -415,6 +443,18 @@ ipcMain.handle('media:setMasterAudio', (event, mediaId, isMaster) => {
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('media:getFilmstrip', async (event, mediaId) => {
+  try {
+    const filmstripPath = await mediaService.getFilmstripPath(mediaId);
+    if (!filmstripPath) {
+      return { success: false, url: null };
+    }
+    return { success: true, url: `filmstrip://local/${mediaId}` };
+  } catch (error) {
+    return { success: false, error: error?.message || String(error) };
   }
 });
 

@@ -35,11 +35,17 @@ function TimelineRuler({
   frameToPx,
   rulerTicks,
   framesToTimecode,
+  onClick,
+  endFrame,
 }) {
   const effectivePx = Math.max(0.5, pixelsPerFrame);
   const tickStepFrames =
     rulerTicks.length >= 2 ? rulerTicks[1].frame - rulerTicks[0].frame : FPS;
-  const durationFrames = rulerTicks[rulerTicks.length - 1]?.frame ?? 0;
+  const lastTickFrame = rulerTicks[rulerTicks.length - 1]?.frame ?? 0;
+  /* endFrame lets the small-notch band run past the last major label tick so at low
+     zoom the notches continue all the way to the viewport edge. Falls back to the last
+     label tick when the ruler isn't extended. */
+  const durationFrames = Math.max(lastTickFrame, Math.floor(endFrame) || 0);
   const majorFrames = useMemo(
     () => new Set(rulerTicks.map((t) => t.frame)),
     [rulerTicks]
@@ -97,6 +103,7 @@ function TimelineRuler({
     <div
       className={`playback-module__timeline-ruler${showSmallNotches ? ' playback-module__timeline-ruler--small-notches' : ''}`}
       style={{ width: contentWidthPx }}
+      onClick={onClick}
     >
       <div className="playback-module__ruler-labels">
         {rulerTicks.map(({ frame }) => (
