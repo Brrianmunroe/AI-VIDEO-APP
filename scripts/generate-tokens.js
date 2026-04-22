@@ -260,6 +260,15 @@ if (designSystem['icon size']) {
   }
 }
 
+// Process shadow (emitted raw — composite value, not wrapped in quotes)
+css += '\n  /* Shadow / Elevation */\n';
+if (designSystem.shadow) {
+  for (const [shadowName, token] of Object.entries(designSystem.shadow)) {
+    const resolvedToken = getTokenValue(token);
+    css += `  ${toCSSVar(['shadow', shadowName])}: ${resolvedToken.$value};\n`;
+  }
+}
+
 // Add semantic aliases for backward compatibility (if needed)
 css += '\n  /* Semantic Color Aliases (for backward compatibility) */\n';
 if (designSystem.color?.blue) {
