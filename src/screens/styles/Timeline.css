@@ -8,6 +8,46 @@
   color: var(--color-text-heading);
 }
 
+.timeline__export-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  flex-shrink: 0;
+}
+
+.timeline__export-banner--success {
+  background-color: var(--color-green-900);
+  color: var(--color-text-heading);
+}
+
+.timeline__export-banner--error {
+  background-color: var(--color-red-900);
+  color: var(--color-text-heading);
+}
+
+.timeline__export-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.timeline__export-banner-dismiss {
+  background: none;
+  border: none;
+  color: var(--color-text-heading);
+  font-size: var(--font-size-heading-03);
+  line-height: 1;
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  margin: calc(-1 * var(--spacing-xs));
+}
+
+.timeline__export-banner-dismiss:hover {
+  opacity: 0.85;
+}
+
 /* Container: 16px margin (padding) all sides; 16px gap between columns and between internal elements */
 .timeline__main {
   flex: 1;

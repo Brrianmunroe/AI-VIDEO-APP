@@ -39,6 +39,15 @@
   padding-bottom: var(--spacing-md);
 }
 
+/* Tabs row: tabs on the left, version switcher on the right */
+.transcript-panel__tabs-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
 /* Tab bar (top toolbar) */
 .transcript-panel__tabs {
   display: flex;
@@ -50,6 +59,17 @@
   padding-right: 0;
   margin-left: 0;
   margin-right: 0;
+}
+
+/* Version switcher (right-aligned in the tabs row) */
+.transcript-panel__version-switcher {
+  display: flex;
+  align-items: center;
+  min-width: 96px;
+}
+
+.transcript-panel__version-switcher .dropdown {
+  min-width: 96px;
 }
 
 .transcript-panel__tab {

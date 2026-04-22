@@ -504,6 +504,43 @@ ipcMain.handle('export:openFolder', async (event, folderPath) => {
   }
 });
 
+// Selects version history
+ipcMain.handle('selects:getState', (event, projectId) => {
+  try {
+    const state = projectService.getSelectsState(projectId);
+    return { success: true, data: state };
+  } catch (error) {
+    return { success: false, error: error?.message || String(error) };
+  }
+});
+
+ipcMain.handle('selects:createVersion', (event, projectId, options) => {
+  try {
+    const state = projectService.createSelectsVersion(projectId, options || {});
+    return { success: true, data: state };
+  } catch (error) {
+    return { success: false, error: error?.message || String(error) };
+  }
+});
+
+ipcMain.handle('selects:setActiveVersion', (event, projectId, versionId) => {
+  try {
+    const state = projectService.setActiveSelectsVersion(projectId, versionId);
+    return { success: true, data: state };
+  } catch (error) {
+    return { success: false, error: error?.message || String(error) };
+  }
+});
+
+ipcMain.handle('selects:syncActiveFromMedia', (event, projectId) => {
+  try {
+    const state = projectService.updateActiveVersionFromMedia(projectId);
+    return { success: true, data: state };
+  } catch (error) {
+    return { success: false, error: error?.message || String(error) };
+  }
+});
+
 // AI (LLM-generated selects)
 ipcMain.handle('ai:generateSelects', async (event, payload) => {
   try {

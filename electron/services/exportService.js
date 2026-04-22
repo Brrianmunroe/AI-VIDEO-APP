@@ -22,6 +22,28 @@ const MEDIA_DIR = 'Media';
 const XML_FILENAME = 'Timeline.xml';
 const README_FILENAME = 'README.txt';
 
+/** Remove characters that are unsafe in macOS/Windows filenames; trim and collapse whitespace. */
+function sanitizeFolderName(name) {
+  const raw = (name == null ? '' : String(name)).trim();
+  const cleaned = raw
+    .replace(/[\/\\:*?"<>|\u0000-\u001F]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/[.\s]+$/, '')
+    .trim();
+  return cleaned.length > 0 ? cleaned : 'Timeline';
+}
+
+/** Return a folder path inside `parent` that does not exist yet, appending " 2", " 3", ... on collision. */
+function uniqueFolderPath(parent, baseName) {
+  let candidate = join(parent, baseName);
+  let n = 2;
+  while (existsSync(candidate)) {
+    candidate = join(parent, `${baseName} ${n}`);
+    n++;
+  }
+  return candidate;
+}
+
 /**
  * Assign unique filenames for copied media (dedupe by path, avoid basename collisions).
  * Returns Map: sourceFilePath -> filename in Media/
@@ -185,18 +207,21 @@ export async function exportFCPXMLPackage(browserWindow, projectId, payload, pro
     return { success: false, error: 'Window not available for dialog' };
   }
 
+  const folderName = sanitizeFolderName(projectName);
+
   const result = await dialog.showOpenDialog(browserWindow, {
-    title: 'Choose Export Folder for Premiere',
+    title: 'Choose Export Location for Premiere',
     properties: ['openDirectory', 'createDirectory'],
     buttonLabel: 'Select',
-    message: 'Export folder will contain Media/ and ' + XML_FILENAME + '. Create or select a folder.',
+    message: `A folder named "${folderName}" will be created here, containing Media/ and ${XML_FILENAME}.`,
   });
 
   if (result.canceled || !result.filePaths?.[0]) {
     return { success: false, canceled: true };
   }
 
-  const exportFolder = result.filePaths[0];
+  const parentFolder = result.filePaths[0];
+  const exportFolder = uniqueFolderPath(parentFolder, folderName);
   const mediaFolder = join(exportFolder, MEDIA_DIR);
 
   try {

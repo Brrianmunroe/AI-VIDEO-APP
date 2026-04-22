@@ -70,6 +70,17 @@ try {
       return () => ipcRenderer.removeListener('ai:generateSelects:progress', handler);
     },
   },
+
+  // Selects version history
+  selects: {
+    getState: (projectId) => ipcRenderer.invoke('selects:getState', projectId),
+    createVersion: (projectId, options) =>
+      ipcRenderer.invoke('selects:createVersion', projectId, options),
+    setActiveVersion: (projectId, versionId) =>
+      ipcRenderer.invoke('selects:setActiveVersion', projectId, versionId),
+    syncActiveFromMedia: (projectId) =>
+      ipcRenderer.invoke('selects:syncActiveFromMedia', projectId),
+  },
   });
   console.log('[Preload] electronAPI exposed successfully');
 } catch (error) {

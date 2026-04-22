@@ -57,7 +57,8 @@ function ProjectManagement({ onOpenProject }) {
 
   const handleProjectClick = (project) => {
     if (onOpenProject) {
-      onOpenProject(project);
+      const destination = project?.hasSelects ? 'timeline' : 'import';
+      onOpenProject(project, destination);
     }
   };
 

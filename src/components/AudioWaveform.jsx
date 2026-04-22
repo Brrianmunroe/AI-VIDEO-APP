@@ -69,12 +69,11 @@ const WaveformTile = React.memo(function WaveformTile({ mediaId, startSec, endSe
     const bgColor = getToken('--color-surface-page-surface-default') || getToken('--color-primary-950');
     const waveColor = getToken('--color-blue-400') || getToken('--color-surface-primary-button-surface-default');
 
-    ctx.imageSmoothingEnabled = false;
+    ctx.imageSmoothingEnabled = true;
     ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, drawW, drawH);
 
-    ctx.fillStyle = waveColor;
-    const padding = 2;
+    const padding = 1;
     const strokeWidth = 1;
     const midY = drawH / 2;
     const yMin = padding + strokeWidth / 2;
@@ -91,16 +90,24 @@ const WaveformTile = React.memo(function WaveformTile({ mediaId, startSec, endSe
     const dataCenter = (dataMin + dataMax) / 2;
     const scale = dataRange > 1e-9 ? drawableH / dataRange : 0;
 
+    // Premiere-style envelope: trace maxs left->right across the top,
+    // then mins right->left across the bottom, then close and fill.
+    const path = new Path2D();
     const colStep = colCount <= drawW ? 1 : colCount / Math.max(1, drawW);
+
+    path.moveTo(0, midY - (maxs[0] - dataCenter) * scale);
     for (let px = 0; px < drawW; px++) {
       const xi = Math.min(Math.floor(px * colStep), colCount - 1);
-      const minVal = mins[xi];
-      const maxVal = maxs[xi];
-      const topY = Math.round(midY - (maxVal - dataCenter) * scale);
-      const botY = Math.round(midY - (minVal - dataCenter) * scale);
-      const barH = Math.max(1, botY - topY);
-      ctx.fillRect(Math.round(px), topY, Math.max(1, Math.ceil(colStep)), barH);
+      path.lineTo(px, midY - (maxs[xi] - dataCenter) * scale);
     }
+    for (let px = drawW - 1; px >= 0; px--) {
+      const xi = Math.min(Math.floor(px * colStep), colCount - 1);
+      path.lineTo(px, midY - (mins[xi] - dataCenter) * scale);
+    }
+    path.closePath();
+
+    ctx.fillStyle = waveColor;
+    ctx.fill(path);
 
   }, [waveData, w, h]);
 

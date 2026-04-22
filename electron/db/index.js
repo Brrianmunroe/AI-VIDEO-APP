@@ -115,6 +115,14 @@ function runMigrations() {
   if (!hasSpeakerLabels) {
     db.exec('ALTER TABLE transcripts ADD COLUMN speaker_labels TEXT');
   }
+
+  // Add selects_versions to projects if missing (for existing databases)
+  const hasSelectsVersions = db.prepare(
+    "SELECT 1 FROM pragma_table_info('projects') WHERE name = 'selects_versions'"
+  ).get();
+  if (!hasSelectsVersions) {
+    db.exec('ALTER TABLE projects ADD COLUMN selects_versions TEXT');
+  }
 }
 
 /**

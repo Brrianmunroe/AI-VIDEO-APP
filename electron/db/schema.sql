@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS projects (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   context TEXT, -- JSON array of chat messages: [{"role": "user", "content": "..."}, ...]
+  selects_versions TEXT, -- JSON: { activeVersionId, lastStoryContext, lastDesiredDurationSec, versions: [{ id, label, createdAt, storyContext, desiredDurationSec, snapshot: { "<mediaId>": [highlight,...] } }] }
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

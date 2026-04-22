@@ -65,3 +65,14 @@
 .breadcrumb-current {
   color: var(--color-grey-400);
 }
+
+.project-header__actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.project-header__recut-button {
+  white-space: nowrap;
+}
